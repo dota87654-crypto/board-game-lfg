@@ -39,6 +39,13 @@ function showScreen(name) {
   if (name === 'room') roomScreen.classList.remove('hidden');
 }
 
+// datetime-local 전체 클릭 시 picker 열기
+document.querySelectorAll('input[type="datetime-local"]').forEach(input => {
+  input.addEventListener('click', () => {
+    if (typeof input.showPicker === 'function') input.showPicker();
+  });
+});
+
 // --- Theme ---
 const themeBtn = document.getElementById('theme-btn');
 
