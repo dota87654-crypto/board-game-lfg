@@ -276,7 +276,7 @@ function selectLocation(name, address) {
 
 locationClearBtn.addEventListener('click', clearLocation);
 
-const KAKAO_REST_KEY = 'KAKAO_REST_API_KEY';
+const KAKAO_REST_KEY = 'a0f311febe432b30263fb2b131e2b892';
 
 async function searchPlaces() {
   const query = locationSearchInput.value.trim();
