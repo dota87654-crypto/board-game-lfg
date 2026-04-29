@@ -60,8 +60,20 @@ async function init() {
 
 // ── 프로필 ───────────────────────────────────────────────────
 async function loadProfile(user) {
+  const meta = user.user_metadata || {};
+
+  // 프로필이 없으면 생성 (트리거 미실행 or 트리거 설정 전 가입 계정 대비)
+  const { error: upsertErr } = await sb.from('profiles').upsert({
+    id:         user.id,
+    username:   meta.full_name || meta.name || user.email?.split('@')[0] || '익명',
+    avatar_url: meta.avatar_url || meta.picture || null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' });
+
+  if (upsertErr) console.warn('profile upsert:', upsertErr.message);
+
   const { data } = await sb.from('profiles').select('*').eq('id', user.id).single();
-  me = { ...user, ...data };
+  me = { ...user, ...(data || {}) };
   renderUserUI();
 }
 
@@ -187,7 +199,7 @@ $('btn-submit').onclick = async () => {
 
   btn.disabled = false; btn.textContent = '방 만들기';
 
-  if (error) { console.error(error); alert('방 생성에 실패했습니다.'); return; }
+  if (error) { console.error(error); alert(`방 생성 실패: ${error.message}`); return; }
 
   // 호스트 자동 참여
   await sb.from('room_members').insert({ room_id: room.id, user_id: me.id });
