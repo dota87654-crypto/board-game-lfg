@@ -284,7 +284,7 @@ async function searchPlaces() {
   locationResults.classList.remove('hidden');
 
   try {
-    const res = await fetch(`/api/kakao-search?query=${encodeURIComponent(query)}`);
+    const res = await fetch(`https://board-game-lfg-kakao.dota87654.workers.dev?query=${encodeURIComponent(query)}`);
     const json = await res.json();
     locationResults.innerHTML = '';
 
