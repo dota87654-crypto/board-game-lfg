@@ -100,27 +100,33 @@ async function loadRooms() {
   const rooms = data || [];
 
   if (rooms.length > 0) {
-    // 인원수 + 호스트 이름 + 내 참여 방 한꺼번에 가져오기
     const roomIds = rooms.map(r => r.id);
+    const hostIds = [...new Set(rooms.map(r => r.host_id).filter(Boolean))];
 
-    const [{ data: members }, { data: myMemberships }, { data: profiles }] = await Promise.all([
+    const [membersRes, myRes, profilesRes] = await Promise.all([
       sb.from('room_members').select('room_id').in('room_id', roomIds),
       sb.from('room_members').select('room_id').in('room_id', roomIds).eq('user_id', currentUser.id),
-      sb.from('profiles').select('id, display_name').in('id', rooms.map(r => r.host_id))
+      sb.from('profiles').select('id, display_name').in('id', hostIds)
     ]);
 
-    const counts = {};
-    (members || []).forEach(m => { counts[m.room_id] = (counts[m.room_id] || 0) + 1; });
+    // 멤버 수 조회 성공했을 때만 member_count 설정 (실패 시 undefined 유지)
+    if (!membersRes.error) {
+      const counts = {};
+      (membersRes.data || []).forEach(m => { counts[m.room_id] = (counts[m.room_id] || 0) + 1; });
+      rooms.forEach(room => { room.member_count = counts[room.id] || 0; });
+    } else {
+      console.error('member count error:', membersRes.error);
+    }
 
-    const profileMap = {};
-    (profiles || []).forEach(p => { profileMap[p.id] = p.display_name; });
+    if (!myRes.error) {
+      myRoomIds = new Set((myRes.data || []).map(m => m.room_id));
+    }
 
-    myRoomIds = new Set((myMemberships || []).map(m => m.room_id));
-
-    rooms.forEach(room => {
-      room.member_count = counts[room.id] || 0;
-      room.host_name = profileMap[room.host_id] || '알 수 없음';
-    });
+    if (!profilesRes.error) {
+      const profileMap = {};
+      (profilesRes.data || []).forEach(p => { profileMap[p.id] = p.display_name; });
+      rooms.forEach(room => { room.host_name = profileMap[room.host_id] || '알 수 없음'; });
+    }
   }
 
   allRooms = rooms;
@@ -132,8 +138,8 @@ function renderRooms() {
     ? allRooms
     : allRooms.filter(r => r.category === currentFilter);
 
-  // 인원 0명인 방은 표시 안 함
-  filtered = filtered.filter(r => (r.member_count ?? 0) > 0);
+  // member_count가 명확히 0인 방만 숨김 (undefined면 표시)
+  filtered = filtered.filter(r => r.member_count === undefined || r.member_count > 0);
 
   if (filtered.length === 0) {
     roomsList.innerHTML = '<div class="empty-state"><p>방이 없습니다. 첫 번째로 방을 만들어보세요!</p></div>';
