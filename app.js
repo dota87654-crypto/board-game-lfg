@@ -276,8 +276,6 @@ function selectLocation(name, address) {
 
 locationClearBtn.addEventListener('click', clearLocation);
 
-const KAKAO_REST_KEY = 'a0f311febe432b30263fb2b131e2b892';
-
 async function searchPlaces() {
   const query = locationSearchInput.value.trim();
   if (!query) return;
@@ -286,10 +284,7 @@ async function searchPlaces() {
   locationResults.classList.remove('hidden');
 
   try {
-    const res = await fetch(
-      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=8`,
-      { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
-    );
+    const res = await fetch(`/api/kakao-search?query=${encodeURIComponent(query)}`);
     const json = await res.json();
     locationResults.innerHTML = '';
 
