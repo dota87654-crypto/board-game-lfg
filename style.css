@@ -216,6 +216,7 @@ main { padding: 24px 20px; }
   z-index: 200;
   padding: 20px;
 }
+#place-search-modal { z-index: 300; }
 
 .modal {
   background: var(--surface);
