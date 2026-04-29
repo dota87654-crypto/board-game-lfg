@@ -264,6 +264,17 @@ form label input {
 form label select:focus,
 form label input:focus { outline: none; border-color: var(--primary); }
 
+/* 다크모드: 달력 아이콘 흰색 */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+/* 라이트모드: 달력 아이콘 검정색 */
+body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0);
+}
+
 /* Room screen */
 #room-screen { display: flex; flex-direction: column; }
 
