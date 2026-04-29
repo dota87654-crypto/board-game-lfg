@@ -276,31 +276,29 @@ function selectLocation(name, address) {
 
 locationClearBtn.addEventListener('click', clearLocation);
 
-function searchPlaces() {
+const KAKAO_REST_KEY = 'KAKAO_REST_API_KEY';
+
+async function searchPlaces() {
   const query = locationSearchInput.value.trim();
   if (!query) return;
 
-  if (typeof kakao === 'undefined' || !kakao.maps?.services) {
-    locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 카카오맵 로드 실패. Kakao Developers에서 도메인을 등록해주세요.</div></div>';
-    locationResults.classList.remove('hidden');
-    console.error('kakao SDK not loaded');
-    return;
-  }
+  locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 중...</div></div>';
+  locationResults.classList.remove('hidden');
 
-  const ps = new kakao.maps.services.Places();
-  ps.keywordSearch(query, (data, status) => {
+  try {
+    const res = await fetch(
+      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=8`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
+    );
+    const json = await res.json();
     locationResults.innerHTML = '';
-    if (status === kakao.maps.services.Status.ZERO_RESULT || !data.length) {
+
+    if (!json.documents?.length) {
       locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 결과가 없습니다</div></div>';
-      locationResults.classList.remove('hidden');
       return;
     }
-    if (status === kakao.maps.services.Status.ERROR) {
-      locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 검색 중 오류가 발생했습니다</div></div>';
-      locationResults.classList.remove('hidden');
-      return;
-    }
-    data.slice(0, 8).forEach(place => {
+
+    json.documents.forEach(place => {
       const item = document.createElement('div');
       item.className = 'location-result-item';
       item.innerHTML = `
@@ -312,8 +310,10 @@ function searchPlaces() {
       });
       locationResults.appendChild(item);
     });
-    locationResults.classList.remove('hidden');
-  });
+  } catch (e) {
+    locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 검색 실패. 다시 시도해주세요.</div></div>';
+    console.error('place search error:', e);
+  }
 }
 
 locationSearchBtn.addEventListener('click', searchPlaces);
