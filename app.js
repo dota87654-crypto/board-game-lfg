@@ -246,21 +246,66 @@ const OFFLINE_CATEGORIES = new Set(['보드게임방', '개인소유']);
 const categorySelect = document.getElementById('category-select');
 const locationField = document.getElementById('location-field');
 const locationInput = document.getElementById('location-input');
+const locationSearchInput = document.getElementById('location-search-input');
 const locationSearchBtn = document.getElementById('location-search-btn');
+const locationResults = document.getElementById('location-results');
+const locationSelected = document.getElementById('location-selected');
+const locationSelectedText = document.getElementById('location-selected-text');
+const locationClearBtn = document.getElementById('location-clear-btn');
 
 categorySelect.addEventListener('change', () => {
   const isOffline = OFFLINE_CATEGORIES.has(categorySelect.value);
   locationField.classList.toggle('hidden', !isOffline);
-  if (!isOffline) locationInput.value = '';
+  if (!isOffline) clearLocation();
 });
 
-locationSearchBtn.addEventListener('click', () => {
-  new daum.Postcode({
-    oncomplete(data) {
-      locationInput.value = data.roadAddress || data.jibunAddress;
+function clearLocation() {
+  locationInput.value = '';
+  locationSearchInput.value = '';
+  locationResults.classList.add('hidden');
+  locationResults.innerHTML = '';
+  locationSelected.classList.add('hidden');
+}
+
+function selectLocation(name, address) {
+  locationInput.value = `${name} (${address})`;
+  locationSelectedText.textContent = `📍 ${name}  ${address}`;
+  locationResults.classList.add('hidden');
+  locationSelected.classList.remove('hidden');
+}
+
+locationClearBtn.addEventListener('click', clearLocation);
+
+function searchPlaces() {
+  const query = locationSearchInput.value.trim();
+  if (!query) return;
+
+  const ps = new kakao.maps.services.Places();
+  ps.keywordSearch(query, (data, status) => {
+    locationResults.innerHTML = '';
+    if (status !== kakao.maps.services.Status.OK || !data.length) {
+      locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 결과가 없습니다</div></div>';
+      locationResults.classList.remove('hidden');
+      return;
     }
-  }).open();
-});
+    data.slice(0, 8).forEach(place => {
+      const item = document.createElement('div');
+      item.className = 'location-result-item';
+      item.innerHTML = `
+        <div class="location-result-name">${escHtml(place.place_name)}</div>
+        <div class="location-result-addr">${escHtml(place.road_address_name || place.address_name)}</div>
+      `;
+      item.addEventListener('click', () => {
+        selectLocation(place.place_name, place.road_address_name || place.address_name);
+      });
+      locationResults.appendChild(item);
+    });
+    locationResults.classList.remove('hidden');
+  });
+}
+
+locationSearchBtn.addEventListener('click', searchPlaces);
+locationSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchPlaces(); } });
 
 openCreateBtn.addEventListener('click', () => createModal.classList.remove('hidden'));
 closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));

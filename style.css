@@ -265,6 +265,8 @@ form label input {
 form label select:focus,
 form label input:focus { outline: none; border-color: var(--primary); }
 
+#location-field label { margin-bottom: 6px; }
+
 .location-input-row {
   display: flex;
   gap: 8px;
@@ -273,8 +275,47 @@ form label input:focus { outline: none; border-color: var(--primary); }
 .location-input-row input {
   flex: 1;
   margin-top: 0 !important;
-  cursor: pointer;
 }
+
+.location-results {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.location-result-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.location-result-item:last-child { border-bottom: none; }
+.location-result-item:hover { background: var(--surface2); }
+.location-result-name { font-size: 0.9rem; font-weight: 600; }
+.location-result-addr { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
+.location-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.location-selected button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 4px;
+}
+.location-selected button:hover { color: var(--danger); }
 
 /* 다크모드: 달력 아이콘 흰색 */
 input[type="datetime-local"] { cursor: pointer; }

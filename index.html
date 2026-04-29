@@ -75,12 +75,20 @@
           <option value="스팀게임">스팀게임</option>
         </select>
       </label>
-      <label id="location-field" class="hidden">장소
-        <div class="location-input-row">
-          <input type="text" name="location" id="location-input" placeholder="주소를 검색하세요" readonly />
-          <button type="button" id="location-search-btn" class="btn btn-sm">검색</button>
+      <div id="location-field" class="hidden">
+        <label>장소
+          <div class="location-input-row">
+            <input type="text" id="location-search-input" placeholder="장소명으로 검색 (예: 레드버튼)" autocomplete="off" />
+            <button type="button" id="location-search-btn" class="btn btn-sm">검색</button>
+          </div>
+        </label>
+        <div id="location-results" class="location-results hidden"></div>
+        <div id="location-selected" class="location-selected hidden">
+          <span id="location-selected-text"></span>
+          <button type="button" id="location-clear-btn">✕</button>
         </div>
-      </label>
+        <input type="hidden" name="location" id="location-input" />
+      </div>
       <label>게임 이름
         <input type="text" name="game_name" placeholder="예: 카탄, 스플렌더..." required />
       </label>
@@ -123,7 +131,7 @@
   </div>
 </div>
 
-<script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=KAKAO_JS_KEY&libraries=services"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 </body>
