@@ -605,7 +605,7 @@ select.input option { background: var(--card); }
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
 <script>
 // ============================================================
 //  ★★★ 아래 두 줄을 Supabase 프로젝트 값으로 교체하세요 ★★★
@@ -652,23 +652,28 @@ async function init() {
     return;
   }
 
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  try {
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  sb.auth.onAuthStateChange(async (_event, session) => {
-    if (session?.user) {
-      await loadProfile(session.user);
-      showView('main');
-      subscribeList();
-      await fetchRooms(curCat);
-    } else {
-      me = null;
-      if (listChannel) sb.removeChannel(listChannel);
-      showView('auth');
-    }
-  });
+    sb.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        await loadProfile(session.user);
+        showView('main');
+        subscribeList();
+        await fetchRooms(curCat);
+      } else {
+        me = null;
+        if (listChannel) sb.removeChannel(listChannel);
+        showView('auth');
+      }
+    });
 
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) showView('auth');
+    const { data } = await sb.auth.getSession();
+    if (!data?.session) showView('auth');
+  } catch (err) {
+    console.error('초기화 오류:', err);
+    showView('auth');
+  }
 }
 
 // ── 프로필 ─────────────────────────────────────────────────
