@@ -24,6 +24,17 @@
   </div>
 </div>
 
+<!-- 닉네임 설정 화면 -->
+<div id="nickname-screen" class="screen hidden">
+  <div class="login-box">
+    <h2 style="margin-bottom:8px;">닉네임 설정</h2>
+    <p style="margin-bottom:24px;color:var(--text-muted);font-size:0.9rem;">사용할 닉네임을 입력해주세요 (2~16자)</p>
+    <input type="text" id="nickname-input" class="nickname-input" placeholder="닉네임을 입력하세요" maxlength="16" autocomplete="off" />
+    <div id="nickname-msg" class="nickname-msg"></div>
+    <button id="nickname-submit-btn" class="btn btn-primary" style="width:100%;margin-top:16px;">완료</button>
+  </div>
+</div>
+
 <!-- 메인 화면 -->
 <div id="main-screen" class="screen hidden">
   <header>
@@ -211,10 +222,20 @@
       <div class="profile-card">
         <img id="profile-avatar" class="profile-avatar" src="" alt="프로필 사진" />
         <div class="profile-info">
-          <div class="profile-row">
+          <div class="profile-row" id="profile-nickname-row">
             <span class="profile-label">닉네임</span>
             <span id="profile-nickname" class="profile-value"></span>
+            <button id="nickname-edit-btn" class="btn btn-sm" style="margin-left:auto;">변경</button>
           </div>
+          <div id="profile-nickname-edit-row" class="profile-row hidden">
+            <span class="profile-label">새 닉네임</span>
+            <input type="text" id="profile-nickname-input" class="nickname-input" maxlength="16" autocomplete="off" />
+            <div style="display:flex;gap:6px;margin-left:8px;">
+              <button id="nickname-save-btn" class="btn btn-sm btn-primary">저장</button>
+              <button id="nickname-cancel-btn" class="btn btn-sm">취소</button>
+            </div>
+          </div>
+          <div id="profile-nickname-msg" class="nickname-msg" style="padding:0 4px;"></div>
           <div class="profile-row">
             <span class="profile-label">이메일</span>
             <span id="profile-email" class="profile-value"></span>

@@ -8,14 +8,16 @@ let currentUser = null;
 let currentRoom = null;
 let currentFilter = '전체';
 let allRooms = [];
-let myRoomIds = new Set(); // 내가 참여 중인 방 ID
+let myRoomIds = new Set();
 let realtimeChannels = [];
+let currentNickname = '';
 
 // --- DOM refs ---
 const loginScreen = document.getElementById('login-screen');
 const mainScreen = document.getElementById('main-screen');
 const roomScreen = document.getElementById('room-screen');
 const profileScreen = document.getElementById('profile-screen');
+const nicknameScreen = document.getElementById('nickname-screen');
 const googleLoginBtn = document.getElementById('google-login-btn');
 const discordLoginBtn = document.getElementById('discord-login-btn');
 const userNameBtn = document.getElementById('user-name');
@@ -37,11 +39,12 @@ const sendBtn = document.getElementById('send-btn');
 
 // --- Screen helpers ---
 function showScreen(name) {
-  [loginScreen, mainScreen, roomScreen, profileScreen].forEach(s => s.classList.add('hidden'));
+  [loginScreen, mainScreen, roomScreen, profileScreen, nicknameScreen].forEach(s => s.classList.add('hidden'));
   if (name === 'login') loginScreen.classList.remove('hidden');
   if (name === 'main') mainScreen.classList.remove('hidden');
   if (name === 'room') roomScreen.classList.remove('hidden');
   if (name === 'profile') profileScreen.classList.remove('hidden');
+  if (name === 'nickname') nicknameScreen.classList.remove('hidden');
 }
 
 // datetime-local 전체 클릭 시 picker 열기
@@ -114,11 +117,22 @@ async function upsertProfile(user) {
 }
 
 async function onLogin(user) {
-  if (currentUser?.id === user.id) return; // 중복 호출 방지
+  if (currentUser?.id === user.id) return;
   currentUser = user;
   unsubscribeAll();
   await upsertProfile(user);
-  userNameBtn.textContent = user.user_metadata?.full_name || user.email;
+
+  const { data: profile } = await sb.from('profiles').select('nickname').eq('id', user.id).single();
+  if (profile?.nickname) {
+    currentNickname = profile.nickname;
+    goToMain();
+  } else {
+    showScreen('nickname');
+  }
+}
+
+function goToMain() {
+  userNameBtn.textContent = currentNickname || currentUser.user_metadata?.full_name || currentUser.email;
   showScreen('main');
   loadRooms();
   subscribeRooms();
@@ -651,6 +665,48 @@ function unsubscribeAll() {
   realtimeChannels = [];
 }
 
+// --- Nickname setup screen ---
+const nicknameInput = document.getElementById('nickname-input');
+const nicknameSubmitBtn = document.getElementById('nickname-submit-btn');
+const nicknameMsg = document.getElementById('nickname-msg');
+
+nicknameSubmitBtn.addEventListener('click', submitNickname);
+nicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitNickname(); });
+
+async function submitNickname() {
+  const nick = nicknameInput.value.trim();
+  if (nick.length < 2 || nick.length > 16) {
+    setNicknameMsg(nicknameMsg, '닉네임은 2~16자로 입력해주세요.', 'error');
+    return;
+  }
+  nicknameSubmitBtn.disabled = true;
+  const ok = await saveNickname(nick, nicknameMsg);
+  nicknameSubmitBtn.disabled = false;
+  if (ok) {
+    currentNickname = nick;
+    goToMain();
+  }
+}
+
+async function saveNickname(nick, msgEl) {
+  const { data: dup } = await sb.from('profiles').select('id').eq('nickname', nick).neq('id', currentUser.id).maybeSingle();
+  if (dup) {
+    setNicknameMsg(msgEl, '이미 사용 중인 닉네임이에요.', 'error');
+    return false;
+  }
+  const { error } = await sb.from('profiles').update({ nickname: nick }).eq('id', currentUser.id);
+  if (error) {
+    setNicknameMsg(msgEl, '저장에 실패했어요. 다시 시도해주세요.', 'error');
+    return false;
+  }
+  return true;
+}
+
+function setNicknameMsg(el, text, type) {
+  el.textContent = text;
+  el.className = `nickname-msg ${type}`;
+}
+
 // --- Profile ---
 userNameBtn.addEventListener('click', () => {
   renderProfile();
@@ -665,11 +721,10 @@ function renderProfile() {
   const provider = u.app_metadata?.provider || '';
 
   const avatarEl = document.getElementById('profile-avatar');
-  const avatarUrl = meta.avatar_url || '';
-  avatarEl.src = avatarUrl;
+  avatarEl.src = meta.avatar_url || '';
   avatarEl.onerror = () => { avatarEl.src = ''; avatarEl.style.background = 'var(--surface2)'; };
 
-  document.getElementById('profile-nickname').textContent = meta.full_name || meta.name || u.email?.split('@')[0] || '-';
+  document.getElementById('profile-nickname').textContent = currentNickname || '-';
   document.getElementById('profile-email').textContent = u.email || '-';
 
   const providerMap = { google: '🔵 Google', discord: '🟣 Discord' };
@@ -677,6 +732,61 @@ function renderProfile() {
 
   const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
   document.getElementById('profile-created').textContent = joined;
+
+  // 편집 행 초기화
+  document.getElementById('profile-nickname-edit-row').classList.add('hidden');
+  document.getElementById('profile-nickname-row').classList.remove('hidden');
+  const profileNicknameMsg = document.getElementById('profile-nickname-msg');
+  profileNicknameMsg.textContent = '';
+  profileNicknameMsg.className = 'nickname-msg';
+}
+
+// 프로필 닉네임 변경
+const nicknameEditBtn = document.getElementById('nickname-edit-btn');
+const nicknameEditRow = document.getElementById('profile-nickname-edit-row');
+const profileNicknameInput = document.getElementById('profile-nickname-input');
+const nicknameSaveBtn = document.getElementById('nickname-save-btn');
+const nicknameCancelBtn = document.getElementById('nickname-cancel-btn');
+const profileNicknameMsg = document.getElementById('profile-nickname-msg');
+
+nicknameEditBtn.addEventListener('click', () => {
+  profileNicknameInput.value = currentNickname;
+  document.getElementById('profile-nickname-row').classList.add('hidden');
+  nicknameEditRow.classList.remove('hidden');
+  profileNicknameMsg.textContent = '';
+  profileNicknameInput.focus();
+});
+
+nicknameCancelBtn.addEventListener('click', () => {
+  nicknameEditRow.classList.add('hidden');
+  document.getElementById('profile-nickname-row').classList.remove('hidden');
+  profileNicknameMsg.textContent = '';
+});
+
+nicknameSaveBtn.addEventListener('click', saveProfileNickname);
+profileNicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveProfileNickname(); });
+
+async function saveProfileNickname() {
+  const nick = profileNicknameInput.value.trim();
+  if (nick.length < 2 || nick.length > 16) {
+    setNicknameMsg(profileNicknameMsg, '닉네임은 2~16자로 입력해주세요.', 'error');
+    return;
+  }
+  if (nick === currentNickname) {
+    nicknameCancelBtn.click();
+    return;
+  }
+  nicknameSaveBtn.disabled = true;
+  const ok = await saveNickname(nick, profileNicknameMsg);
+  nicknameSaveBtn.disabled = false;
+  if (ok) {
+    currentNickname = nick;
+    userNameBtn.textContent = nick;
+    document.getElementById('profile-nickname').textContent = nick;
+    setNicknameMsg(profileNicknameMsg, '닉네임이 변경됐어요!', 'success');
+    nicknameEditRow.classList.add('hidden');
+    document.getElementById('profile-nickname-row').classList.remove('hidden');
+  }
 }
 
 // --- Friends ---
@@ -739,8 +849,8 @@ async function loadFriends() {
 
   const profileMap = {};
   if (allIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, display_name, email').in('id', allIds);
-    (profiles || []).forEach(p => { profileMap[p.id] = p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+    const { data: profiles } = await sb.from('profiles').select('id, display_name, email, nickname').in('id', allIds);
+    (profiles || []).forEach(p => { profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
   }
 
   friendsList = accepted.map(f => {
@@ -816,8 +926,8 @@ async function searchFriendUsers() {
   friendSearchBody.innerHTML = '<div class="empty-friends">검색 중...</div>';
 
   const { data } = await sb.from('profiles')
-    .select('id, display_name, email')
-    .ilike('display_name', `%${query}%`)
+    .select('id, display_name, email, nickname')
+    .ilike('nickname', `%${query}%`)
     .neq('id', currentUser.id)
     .limit(20);
 
@@ -838,7 +948,7 @@ async function searchFriendUsers() {
 
   friendSearchBody.innerHTML = '';
   data.forEach(user => {
-    const name = user.display_name || user.email?.split('@')[0] || '알 수 없음';
+    const name = user.nickname || user.display_name || user.email?.split('@')[0] || '알 수 없음';
     const alreadyRelated = existingSet.has(user.id);
     const el = document.createElement('div');
     el.className = 'friend-item';

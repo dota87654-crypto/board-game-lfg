@@ -128,6 +128,27 @@ header {
 }
 .btn-username:hover { background: var(--surface2); color: var(--text); }
 
+/* Nickname */
+.nickname-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.nickname-input:focus { border-color: var(--primary); }
+.nickname-msg {
+  font-size: 0.82rem;
+  margin-top: 8px;
+  min-height: 18px;
+}
+.nickname-msg.error { color: var(--danger); }
+.nickname-msg.success { color: var(--success); }
+
 /* Profile */
 .profile-card {
   max-width: 480px;
