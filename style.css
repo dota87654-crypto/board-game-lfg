@@ -282,7 +282,7 @@ form label input:focus { outline: none; border-color: var(--primary); }
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  max-height: 200px;
+  max-height: 360px;
   overflow-y: auto;
 }
 .location-result-item {
