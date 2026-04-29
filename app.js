@@ -280,11 +280,23 @@ function searchPlaces() {
   const query = locationSearchInput.value.trim();
   if (!query) return;
 
+  if (typeof kakao === 'undefined' || !kakao.maps?.services) {
+    locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 카카오맵 로드 실패. Kakao Developers에서 도메인을 등록해주세요.</div></div>';
+    locationResults.classList.remove('hidden');
+    console.error('kakao SDK not loaded');
+    return;
+  }
+
   const ps = new kakao.maps.services.Places();
   ps.keywordSearch(query, (data, status) => {
     locationResults.innerHTML = '';
-    if (status !== kakao.maps.services.Status.OK || !data.length) {
+    if (status === kakao.maps.services.Status.ZERO_RESULT || !data.length) {
       locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 결과가 없습니다</div></div>';
+      locationResults.classList.remove('hidden');
+      return;
+    }
+    if (status === kakao.maps.services.Status.ERROR) {
+      locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 검색 중 오류가 발생했습니다</div></div>';
       locationResults.classList.remove('hidden');
       return;
     }
