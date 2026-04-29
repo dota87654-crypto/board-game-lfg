@@ -109,6 +109,8 @@ async function onLogin(user) {
   showScreen('main');
   loadRooms();
   subscribeRooms();
+  loadFriends();
+  subscribeFriends();
 }
 
 function onLogout() {
@@ -634,6 +636,309 @@ function subscribeMembers(roomId) {
 function unsubscribeAll() {
   realtimeChannels.forEach(ch => sb.removeChannel(ch));
   realtimeChannels = [];
+}
+
+// --- Friends ---
+let friendsList = [];
+let pendingList = [];
+let dmFriendId = null;
+let dmChannel = null;
+const sentDmIds = new Set();
+
+const friendsBtn = document.getElementById('friends-btn');
+const friendsBadge = document.getElementById('friends-badge');
+const friendsModal = document.getElementById('friends-modal');
+const closeFriendsBtn = document.getElementById('close-friends-btn');
+const reqCountBadge = document.getElementById('req-count-badge');
+const friendsListBody = document.getElementById('friends-list-body');
+const friendsRequestsBody = document.getElementById('friends-requests-body');
+const friendSearchInput = document.getElementById('friend-search-input');
+const friendSearchBtn = document.getElementById('friend-search-btn');
+const friendSearchBody = document.getElementById('friend-search-body');
+const dmModal = document.getElementById('dm-modal');
+const closeDmBtn = document.getElementById('close-dm-btn');
+const dmTitle = document.getElementById('dm-title');
+const dmMessages = document.getElementById('dm-messages');
+const dmInput = document.getElementById('dm-input');
+const dmSendBtn = document.getElementById('dm-send-btn');
+
+friendsBtn.addEventListener('click', () => {
+  friendsModal.classList.remove('hidden');
+  loadFriends();
+});
+closeFriendsBtn.addEventListener('click', () => friendsModal.classList.add('hidden'));
+friendsModal.addEventListener('click', e => { if (e.target === friendsModal) friendsModal.classList.add('hidden'); });
+
+document.querySelectorAll('.friends-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.friends-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.ftab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(`ftab-${tab.dataset.tab}`).classList.remove('hidden');
+  });
+});
+
+friendSearchBtn.addEventListener('click', searchFriendUsers);
+friendSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchFriendUsers(); } });
+
+async function loadFriends() {
+  const { data, error } = await sb.from('friendships')
+    .select('id, requester_id, addressee_id, status')
+    .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`);
+
+  if (error) return;
+
+  const accepted = (data || []).filter(f => f.status === 'accepted');
+  const pending = (data || []).filter(f => f.status === 'pending' && f.addressee_id === currentUser.id);
+
+  const allIds = [...new Set([
+    ...accepted.map(f => f.requester_id === currentUser.id ? f.addressee_id : f.requester_id),
+    ...pending.map(f => f.requester_id)
+  ])];
+
+  const profileMap = {};
+  if (allIds.length > 0) {
+    const { data: profiles } = await sb.from('profiles').select('id, display_name, email').in('id', allIds);
+    (profiles || []).forEach(p => { profileMap[p.id] = p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+  }
+
+  friendsList = accepted.map(f => {
+    const fid = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
+    return { id: f.id, friendId: fid, name: profileMap[fid] || '알 수 없음' };
+  });
+
+  pendingList = pending.map(f => ({
+    id: f.id, requesterId: f.requester_id, name: profileMap[f.requester_id] || '알 수 없음'
+  }));
+
+  if (pendingList.length > 0) {
+    friendsBadge.textContent = pendingList.length;
+    friendsBadge.classList.remove('hidden');
+    reqCountBadge.textContent = pendingList.length;
+    reqCountBadge.classList.remove('hidden');
+  } else {
+    friendsBadge.classList.add('hidden');
+    reqCountBadge.classList.add('hidden');
+  }
+
+  renderFriendsList();
+  renderPendingList();
+}
+
+function renderFriendsList() {
+  if (friendsList.length === 0) {
+    friendsListBody.innerHTML = '<div class="empty-friends">아직 친구가 없어요.<br>유저 검색 탭에서 친구를 추가해보세요!</div>';
+    return;
+  }
+  friendsListBody.innerHTML = '';
+  friendsList.forEach(f => {
+    const el = document.createElement('div');
+    el.className = 'friend-item';
+    el.innerHTML = `
+      <span class="friend-item-name">${escHtml(f.name)}</span>
+      <div class="friend-item-actions">
+        <button class="btn btn-sm btn-primary" data-dm="${f.friendId}" data-name="${escHtml(f.name)}">💬 DM</button>
+        <button class="btn btn-sm btn-danger" data-remove="${f.id}">삭제</button>
+      </div>
+    `;
+    el.querySelector('[data-dm]').addEventListener('click', () => openDM(f.friendId, f.name));
+    el.querySelector('[data-remove]').addEventListener('click', () => removeFriend(f.id));
+    friendsListBody.appendChild(el);
+  });
+}
+
+function renderPendingList() {
+  if (pendingList.length === 0) {
+    friendsRequestsBody.innerHTML = '<div class="empty-friends">받은 친구 요청이 없어요.</div>';
+    return;
+  }
+  friendsRequestsBody.innerHTML = '';
+  pendingList.forEach(f => {
+    const el = document.createElement('div');
+    el.className = 'friend-item';
+    el.innerHTML = `
+      <span class="friend-item-name">${escHtml(f.name)}</span>
+      <div class="friend-item-actions">
+        <button class="btn btn-sm btn-primary" data-accept="${f.id}">수락</button>
+        <button class="btn btn-sm btn-danger" data-reject="${f.id}">거절</button>
+      </div>
+    `;
+    el.querySelector('[data-accept]').addEventListener('click', () => acceptRequest(f.id));
+    el.querySelector('[data-reject]').addEventListener('click', () => rejectRequest(f.id));
+    friendsRequestsBody.appendChild(el);
+  });
+}
+
+async function searchFriendUsers() {
+  const query = friendSearchInput.value.trim();
+  if (!query) return;
+  friendSearchBody.innerHTML = '<div class="empty-friends">검색 중...</div>';
+
+  const { data } = await sb.from('profiles')
+    .select('id, display_name, email')
+    .ilike('display_name', `%${query}%`)
+    .neq('id', currentUser.id)
+    .limit(20);
+
+  if (!data?.length) {
+    friendSearchBody.innerHTML = '<div class="empty-friends">검색 결과가 없어요.</div>';
+    return;
+  }
+
+  // 이미 친구이거나 요청 보낸 유저 ID 목록
+  const { data: existing } = await sb.from('friendships')
+    .select('requester_id, addressee_id, status')
+    .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`);
+
+  const existingSet = new Set();
+  (existing || []).forEach(f => {
+    existingSet.add(f.requester_id === currentUser.id ? f.addressee_id : f.requester_id);
+  });
+
+  friendSearchBody.innerHTML = '';
+  data.forEach(user => {
+    const name = user.display_name || user.email?.split('@')[0] || '알 수 없음';
+    const alreadyRelated = existingSet.has(user.id);
+    const el = document.createElement('div');
+    el.className = 'friend-item';
+    el.innerHTML = `
+      <span class="friend-item-name">${escHtml(name)}</span>
+      <button class="btn btn-sm ${alreadyRelated ? '' : 'btn-primary'}" ${alreadyRelated ? 'disabled' : ''} data-uid="${user.id}">
+        ${alreadyRelated ? '요청됨' : '친구 추가'}
+      </button>
+    `;
+    if (!alreadyRelated) {
+      el.querySelector('button').addEventListener('click', async () => {
+        await sendFriendRequest(user.id);
+        el.querySelector('button').disabled = true;
+        el.querySelector('button').textContent = '요청됨';
+      });
+    }
+    friendSearchBody.appendChild(el);
+  });
+}
+
+async function sendFriendRequest(addresseeId) {
+  const { error } = await sb.from('friendships').insert({ requester_id: currentUser.id, addressee_id: addresseeId });
+  if (error) alert('친구 요청 실패: ' + error.message);
+}
+
+async function acceptRequest(id) {
+  await sb.from('friendships').update({ status: 'accepted' }).eq('id', id);
+  await loadFriends();
+}
+
+async function rejectRequest(id) {
+  await sb.from('friendships').delete().eq('id', id);
+  await loadFriends();
+}
+
+async function removeFriend(id) {
+  await sb.from('friendships').delete().eq('id', id);
+  await loadFriends();
+}
+
+function subscribeFriends() {
+  const ch = sb.channel('friendships-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => loadFriends())
+    .subscribe();
+  realtimeChannels.push(ch);
+}
+
+// --- DM ---
+async function openDM(friendId, friendName) {
+  dmFriendId = friendId;
+  dmTitle.textContent = `💬 ${friendName}`;
+  dmMessages.innerHTML = '';
+  friendsModal.classList.add('hidden');
+  dmModal.classList.remove('hidden');
+  await loadDMMessages();
+  subscribeDM();
+  dmInput.focus();
+}
+
+closeDmBtn.addEventListener('click', () => {
+  dmModal.classList.add('hidden');
+  if (dmChannel) { sb.removeChannel(dmChannel); dmChannel = null; }
+  dmFriendId = null;
+});
+dmModal.addEventListener('click', e => {
+  if (e.target === dmModal) closeDmBtn.click();
+});
+
+async function loadDMMessages() {
+  const { data } = await sb.from('dm_messages')
+    .select('id, sender_id, content, created_at')
+    .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${dmFriendId}),and(sender_id.eq.${dmFriendId},receiver_id.eq.${currentUser.id})`)
+    .order('created_at', { ascending: true })
+    .limit(50);
+
+  const userIds = [...new Set((data || []).map(m => m.sender_id))];
+  const profileMap = {};
+  if (userIds.length > 0) {
+    const { data: profiles } = await sb.from('profiles').select('id, display_name, email').in('id', userIds);
+    (profiles || []).forEach(p => { profileMap[p.id] = p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+  }
+
+  dmMessages.innerHTML = '';
+  (data || []).forEach(msg => appendDMMessage(msg, profileMap[msg.sender_id] || '알 수 없음'));
+  dmMessages.scrollTop = dmMessages.scrollHeight;
+}
+
+function appendDMMessage(msg, senderName) {
+  const isMine = msg.sender_id === currentUser.id;
+  const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  const el = document.createElement('div');
+  el.className = `message ${isMine ? 'mine' : 'theirs'}`;
+  el.innerHTML = `
+    ${!isMine ? `<div class="message-author">${escHtml(senderName)}</div>` : ''}
+    <div class="message-bubble">${escHtml(msg.content)}</div>
+    <div class="message-time">${time}</div>
+  `;
+  dmMessages.appendChild(el);
+}
+
+async function sendDMMessage() {
+  const content = dmInput.value.trim();
+  if (!content || !dmFriendId) return;
+  dmInput.value = '';
+
+  const tempMsg = {
+    id: `temp-${Date.now()}`,
+    sender_id: currentUser.id,
+    content,
+    created_at: new Date().toISOString()
+  };
+  appendDMMessage(tempMsg, currentUser.user_metadata?.full_name || currentUser.email);
+  dmMessages.scrollTop = dmMessages.scrollHeight;
+
+  const { data, error } = await sb.from('dm_messages').insert({
+    sender_id: currentUser.id,
+    receiver_id: dmFriendId,
+    content
+  }).select('id').single();
+
+  if (error) { console.error('DM send error:', error); dmInput.value = content; }
+  else if (data?.id) sentDmIds.add(data.id);
+}
+
+dmSendBtn.addEventListener('click', sendDMMessage);
+dmInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDMMessage(); } });
+
+function subscribeDM() {
+  if (dmChannel) sb.removeChannel(dmChannel);
+  dmChannel = sb.channel(`dm-${[currentUser.id, dmFriendId].sort().join('-')}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages' }, async payload => {
+      const msg = payload.new;
+      if (!msg) return;
+      if (sentDmIds.has(msg.id)) { sentDmIds.delete(msg.id); return; }
+      if (msg.sender_id !== dmFriendId) return;
+      const { data: profile } = await sb.from('profiles').select('display_name, email').eq('id', msg.sender_id).single();
+      const name = profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음';
+      appendDMMessage(msg, name);
+      dmMessages.scrollTop = dmMessages.scrollHeight;
+    })
+    .subscribe();
 }
 
 // --- Util ---

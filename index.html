@@ -27,6 +27,7 @@
       <h1>🎲 보드게임 LFG</h1>
       <div class="header-right">
         <span id="user-name"></span>
+        <button id="friends-btn" class="btn btn-sm" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
         <button id="theme-btn" class="btn btn-sm" title="테마 변경">🌙</button>
         <button id="logout-btn" class="btn btn-sm">로그아웃</button>
       </div>
@@ -55,6 +56,49 @@
       <div id="rooms-list"></div>
     </div>
   </main>
+</div>
+
+<!-- 친구 모달 -->
+<div id="friends-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>친구</h3>
+      <button class="modal-close" id="close-friends-btn">&times;</button>
+    </div>
+    <div class="friends-tabs">
+      <button class="friends-tab active" data-tab="list">친구 목록</button>
+      <button class="friends-tab" data-tab="requests">받은 요청<span id="req-count-badge" class="friends-badge hidden"></span></button>
+      <button class="friends-tab" data-tab="search">유저 검색</button>
+    </div>
+    <div id="ftab-list" class="ftab-content">
+      <div id="friends-list-body"></div>
+    </div>
+    <div id="ftab-requests" class="ftab-content hidden">
+      <div id="friends-requests-body"></div>
+    </div>
+    <div id="ftab-search" class="ftab-content hidden">
+      <div class="location-input-row" style="margin-bottom:8px;">
+        <input type="text" id="friend-search-input" placeholder="닉네임으로 검색" autocomplete="off" />
+        <button type="button" id="friend-search-btn" class="btn btn-sm">검색</button>
+      </div>
+      <div id="friend-search-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DM 모달 -->
+<div id="dm-modal" class="modal-overlay hidden">
+  <div class="modal dm-modal">
+    <div class="modal-header">
+      <h3 id="dm-title">DM</h3>
+      <button class="modal-close" id="close-dm-btn">&times;</button>
+    </div>
+    <div id="dm-messages" class="dm-messages"></div>
+    <div class="chat-input-bar" style="padding:12px;">
+      <input type="text" id="dm-input" placeholder="메시지를 입력하세요..." />
+      <button id="dm-send-btn" class="btn btn-primary">전송</button>
+    </div>
+  </div>
 </div>
 
 <!-- 장소 검색 모달 -->
