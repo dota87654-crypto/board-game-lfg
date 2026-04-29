@@ -247,9 +247,6 @@ createRoomForm.addEventListener('submit', async e => {
 
   if (error) { alert('방 만들기 실패: ' + error.message); return; }
 
-  // Auto-join as host
-  await sb.from('room_members').insert({ room_id: room.id, user_id: currentUser.id });
-
   // allRooms에 즉시 추가 (목록 돌아올 때 바로 보이도록)
   room.member_count = 1;
   room.host_name = currentUser.user_metadata?.full_name || currentUser.email;
@@ -258,7 +255,7 @@ createRoomForm.addEventListener('submit', async e => {
 
   createModal.classList.add('hidden');
   createRoomForm.reset();
-  enterRoom(room);
+  enterRoom(room); // enterRoom 내부에서 upsert로 참여 처리
 });
 
 // --- Enter Room ---
@@ -275,10 +272,14 @@ async function enterRoom(room) {
   showScreen('room');
   messagesList.innerHTML = '';
 
-  // Join room
+  // 중복 없이 참여 (기존 행 있으면 무시)
   const { error: joinErr } = await sb.from('room_members')
-    .upsert({ room_id: room.id, user_id: currentUser.id }, { onConflict: 'room_id,user_id' });
-  if (joinErr) console.error('join error:', joinErr);
+    .insert({ room_id: room.id, user_id: currentUser.id })
+    .select()
+    .maybeSingle();
+  if (joinErr && !joinErr.message?.includes('duplicate') && !joinErr.code?.includes('23505')) {
+    console.error('join error:', joinErr);
+  }
 
   await loadMessages(room.id);
   await updateMemberCount(room.id);
@@ -302,9 +303,22 @@ leaveBtn.addEventListener('click', async () => {
   if (!currentRoom) return;
   const roomId = currentRoom.id;
 
-  await sb.from('room_members').delete()
+  const { error: delErr } = await sb.from('room_members').delete()
     .eq('room_id', roomId)
     .eq('user_id', currentUser.id);
+
+  if (delErr) {
+    console.error('leave error:', delErr);
+    alert('나가기 실패: ' + delErr.message);
+    return;
+  }
+
+  // 로컬 상태 즉시 반영 (목록에서 바로 숨김)
+  allRooms = allRooms.map(r => {
+    if (r.id === roomId) return { ...r, member_count: Math.max(0, (r.member_count || 1) - 1) };
+    return r;
+  });
+  myRoomIds.delete(roomId);
 
   // 남은 인원 확인 후 0명이면 방 삭제
   const { count } = await sb.from('room_members')
@@ -313,12 +327,14 @@ leaveBtn.addEventListener('click', async () => {
 
   if (count === 0) {
     await sb.from('rooms').delete().eq('id', roomId);
+    allRooms = allRooms.filter(r => r.id !== roomId);
   }
 
   currentRoom = null;
   unsubscribeAll();
   showScreen('main');
-  loadRooms();
+  renderRooms();   // 즉시 반영
+  loadRooms();     // DB 재확인
   subscribeRooms();
 });
 
