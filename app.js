@@ -91,16 +91,27 @@ sb.auth.onAuthStateChange((event, session) => {
 async function loadRooms() {
   const { data, error } = await sb
     .from('rooms')
-    .select(`
-      *,
-      profiles:host_id(display_name),
-      member_count:room_members(count)
-    `)
+    .select('*, profiles:host_id(display_name)')
     .eq('is_open', true)
     .order('created_at', { ascending: false });
 
   if (error) { console.error('loadRooms error:', error); return; }
-  allRooms = data || [];
+
+  const rooms = data || [];
+
+  // Fetch member counts separately (more reliable than embedded count)
+  if (rooms.length > 0) {
+    const { data: members } = await sb
+      .from('room_members')
+      .select('room_id')
+      .in('room_id', rooms.map(r => r.id));
+
+    const counts = {};
+    (members || []).forEach(m => { counts[m.room_id] = (counts[m.room_id] || 0) + 1; });
+    rooms.forEach(room => { room.member_count = counts[room.id] || 0; });
+  }
+
+  allRooms = rooms;
   renderRooms();
 }
 
@@ -115,7 +126,7 @@ function renderRooms() {
   }
 
   roomsList.innerHTML = filtered.map(room => {
-    const count = room.member_count?.[0]?.count ?? 0;
+    const count = room.member_count ?? 0;
     const isFull = count >= room.max_players;
     const countClass = isFull ? 'full' : 'current';
     const host = room.profiles?.display_name || '알 수 없음';
@@ -236,7 +247,8 @@ backBtn.addEventListener('click', () => {
   currentRoom = null;
   unsubscribeAll();
   showScreen('main');
-  loadRooms();
+  renderRooms();  // 즉시 현재 목록 표시
+  loadRooms();    // DB에서 최신 데이터 갱신
   subscribeRooms();
 });
 
