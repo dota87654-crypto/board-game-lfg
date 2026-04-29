@@ -8,6 +8,7 @@ let currentUser = null;
 let currentRoom = null;
 let currentFilter = '전체';
 let allRooms = [];
+let myRoomIds = new Set(); // 내가 참여 중인 방 ID
 let realtimeChannels = [];
 
 // --- DOM refs ---
@@ -91,24 +92,35 @@ sb.auth.onAuthStateChange((event, session) => {
 async function loadRooms() {
   const { data, error } = await sb
     .from('rooms')
-    .select('*, profiles:host_id(display_name)')
-    .eq('is_open', true)
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (error) { console.error('loadRooms error:', error); return; }
 
   const rooms = data || [];
 
-  // Fetch member counts separately (more reliable than embedded count)
   if (rooms.length > 0) {
-    const { data: members } = await sb
-      .from('room_members')
-      .select('room_id')
-      .in('room_id', rooms.map(r => r.id));
+    // 인원수 + 호스트 이름 + 내 참여 방 한꺼번에 가져오기
+    const roomIds = rooms.map(r => r.id);
+
+    const [{ data: members }, { data: myMemberships }, { data: profiles }] = await Promise.all([
+      sb.from('room_members').select('room_id').in('room_id', roomIds),
+      sb.from('room_members').select('room_id').in('room_id', roomIds).eq('user_id', currentUser.id),
+      sb.from('profiles').select('id, display_name').in('id', rooms.map(r => r.host_id))
+    ]);
 
     const counts = {};
     (members || []).forEach(m => { counts[m.room_id] = (counts[m.room_id] || 0) + 1; });
-    rooms.forEach(room => { room.member_count = counts[room.id] || 0; });
+
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p.display_name; });
+
+    myRoomIds = new Set((myMemberships || []).map(m => m.room_id));
+
+    rooms.forEach(room => {
+      room.member_count = counts[room.id] || 0;
+      room.host_name = profileMap[room.host_id] || '알 수 없음';
+    });
   }
 
   allRooms = rooms;
@@ -129,15 +141,19 @@ function renderRooms() {
     const count = room.member_count ?? 0;
     const isFull = count >= room.max_players;
     const countClass = isFull ? 'full' : 'current';
-    const host = room.profiles?.display_name || '알 수 없음';
+    const host = room.host_name || '알 수 없음';
+    const isMine = myRoomIds.has(room.id);
     const timeStr = room.scheduled_at
       ? new Date(room.scheduled_at).toLocaleString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
       : '';
     return `
-      <div class="room-card" data-id="${room.id}" data-full="${isFull}">
+      <div class="room-card${isMine ? ' my-room' : ''}" data-id="${room.id}">
         <div class="room-card-header">
           <div class="room-card-title">${escHtml(room.title)}</div>
-          <div class="room-card-cat">${escHtml(room.category)}</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            ${isMine ? '<span class="badge-mine">참여 중</span>' : ''}
+            <div class="room-card-cat">${escHtml(room.category)}</div>
+          </div>
         </div>
         <div class="room-card-game">🎮 ${escHtml(room.game_name)}</div>
         <div class="room-card-footer">
@@ -211,6 +227,12 @@ createRoomForm.addEventListener('submit', async e => {
 
   // Auto-join as host
   await sb.from('room_members').insert({ room_id: room.id, user_id: currentUser.id });
+
+  // allRooms에 즉시 추가 (목록 돌아올 때 바로 보이도록)
+  room.member_count = 1;
+  room.host_name = currentUser.user_metadata?.full_name || currentUser.email;
+  myRoomIds.add(room.id);
+  allRooms = [room, ...allRooms];
 
   createModal.classList.add('hidden');
   createRoomForm.reset();

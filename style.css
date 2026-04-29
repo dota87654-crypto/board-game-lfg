@@ -178,6 +178,16 @@ main { padding: 24px 20px; }
 .room-card-time { font-size: 0.8rem; color: var(--text-muted); }
 .room-card-host { font-size: 0.8rem; color: var(--text-muted); }
 
+.my-room { border-color: var(--primary); }
+.badge-mine {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  white-space: nowrap;
+}
+
 .empty-state { text-align: center; color: var(--text-muted); padding: 60px 0; grid-column: 1/-1; }
 .empty-state p { font-size: 1rem; }
 
