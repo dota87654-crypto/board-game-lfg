@@ -248,10 +248,20 @@ const locationField = document.getElementById('location-field');
 const locationInput = document.getElementById('location-input');
 const locationSearchInput = document.getElementById('location-search-input');
 const locationSearchBtn = document.getElementById('location-search-btn');
-const locationResults = document.getElementById('location-results');
 const locationSelected = document.getElementById('location-selected');
 const locationSelectedText = document.getElementById('location-selected-text');
 const locationClearBtn = document.getElementById('location-clear-btn');
+const placeSearchModal = document.getElementById('place-search-modal');
+const closePlaceSearchBtn = document.getElementById('close-place-search-btn');
+const placeSearchInput = document.getElementById('place-search-input');
+const placeSearchGoBtn = document.getElementById('place-search-go-btn');
+const placeSearchResults = document.getElementById('place-search-results');
+const placeSearchMoreWrap = document.getElementById('place-search-more-wrap');
+const placeSearchMoreBtn = document.getElementById('place-search-more-btn');
+
+let placeCurrentQuery = '';
+let placeCurrentPage = 1;
+let placeIsEnd = false;
 
 categorySelect.addEventListener('change', () => {
   const isOffline = OFFLINE_CATEGORIES.has(categorySelect.value);
@@ -262,34 +272,48 @@ categorySelect.addEventListener('change', () => {
 function clearLocation() {
   locationInput.value = '';
   locationSearchInput.value = '';
-  locationResults.classList.add('hidden');
-  locationResults.innerHTML = '';
   locationSelected.classList.add('hidden');
 }
 
 function selectLocation(name, address) {
   locationInput.value = `${name} (${address})`;
   locationSelectedText.textContent = `📍 ${name}  ${address}`;
-  locationResults.classList.add('hidden');
   locationSelected.classList.remove('hidden');
+  placeSearchModal.classList.add('hidden');
 }
 
 locationClearBtn.addEventListener('click', clearLocation);
 
-async function searchPlaces() {
-  const query = locationSearchInput.value.trim();
+function openPlaceSearchModal() {
+  placeSearchInput.value = locationSearchInput.value;
+  placeSearchResults.innerHTML = '';
+  placeSearchMoreWrap.classList.add('hidden');
+  placeCurrentPage = 1;
+  placeIsEnd = false;
+  placeSearchModal.classList.remove('hidden');
+  placeSearchInput.focus();
+  if (placeSearchInput.value.trim()) fetchPlaces(true);
+}
+
+async function fetchPlaces(reset) {
+  const query = placeSearchInput.value.trim();
   if (!query) return;
 
-  locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 중...</div></div>';
-  locationResults.classList.remove('hidden');
+  if (reset) {
+    placeCurrentQuery = query;
+    placeCurrentPage = 1;
+    placeSearchResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 중...</div></div>';
+    placeSearchMoreWrap.classList.add('hidden');
+  }
 
   try {
-    const res = await fetch(`https://board-game-lfg-kakao.dota87654.workers.dev?query=${encodeURIComponent(query)}`);
+    const res = await fetch(`https://board-game-lfg-kakao.dota87654.workers.dev?query=${encodeURIComponent(placeCurrentQuery)}&page=${placeCurrentPage}`);
     const json = await res.json();
-    locationResults.innerHTML = '';
 
-    if (!json.documents?.length) {
-      locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 결과가 없습니다</div></div>';
+    if (reset) placeSearchResults.innerHTML = '';
+
+    if (!json.documents?.length && reset) {
+      placeSearchResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 결과가 없습니다</div></div>';
       return;
     }
 
@@ -301,18 +325,28 @@ async function searchPlaces() {
         <div class="location-result-addr">${escHtml(place.road_address_name || place.address_name)}</div>
       `;
       item.addEventListener('click', () => {
+        locationSearchInput.value = place.place_name;
         selectLocation(place.place_name, place.road_address_name || place.address_name);
       });
-      locationResults.appendChild(item);
+      placeSearchResults.appendChild(item);
     });
+
+    placeIsEnd = json.meta?.is_end ?? true;
+    placeSearchMoreWrap.classList.toggle('hidden', placeIsEnd);
+    placeCurrentPage++;
   } catch (e) {
-    locationResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 검색 실패. 다시 시도해주세요.</div></div>';
+    if (reset) placeSearchResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 검색 실패. 다시 시도해주세요.</div></div>';
     console.error('place search error:', e);
   }
 }
 
-locationSearchBtn.addEventListener('click', searchPlaces);
-locationSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchPlaces(); } });
+locationSearchBtn.addEventListener('click', openPlaceSearchModal);
+locationSearchInput.addEventListener('click', openPlaceSearchModal);
+placeSearchGoBtn.addEventListener('click', () => fetchPlaces(true));
+placeSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fetchPlaces(true); } });
+placeSearchMoreBtn.addEventListener('click', () => fetchPlaces(false));
+closePlaceSearchBtn.addEventListener('click', () => placeSearchModal.classList.add('hidden'));
+placeSearchModal.addEventListener('click', e => { if (e.target === placeSearchModal) placeSearchModal.classList.add('hidden'); });
 
 openCreateBtn.addEventListener('click', () => createModal.classList.remove('hidden'));
 closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));

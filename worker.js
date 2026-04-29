@@ -13,6 +13,7 @@ export default {
 
     const url = new URL(request.url);
     const query = url.searchParams.get('query');
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
 
     if (!query) {
       return new Response(JSON.stringify({ error: 'query is required' }), {
@@ -21,26 +22,15 @@ export default {
       });
     }
 
-    const allDocuments = [];
-    let page = 1;
-    let isEnd = false;
-    let lastStatus = 200;
+    const kakaoRes = await fetch(
+      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=15&page=${page}`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
+    );
 
-    while (!isEnd && page <= 3) {
-      const kakaoRes = await fetch(
-        `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=15&page=${page}`,
-        { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
-      );
-      lastStatus = kakaoRes.status;
-      const data = await kakaoRes.json();
-      if (!kakaoRes.ok || !data.documents) break;
-      allDocuments.push(...data.documents);
-      isEnd = data.meta.is_end;
-      page++;
-    }
+    const data = await kakaoRes.json();
 
-    return new Response(JSON.stringify({ documents: allDocuments, meta: { total_count: allDocuments.length, is_end: true } }), {
-      status: lastStatus,
+    return new Response(JSON.stringify(data), {
+      status: kakaoRes.status,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',

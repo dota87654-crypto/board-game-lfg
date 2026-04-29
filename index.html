@@ -57,6 +57,26 @@
   </main>
 </div>
 
+<!-- 장소 검색 모달 -->
+<div id="place-search-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>장소 검색</h3>
+      <button class="modal-close" id="close-place-search-btn">&times;</button>
+    </div>
+    <div class="place-search-body">
+      <div class="location-input-row">
+        <input type="text" id="place-search-input" placeholder="장소명으로 검색" autocomplete="off" />
+        <button type="button" id="place-search-go-btn" class="btn btn-sm">검색</button>
+      </div>
+      <div id="place-search-results" class="place-search-results"></div>
+      <div id="place-search-more-wrap" class="hidden" style="text-align:center;padding:10px 0;">
+        <button type="button" id="place-search-more-btn" class="btn btn-sm">더 보기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 방 만들기 모달 -->
 <div id="create-modal" class="modal-overlay hidden">
   <div class="modal">
@@ -78,11 +98,10 @@
       <div id="location-field" class="hidden">
         <label>장소
           <div class="location-input-row">
-            <input type="text" id="location-search-input" placeholder="장소명으로 검색 (예: 레드버튼)" autocomplete="off" />
+            <input type="text" id="location-search-input" placeholder="장소명으로 검색 (예: 레드버튼)" autocomplete="off" readonly />
             <button type="button" id="location-search-btn" class="btn btn-sm">검색</button>
           </div>
         </label>
-        <div id="location-results" class="location-results hidden"></div>
         <div id="location-selected" class="location-selected hidden">
           <span id="location-selected-text"></span>
           <button type="button" id="location-clear-btn">✕</button>

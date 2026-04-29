@@ -277,12 +277,12 @@ form label input:focus { outline: none; border-color: var(--primary); }
   margin-top: 0 !important;
 }
 
-.location-results {
-  margin-top: 6px;
+.place-search-body { display: flex; flex-direction: column; gap: 10px; }
+.place-search-results {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  max-height: 360px;
+  max-height: 400px;
   overflow-y: auto;
 }
 .location-result-item {
