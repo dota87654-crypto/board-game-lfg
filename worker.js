@@ -21,15 +21,26 @@ export default {
       });
     }
 
-    const kakaoRes = await fetch(
-      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=8`,
-      { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
-    );
+    const allDocuments = [];
+    let page = 1;
+    let isEnd = false;
+    let lastStatus = 200;
 
-    const data = await kakaoRes.json();
+    while (!isEnd && page <= 3) {
+      const kakaoRes = await fetch(
+        `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=15&page=${page}`,
+        { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
+      );
+      lastStatus = kakaoRes.status;
+      const data = await kakaoRes.json();
+      if (!kakaoRes.ok || !data.documents) break;
+      allDocuments.push(...data.documents);
+      isEnd = data.meta.is_end;
+      page++;
+    }
 
-    return new Response(JSON.stringify(data), {
-      status: kakaoRes.status,
+    return new Response(JSON.stringify({ documents: allDocuments, meta: { total_count: allDocuments.length, is_end: true } }), {
+      status: lastStatus,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
