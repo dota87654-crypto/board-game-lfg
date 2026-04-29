@@ -272,14 +272,16 @@ async function enterRoom(room) {
   showScreen('room');
   messagesList.innerHTML = '';
 
-  // 중복 없이 참여 (기존 행 있으면 무시)
-  const { error: joinErr } = await sb.from('room_members')
+  // 다른 방에 참여 중이면 먼저 모두 나가기
+  await sb.from('room_members').delete()
+    .eq('user_id', currentUser.id)
+    .neq('room_id', room.id);
+
+  // 현재 방 참여 (이미 있으면 무시)
+  await sb.from('room_members')
     .insert({ room_id: room.id, user_id: currentUser.id })
     .select()
     .maybeSingle();
-  if (joinErr && !joinErr.message?.includes('duplicate') && !joinErr.code?.includes('23505')) {
-    console.error('join error:', joinErr);
-  }
 
   await loadMessages(room.id);
   await updateMemberCount(room.id);
