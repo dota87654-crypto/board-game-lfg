@@ -132,6 +132,9 @@ function renderRooms() {
     ? allRooms
     : allRooms.filter(r => r.category === currentFilter);
 
+  // 인원 0명인 방은 표시 안 함
+  filtered = filtered.filter(r => (r.member_count ?? 0) > 0);
+
   if (filtered.length === 0) {
     roomsList.innerHTML = '<div class="empty-state"><p>방이 없습니다. 첫 번째로 방을 만들어보세요!</p></div>';
     return;
@@ -278,9 +281,21 @@ backBtn.addEventListener('click', () => {
 const leaveBtn = document.getElementById('leave-btn');
 leaveBtn.addEventListener('click', async () => {
   if (!currentRoom) return;
+  const roomId = currentRoom.id;
+
   await sb.from('room_members').delete()
-    .eq('room_id', currentRoom.id)
+    .eq('room_id', roomId)
     .eq('user_id', currentUser.id);
+
+  // 남은 인원 확인 후 0명이면 방 삭제
+  const { count } = await sb.from('room_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('room_id', roomId);
+
+  if (count === 0) {
+    await sb.from('rooms').delete().eq('id', roomId);
+  }
+
   currentRoom = null;
   unsubscribeAll();
   showScreen('main');
