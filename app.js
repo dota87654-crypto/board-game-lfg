@@ -16,6 +16,7 @@ const loginScreen = document.getElementById('login-screen');
 const mainScreen = document.getElementById('main-screen');
 const roomScreen = document.getElementById('room-screen');
 const googleLoginBtn = document.getElementById('google-login-btn');
+const discordLoginBtn = document.getElementById('discord-login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const userNameEl = document.getElementById('user-name');
 const roomsList = document.getElementById('rooms-list');
@@ -73,6 +74,14 @@ themeBtn.addEventListener('click', () => {
 googleLoginBtn.addEventListener('click', async () => {
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
+    options: { redirectTo: location.origin }
+  });
+  if (error) alert('로그인 오류: ' + error.message);
+});
+
+discordLoginBtn.addEventListener('click', async () => {
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'discord',
     options: { redirectTo: location.origin }
   });
   if (error) alert('로그인 오류: ' + error.message);

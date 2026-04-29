@@ -77,6 +77,25 @@ body {
 }
 .btn-google:hover { opacity: 0.9; }
 
+.btn-discord {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 20px;
+  background: #5865F2;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 12px;
+}
+.btn-discord:hover { opacity: 0.9; }
+
 /* Header */
 header {
   background: var(--surface);
