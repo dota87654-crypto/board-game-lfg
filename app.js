@@ -231,13 +231,22 @@ async function enterRoom(room) {
   subscribeMembers(room.id);
 }
 
-backBtn.addEventListener('click', async () => {
-  if (currentRoom) {
-    // Leave room
-    await sb.from('room_members').delete()
-      .eq('room_id', currentRoom.id)
-      .eq('user_id', currentUser.id);
-  }
+// 목록 버튼: 방 유지하고 목록으로만 이동
+backBtn.addEventListener('click', () => {
+  currentRoom = null;
+  unsubscribeAll();
+  showScreen('main');
+  loadRooms();
+  subscribeRooms();
+});
+
+// 나가기 버튼: room_members에서 삭제 후 목록으로
+const leaveBtn = document.getElementById('leave-btn');
+leaveBtn.addEventListener('click', async () => {
+  if (!currentRoom) return;
+  await sb.from('room_members').delete()
+    .eq('room_id', currentRoom.id)
+    .eq('user_id', currentUser.id);
   currentRoom = null;
   unsubscribeAll();
   showScreen('main');

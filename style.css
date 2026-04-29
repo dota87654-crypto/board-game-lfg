@@ -109,6 +109,8 @@ header {
 }
 .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .btn-sm { padding: 6px 12px; font-size: 0.85rem; }
+.btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
 
 /* Main */
 main { padding: 24px 20px; }
