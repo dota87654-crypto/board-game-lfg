@@ -39,6 +39,29 @@ function showScreen(name) {
   if (name === 'room') roomScreen.classList.remove('hidden');
 }
 
+// --- Theme ---
+const themeBtn = document.getElementById('theme-btn');
+
+function applyTheme(mode) {
+  if (mode === 'light') {
+    document.body.classList.add('light');
+    themeBtn.textContent = '☀️';
+  } else {
+    document.body.classList.remove('light');
+    themeBtn.textContent = '🌙';
+  }
+}
+
+// 저장된 테마 적용
+applyTheme(localStorage.getItem('theme') || 'dark');
+
+themeBtn.addEventListener('click', () => {
+  const isLight = document.body.classList.contains('light');
+  const next = isLight ? 'dark' : 'light';
+  localStorage.setItem('theme', next);
+  applyTheme(next);
+});
+
 // --- Auth ---
 googleLoginBtn.addEventListener('click', async () => {
   const { error } = await sb.auth.signInWithOAuth({
