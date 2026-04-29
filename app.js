@@ -286,18 +286,39 @@ function scrollToBottom() {
 }
 
 // --- Send message ---
+const sentMessageIds = new Set();
+
 async function sendMessage() {
   const content = chatInput.value.trim();
   if (!content || !currentRoom) return;
   chatInput.value = '';
 
-  const { error } = await sb.from('messages').insert({
+  // Optimistic: render immediately
+  const tempMsg = {
+    id: `temp-${Date.now()}`,
+    user_id: currentUser.id,
+    content,
+    type: 'text',
+    created_at: new Date().toISOString(),
+    profiles: { display_name: currentUser.user_metadata?.full_name || currentUser.email }
+  };
+  appendMessage(tempMsg);
+  scrollToBottom();
+
+  const { data, error } = await sb.from('messages').insert({
     room_id: currentRoom.id,
     user_id: currentUser.id,
     content,
     type: 'text'
-  });
-  if (error) { console.error('sendMessage error:', error); chatInput.value = content; }
+  }).select('id').single();
+
+  if (error) {
+    console.error('sendMessage error:', error);
+    chatInput.value = content;
+  } else if (data?.id) {
+    // Mark real ID so realtime event doesn't duplicate it
+    sentMessageIds.add(data.id);
+  }
 }
 
 sendBtn.addEventListener('click', sendMessage);
@@ -334,7 +355,12 @@ function subscribeChat(roomId) {
     }, async payload => {
       const msg = payload.new;
       if (!msg) return;
-      // Fetch author name
+      // Skip messages we already rendered optimistically
+      if (sentMessageIds.has(msg.id)) {
+        sentMessageIds.delete(msg.id);
+        return;
+      }
+      // Fetch author name for others' messages
       const { data: profile } = await sb.from('profiles').select('display_name').eq('id', msg.user_id).single();
       msg.profiles = profile;
       appendMessage(msg);
