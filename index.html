@@ -674,14 +674,24 @@ async function init() {
 // ── 프로필 ─────────────────────────────────────────────────
 async function loadProfile(user) {
   const meta = user.user_metadata || {};
-  await sb.from('profiles').upsert({
-    id:         user.id,
+  // me를 미리 세팅해서 이후 코드에서 null이 되지 않도록 함
+  me = {
+    ...user,
     username:   meta.full_name || meta.name || user.email?.split('@')[0] || '익명',
     avatar_url: meta.avatar_url || meta.picture || null,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' });
-  const { data } = await sb.from('profiles').select('*').eq('id', user.id).single();
-  me = { ...user, ...(data || {}) };
+  };
+  try {
+    await sb.from('profiles').upsert({
+      id:         user.id,
+      username:   me.username,
+      avatar_url: me.avatar_url,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+    const { data } = await sb.from('profiles').select('*').eq('id', user.id).single();
+    if (data) me = { ...user, ...data };
+  } catch (err) {
+    console.warn('프로필 동기화 오류:', err.message);
+  }
   renderUserUI();
 }
 
@@ -692,8 +702,14 @@ function renderUserUI() {
 }
 
 // ── 인증 ───────────────────────────────────────────────────
-$('btn-google-login').onclick = () =>
-  sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin } });
+$('btn-google-login').onclick = async () => {
+  if (!sb) { alert('앱 초기화 중입니다. 잠시 후 다시 시도해주세요.'); return; }
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: location.origin }
+  });
+  if (error) alert('Google 로그인 실패: ' + error.message);
+};
 
 $('btn-logout').onclick = async () => {
   if (roomChannel) sb.removeChannel(roomChannel);
@@ -758,12 +774,16 @@ document.querySelectorAll('.cat-tab').forEach(tab => {
 });
 
 // ── 방 만들기 ──────────────────────────────────────────────
-$('btn-create-room').onclick = () => { $('modal-create').hidden = false; };
+$('btn-create-room').onclick = () => {
+  if (!me) { showView('auth'); return; }
+  $('modal-create').hidden = false;
+};
 $('btn-modal-close').onclick = closeModal;
 $('btn-cancel').onclick      = closeModal;
 function closeModal() { $('modal-create').hidden = true; }
 
 $('btn-submit').onclick = async () => {
+  if (!me) { closeModal(); showView('auth'); return; }
   const title = $('f-title').value.trim();
   const game  = $('f-game').value.trim();
   const cat   = $('f-category').value;
