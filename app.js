@@ -106,7 +106,9 @@ async function loadRooms() {
     const [membersRes, myRes, profilesRes] = await Promise.all([
       sb.from('room_members').select('room_id').in('room_id', roomIds),
       sb.from('room_members').select('room_id').in('room_id', roomIds).eq('user_id', currentUser.id),
-      sb.from('profiles').select('id, display_name').in('id', hostIds)
+      hostIds.length > 0
+        ? sb.from('profiles').select('id, display_name').in('id', hostIds)
+        : Promise.resolve({ data: [], error: null })
     ]);
 
     // 멤버 수 조회 성공했을 때만 member_count 설정 (실패 시 undefined 유지)
@@ -134,7 +136,7 @@ async function loadRooms() {
 }
 
 function renderRooms() {
-  const filtered = currentFilter === '전체'
+  let filtered = currentFilter === '전체'
     ? allRooms
     : allRooms.filter(r => r.category === currentFilter);
 
@@ -312,13 +314,25 @@ leaveBtn.addEventListener('click', async () => {
 // --- Messages ---
 async function loadMessages(roomId) {
   const { data, error } = await sb.from('messages')
-    .select('*, profiles:user_id(display_name)')
+    .select('*')
     .eq('room_id', roomId)
     .order('created_at', { ascending: true });
 
   if (error) { console.error('loadMessages error:', error); return; }
+
+  const msgs = data || [];
+
+  // 메시지 작성자 프로필 별도 조회
+  const userIds = [...new Set(msgs.map(m => m.user_id).filter(Boolean))];
+  if (userIds.length > 0) {
+    const { data: profiles } = await sb.from('profiles').select('id, display_name').in('id', userIds);
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p.display_name; });
+    msgs.forEach(m => { m.profiles = { display_name: profileMap[m.user_id] || '알 수 없음' }; });
+  }
+
   messagesList.innerHTML = '';
-  (data || []).forEach(msg => appendMessage(msg));
+  msgs.forEach(msg => appendMessage(msg));
   scrollToBottom();
 }
 
