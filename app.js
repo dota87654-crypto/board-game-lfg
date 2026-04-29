@@ -208,6 +208,7 @@ function renderRooms() {
           </div>
         </div>
         <div class="room-card-game">🎮 ${escHtml(room.game_name)}</div>
+        ${room.location ? `<div class="room-card-location">📍 ${escHtml(room.location)}</div>` : ''}
         <div class="room-card-footer">
           <div class="room-card-count">
             <span class="${countClass}">${count}</span> / ${room.max_players} 명
@@ -241,6 +242,26 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 });
 
 // --- Create Room ---
+const OFFLINE_CATEGORIES = new Set(['보드게임방', '개인소유']);
+const categorySelect = document.getElementById('category-select');
+const locationField = document.getElementById('location-field');
+const locationInput = document.getElementById('location-input');
+const locationSearchBtn = document.getElementById('location-search-btn');
+
+categorySelect.addEventListener('change', () => {
+  const isOffline = OFFLINE_CATEGORIES.has(categorySelect.value);
+  locationField.classList.toggle('hidden', !isOffline);
+  if (!isOffline) locationInput.value = '';
+});
+
+locationSearchBtn.addEventListener('click', () => {
+  new daum.Postcode({
+    oncomplete(data) {
+      locationInput.value = data.roadAddress || data.jibunAddress;
+    }
+  }).open();
+});
+
 openCreateBtn.addEventListener('click', () => createModal.classList.remove('hidden'));
 closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));
 createModal.addEventListener('click', e => { if (e.target === createModal) createModal.classList.add('hidden'); });
@@ -262,12 +283,15 @@ createRoomForm.addEventListener('submit', async e => {
   submitBtn.disabled = true;
   submitBtn.textContent = '생성 중...';
 
+  const location = (fd.get('location') || '').trim() || null;
+
   const { data: room, error } = await sb.from('rooms').insert({
     title,
     game_name,
     category,
     max_players,
     scheduled_at: scheduled_at || null,
+    location,
     host_id: currentUser.id,
     is_open: true
   }).select().single();

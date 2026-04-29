@@ -66,7 +66,7 @@
     </div>
     <form id="create-room-form">
       <label>카테고리
-        <select name="category" required>
+        <select name="category" id="category-select" required>
           <option value="">선택하세요</option>
           <option value="보드게임방">보드게임방</option>
           <option value="개인소유">개인소유</option>
@@ -74,6 +74,12 @@
           <option value="BGA">BGA</option>
           <option value="스팀게임">스팀게임</option>
         </select>
+      </label>
+      <label id="location-field" class="hidden">장소
+        <div class="location-input-row">
+          <input type="text" name="location" id="location-input" placeholder="주소를 검색하세요" readonly />
+          <button type="button" id="location-search-btn" class="btn btn-sm">검색</button>
+        </div>
       </label>
       <label>게임 이름
         <input type="text" name="game_name" placeholder="예: 카탄, 스플렌더..." required />
@@ -117,6 +123,7 @@
   </div>
 </div>
 
+<script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 </body>
