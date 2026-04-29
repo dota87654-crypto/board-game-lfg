@@ -605,7 +605,7 @@ select.input option { background: var(--card); }
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 // ============================================================
 //  ★★★ 아래 두 줄을 Supabase 프로젝트 값으로 교체하세요 ★★★
@@ -708,12 +708,20 @@ function renderUserUI() {
 
 // ── 인증 ───────────────────────────────────────────────────
 $('btn-google-login').onclick = async () => {
-  if (!sb) { alert('앱 초기화 중입니다. 잠시 후 다시 시도해주세요.'); return; }
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: location.origin }
-  });
-  if (error) alert('Google 로그인 실패: ' + error.message);
+  if (!sb) {
+    alert('Supabase 연결 실패.\nURL과 Key를 확인하거나 페이지를 새로고침해주세요.');
+    return;
+  }
+  try {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin }
+    });
+    if (error) alert('Google 로그인 실패: ' + error.message);
+    // 성공하면 자동으로 Google 페이지로 이동 (이 줄은 실행 안 됨)
+  } catch (e) {
+    alert('로그인 오류: ' + e.message);
+  }
 };
 
 $('btn-logout').onclick = async () => {
@@ -780,7 +788,7 @@ document.querySelectorAll('.cat-tab').forEach(tab => {
 
 // ── 방 만들기 ──────────────────────────────────────────────
 $('btn-create-room').onclick = () => {
-  if (!me) { showView('auth'); return; }
+  if (!me) { alert('먼저 로그인해주세요.'); showView('auth'); return; }
   $('modal-create').hidden = false;
 };
 $('btn-modal-close').onclick = closeModal;
