@@ -15,10 +15,13 @@ let realtimeChannels = [];
 const loginScreen = document.getElementById('login-screen');
 const mainScreen = document.getElementById('main-screen');
 const roomScreen = document.getElementById('room-screen');
+const profileScreen = document.getElementById('profile-screen');
 const googleLoginBtn = document.getElementById('google-login-btn');
 const discordLoginBtn = document.getElementById('discord-login-btn');
+const userNameBtn = document.getElementById('user-name');
+const profileBackBtn = document.getElementById('profile-back-btn');
 const logoutBtn = document.getElementById('logout-btn');
-const userNameEl = document.getElementById('user-name');
+
 const roomsList = document.getElementById('rooms-list');
 const openCreateBtn = document.getElementById('open-create-btn');
 const closeCreateBtn = document.getElementById('close-create-btn');
@@ -34,10 +37,11 @@ const sendBtn = document.getElementById('send-btn');
 
 // --- Screen helpers ---
 function showScreen(name) {
-  [loginScreen, mainScreen, roomScreen].forEach(s => s.classList.add('hidden'));
+  [loginScreen, mainScreen, roomScreen, profileScreen].forEach(s => s.classList.add('hidden'));
   if (name === 'login') loginScreen.classList.remove('hidden');
   if (name === 'main') mainScreen.classList.remove('hidden');
   if (name === 'room') roomScreen.classList.remove('hidden');
+  if (name === 'profile') profileScreen.classList.remove('hidden');
 }
 
 // datetime-local 전체 클릭 시 picker 열기
@@ -114,7 +118,7 @@ async function onLogin(user) {
   currentUser = user;
   unsubscribeAll();
   await upsertProfile(user);
-  userNameEl.textContent = user.user_metadata?.full_name || user.email;
+  userNameBtn.textContent = user.user_metadata?.full_name || user.email;
   showScreen('main');
   loadRooms();
   subscribeRooms();
@@ -645,6 +649,34 @@ function subscribeMembers(roomId) {
 function unsubscribeAll() {
   realtimeChannels.forEach(ch => sb.removeChannel(ch));
   realtimeChannels = [];
+}
+
+// --- Profile ---
+userNameBtn.addEventListener('click', () => {
+  renderProfile();
+  showScreen('profile');
+});
+
+profileBackBtn.addEventListener('click', () => showScreen('main'));
+
+function renderProfile() {
+  const u = currentUser;
+  const meta = u.user_metadata || {};
+  const provider = u.app_metadata?.provider || '';
+
+  const avatarEl = document.getElementById('profile-avatar');
+  const avatarUrl = meta.avatar_url || '';
+  avatarEl.src = avatarUrl;
+  avatarEl.onerror = () => { avatarEl.src = ''; avatarEl.style.background = 'var(--surface2)'; };
+
+  document.getElementById('profile-nickname').textContent = meta.full_name || meta.name || u.email?.split('@')[0] || '-';
+  document.getElementById('profile-email').textContent = u.email || '-';
+
+  const providerMap = { google: '🔵 Google', discord: '🟣 Discord' };
+  document.getElementById('profile-provider').textContent = providerMap[provider] || provider || '-';
+
+  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+  document.getElementById('profile-created').textContent = joined;
 }
 
 // --- Friends ---

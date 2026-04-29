@@ -30,7 +30,7 @@
     <div class="header-inner">
       <h1>🎲 보드게임 LFG</h1>
       <div class="header-right">
-        <span id="user-name"></span>
+        <button id="user-name" class="btn-username"></button>
         <button id="friends-btn" class="btn btn-sm" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
         <button id="theme-btn" class="btn btn-sm" title="테마 변경">🌙</button>
         <button id="logout-btn" class="btn btn-sm">로그아웃</button>
@@ -196,6 +196,41 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- 프로필 화면 -->
+<div id="profile-screen" class="screen hidden">
+  <header>
+    <div class="header-inner">
+      <button id="profile-back-btn" class="btn btn-sm">← 뒤로</button>
+      <h2 style="flex:1;">내 프로필</h2>
+    </div>
+  </header>
+  <main>
+    <div class="container">
+      <div class="profile-card">
+        <img id="profile-avatar" class="profile-avatar" src="" alt="프로필 사진" />
+        <div class="profile-info">
+          <div class="profile-row">
+            <span class="profile-label">닉네임</span>
+            <span id="profile-nickname" class="profile-value"></span>
+          </div>
+          <div class="profile-row">
+            <span class="profile-label">이메일</span>
+            <span id="profile-email" class="profile-value"></span>
+          </div>
+          <div class="profile-row">
+            <span class="profile-label">로그인 방식</span>
+            <span id="profile-provider" class="profile-value"></span>
+          </div>
+          <div class="profile-row">
+            <span class="profile-label">가입일</span>
+            <span id="profile-created" class="profile-value"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
