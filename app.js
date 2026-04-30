@@ -146,6 +146,7 @@ function goToMain() {
   initDMUnread();
   subscribeGlobalDM();
   resumeRoomSubscription();
+  initRoomUnread();
 }
 
 async function resumeRoomSubscription() {
@@ -725,8 +726,45 @@ function subscribeChatNotif(roomId) {
     .subscribe();
 }
 
-function clearRoomUnread(roomId) {
+async function initRoomUnread() {
+  const { data: member } = await sb.from('room_members')
+    .select('room_id')
+    .eq('user_id', currentUser.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (!member?.room_id) return;
+  const roomId = member.room_id;
+
+  const { data: read } = await sb.from('room_reads')
+    .select('last_read_at')
+    .eq('user_id', currentUser.id)
+    .eq('room_id', roomId)
+    .maybeSingle();
+
+  let query = sb.from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('room_id', roomId)
+    .neq('user_id', currentUser.id);
+
+  if (read?.last_read_at) query = query.gt('created_at', read.last_read_at);
+
+  const { count } = await query;
+  if (count > 0) {
+    roomUnreadMap[roomId] = count;
+    renderRooms();
+  }
+}
+
+async function clearRoomUnread(roomId) {
   delete roomUnreadMap[roomId];
+  sb.from('room_reads').upsert({
+    user_id: currentUser.id,
+    room_id: roomId,
+    last_read_at: new Date().toISOString()
+  }, { onConflict: 'user_id,room_id' }).then(({ error }) => {
+    if (error) console.error('clearRoomUnread error:', error);
+  });
 }
 
 function unsubscribeAll() {
