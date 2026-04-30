@@ -1868,17 +1868,21 @@ async function searchFriendUsers() {
     el.className = 'friend-item';
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(name)}</span>
-      <button class="btn btn-sm ${alreadyRelated ? '' : 'btn-primary'}" ${alreadyRelated ? 'disabled' : ''} data-uid="${user.id}">
-        ${alreadyRelated ? t('btn.requested') : t('btn.add-friend')}
-      </button>
+      <div class="friend-item-actions">
+        <button class="btn btn-sm ${alreadyRelated ? '' : 'btn-primary'}" ${alreadyRelated ? 'disabled' : ''} data-add>
+          ${alreadyRelated ? t('btn.requested') : t('btn.add-friend')}
+        </button>
+        ${currentRoom ? `<button class="btn btn-sm btn-primary" data-invite>${t('btn.invite')}</button>` : ''}
+      </div>
     `;
     if (!alreadyRelated) {
-      el.querySelector('button').addEventListener('click', async () => {
+      el.querySelector('[data-add]').addEventListener('click', async () => {
         await sendFriendRequest(user.id);
-        el.querySelector('button').disabled = true;
-        el.querySelector('button').textContent = '요청됨';
+        el.querySelector('[data-add]').disabled = true;
+        el.querySelector('[data-add]').textContent = t('btn.requested');
       });
     }
+    if (currentRoom) el.querySelector('[data-invite]').addEventListener('click', () => inviteFriend(user.id, name));
     friendSearchBody.appendChild(el);
   });
 }
