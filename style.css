@@ -713,6 +713,34 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   color: var(--text);
   word-break: break-word;
 }
+.member-clickable { cursor: pointer; }
+.member-clickable:hover { color: var(--primary); text-decoration: underline; }
+
+/* Context menu */
+.member-context-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  z-index: 500;
+  min-width: 140px;
+  overflow: hidden;
+}
+.ctx-menu-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ctx-menu-item:hover { background: var(--surface2); }
+.ctx-menu-item.danger { color: var(--danger); }
 @media (max-width: 480px) {
   .members-panel { width: 100%; }
 }

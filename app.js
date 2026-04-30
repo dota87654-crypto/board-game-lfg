@@ -62,6 +62,9 @@ const TRANSLATIONS = {
     'room.leave.err': '나가기 실패: ', 'login.err': '로그인 오류: ', 'friend.req.err': '친구 요청 실패: ',
     'unknown': '알 수 없음', 'time.yesterday': '어제', 'time.days-ago': '%s일 전',
     'members.title': '참여 인원', 'title.members': '참여 인원',
+    'ctx.add-friend': '친구 추가', 'ctx.dm': 'DM 보내기',
+    'ctx.kick': '강퇴', 'ctx.block': '차단', 'ctx.unblock': '차단 해제',
+    'kick.notice': '방에서 강퇴되었습니다.', 'block.dm.err': '차단한 유저에게는 DM을 보낼 수 없어요.',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -125,6 +128,9 @@ const TRANSLATIONS = {
     'room.leave.err': 'Failed to leave: ', 'login.err': 'Login error: ', 'friend.req.err': 'Friend request failed: ',
     'unknown': 'Unknown', 'time.yesterday': 'Yesterday', 'time.days-ago': '%s days ago',
     'members.title': 'Members', 'title.members': 'Members',
+    'ctx.add-friend': 'Add Friend', 'ctx.dm': 'Send DM',
+    'ctx.kick': 'Kick', 'ctx.block': 'Block', 'ctx.unblock': 'Unblock',
+    'kick.notice': 'You have been kicked from the room.', 'block.dm.err': 'Cannot send DM to a blocked user.',
   },
 };
 
@@ -172,7 +178,9 @@ const SUPABASE_KEY = 'sb_publishable_qD9MADOLO1AdQgTY4KUvTA_ogSu_rTl';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- State ---
-const USER_ICON_SVG = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#4a8fe8" fill-opacity="0.15"/><circle cx="16" cy="12" r="5" fill="#4a8fe8"/><path d="M7 28c0-4.97 4.03-9 9-9s9 4.03 9 9H7z" fill="#4a8fe8"/></svg>`;
+function userIconSvg(color) {
+  return `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="${color}" fill-opacity="0.15"/><circle cx="16" cy="12" r="5" fill="${color}"/><path d="M7 28c0-4.97 4.03-9 9-9s9 4.03 9 9H7z" fill="${color}"/></svg>`;
+}
 
 let currentUser = null;
 let currentRoom = null;
@@ -187,6 +195,7 @@ let chatNotifChannel = null;
 let participatingRoomId = null;
 let roomUnreadMap = {};
 let currentRoomMembers = [];
+let blockedSet = new Set();
 
 // --- DOM refs ---
 const loginScreen = document.getElementById('login-screen');
@@ -328,6 +337,7 @@ function goToMain() {
   subscribeGlobalDM();
   resumeRoomSubscription();
   initRoomUnread();
+  loadBlocks();
 }
 
 async function resumeRoomSubscription() {
@@ -349,6 +359,8 @@ function onLogout() {
   participatingRoomId = null;
   dmUnreadMap = {};
   roomUnreadMap = {};
+  blockedSet = new Set();
+  currentRoomMembers = [];
   if (globalDMChannel) { sb.removeChannel(globalDMChannel); globalDMChannel = null; }
   if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
   unsubscribeAll();
@@ -888,6 +900,7 @@ async function loadMessages(roomId) {
 }
 
 function appendMessage(msg) {
+  if (msg.user_id && msg.user_id !== currentUser?.id && blockedSet.has(msg.user_id)) return;
   const isMine = msg.user_id === currentUser?.id;
   const name = msg.profiles?.display_name || '알 수 없음';
   const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
@@ -955,10 +968,16 @@ chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKe
 
 // --- Member list panel ---
 async function loadRoomMembers(roomId) {
-  const { data } = await sb.from('room_members')
+  const { data, error } = await sb.from('room_members')
     .select('user_id, joined_at')
     .eq('room_id', roomId)
     .order('joined_at', { ascending: true });
+  if (error) return;
+  // 강퇴 감지: 현재 유저가 멤버 목록에 없으면 강퇴된 것
+  if (participatingRoomId === roomId && data && !data.some(m => m.user_id === currentUser?.id)) {
+    handleKicked();
+    return;
+  }
   if (!data?.length) { currentRoomMembers = []; renderMembersPanel(); return; }
   const userIds = data.map(m => m.user_id);
   const { data: profiles } = await sb.from('profiles')
@@ -978,15 +997,100 @@ async function loadRoomMembers(roomId) {
 function renderMembersPanel() {
   const body = document.getElementById('members-panel-body');
   if (!body) return;
-  body.innerHTML = currentRoomMembers.map(m => {
+  body.innerHTML = '';
+  currentRoomMembers.forEach(m => {
     const isHost = m.user_id === currentRoom?.host_id;
-    return `
-      <div class="member-item">
-        ${USER_ICON_SVG}
-        <span class="member-name">${isHost ? '👑 ' : ''}${escHtml(m.nickname)}</span>
-      </div>
+    const isSelf = m.user_id === currentUser?.id;
+    const isFriend = friendsList.some(f => f.friendId === m.user_id);
+    const color = isSelf ? '#9ba3bf' : isFriend ? '#4caf7d' : '#4a8fe8';
+    const el = document.createElement('div');
+    el.className = 'member-item';
+    el.innerHTML = `
+      ${userIconSvg(color)}
+      <span class="member-name${isSelf ? '' : ' member-clickable'}">${isHost ? '👑 ' : ''}${escHtml(m.nickname)}</span>
     `;
-  }).join('');
+    if (!isSelf) {
+      el.querySelector('.member-clickable').addEventListener('click', e => {
+        e.stopPropagation();
+        showMemberContextMenu(e, m);
+      });
+    }
+    body.appendChild(el);
+  });
+}
+
+function showMemberContextMenu(event, member) {
+  const menu = document.getElementById('member-context-menu');
+  const isFriend = friendsList.some(f => f.friendId === member.user_id);
+  const isBlocked = blockedSet.has(member.user_id);
+  const isRoomHost = currentRoom?.host_id === currentUser?.id;
+  const isMemberHost = member.user_id === currentRoom?.host_id;
+
+  menu.innerHTML = '';
+  if (!isFriend) addCtxItem(menu, t('ctx.add-friend'), () => { sendFriendRequest(member.user_id); hideContextMenu(); });
+  if (isFriend)  addCtxItem(menu, t('ctx.dm'),         () => { openDM(member.user_id, member.nickname); hideContextMenu(); });
+  if (isRoomHost && !isMemberHost) addCtxItem(menu, t('ctx.kick'), () => { kickMember(member.user_id); hideContextMenu(); }, true);
+  addCtxItem(menu, isBlocked ? t('ctx.unblock') : t('ctx.block'), () => {
+    if (isBlocked) unblockUser(member.user_id); else blockUser(member.user_id);
+    hideContextMenu();
+  }, !isBlocked);
+
+  menu.classList.remove('hidden');
+  const x = Math.min(event.clientX, window.innerWidth - 160);
+  const y = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8);
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+}
+
+function addCtxItem(menu, text, onClick, isDanger = false) {
+  const btn = document.createElement('button');
+  btn.className = `ctx-menu-item${isDanger ? ' danger' : ''}`;
+  btn.textContent = text;
+  btn.addEventListener('click', e => { e.stopPropagation(); onClick(); });
+  menu.appendChild(btn);
+}
+
+function hideContextMenu() {
+  document.getElementById('member-context-menu')?.classList.add('hidden');
+}
+
+async function loadBlocks() {
+  if (!currentUser) return;
+  const { data } = await sb.from('blocks').select('blocked_id').eq('blocker_id', currentUser.id);
+  blockedSet = new Set((data || []).map(b => b.blocked_id));
+}
+
+async function blockUser(userId) {
+  const { error } = await sb.from('blocks').insert({ blocker_id: currentUser.id, blocked_id: userId });
+  if (!error) { blockedSet.add(userId); renderMembersPanel(); }
+}
+
+async function unblockUser(userId) {
+  await sb.from('blocks').delete().eq('blocker_id', currentUser.id).eq('blocked_id', userId);
+  blockedSet.delete(userId);
+  renderMembersPanel();
+}
+
+async function kickMember(userId) {
+  if (!currentRoom) return;
+  const { error } = await sb.from('room_members').delete()
+    .eq('room_id', currentRoom.id).eq('user_id', userId);
+  if (error) console.error('kick error:', error);
+}
+
+async function handleKicked() {
+  if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
+  unsubscribeAll();
+  currentRoom = null;
+  participatingRoomId = null;
+  currentRoomMembers = [];
+  roomUnreadMap = {};
+  document.getElementById('members-panel').classList.remove('open');
+  showScreen('main');
+  renderRooms();
+  await loadRooms();
+  subscribeRooms();
+  alert(t('kick.notice'));
 }
 
 // --- Member count ---
@@ -1269,6 +1373,8 @@ closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hi
 settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
 
 document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
+
+document.addEventListener('click', hideContextMenu);
 
 // --- Members panel ---
 document.getElementById('members-panel-btn').addEventListener('click', () => {
@@ -1815,6 +1921,7 @@ function appendDMMessage(msg, senderName) {
 async function sendDMMessage() {
   const content = dmInput.value.trim();
   if (!content || !dmFriendId) return;
+  if (blockedSet.has(dmFriendId)) { alert(t('block.dm.err')); return; }
   dmInput.value = '';
 
   const tempMsg = {
