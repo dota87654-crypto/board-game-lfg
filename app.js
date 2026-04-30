@@ -644,7 +644,7 @@ function subscribeChat(roomId) {
         sentMessageIds.delete(msg.id);
         return;
       }
-      // Fetch author name for others' messages
+      playChat();
       const { data: profile } = await sb.from('profiles').select('display_name, email').eq('id', msg.user_id).single();
       msg.profiles = { display_name: profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음' };
       appendMessage(msg);
@@ -657,11 +657,23 @@ function subscribeChat(roomId) {
 function subscribeMembers(roomId) {
   const ch = sb.channel(`members-${roomId}`)
     .on('postgres_changes', {
-      event: '*',
+      event: 'INSERT',
       schema: 'public',
       table: 'room_members',
       filter: `room_id=eq.${roomId}`
-    }, () => updateMemberCount(roomId))
+    }, payload => {
+      if (payload.new?.user_id !== currentUser.id) playJoin();
+      updateMemberCount(roomId);
+    })
+    .on('postgres_changes', {
+      event: 'DELETE',
+      schema: 'public',
+      table: 'room_members',
+      filter: `room_id=eq.${roomId}`
+    }, () => {
+      playLeave();
+      updateMemberCount(roomId);
+    })
     .subscribe();
   realtimeChannels.push(ch);
 }
@@ -670,6 +682,91 @@ function unsubscribeAll() {
   realtimeChannels.forEach(ch => sb.removeChannel(ch));
   realtimeChannels = [];
 }
+
+// --- Notifications (Web Audio API) ---
+const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true };
+let audioCtx = null;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function getNotifSettings() {
+  try { return { ...NOTIF_DEFAULTS, ...JSON.parse(localStorage.getItem('notif_settings') || '{}') }; }
+  catch { return { ...NOTIF_DEFAULTS }; }
+}
+
+function isNotifOn(key) { return getNotifSettings()[key]; }
+
+function tone(ctx, freq, type, t, duration, vol = 0.25) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+  osc.start(t);
+  osc.stop(t + duration);
+}
+
+// 입장: C5→E5 밝은 상승 2음
+function playJoin() {
+  if (!isNotifOn('join')) return;
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  tone(ctx, 523, 'sine', t, 0.25, 0.25);
+  tone(ctx, 659, 'sine', t + 0.13, 0.25, 0.25);
+}
+
+// 퇴장: E5→A4 낮아지는 2음
+function playLeave() {
+  if (!isNotifOn('leave')) return;
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  tone(ctx, 659, 'sine', t, 0.25, 0.15);
+  tone(ctx, 440, 'sine', t + 0.13, 0.3, 0.15);
+}
+
+// 채팅: 짧고 가벼운 1음 틱
+function playChat() {
+  if (!isNotifOn('chat')) return;
+  tone(getAudioCtx(), 1000, 'sine', getAudioCtx().currentTime, 0.12, 0.15);
+}
+
+// DM: triangle 2연타 (G5→C6)
+function playDM() {
+  if (!isNotifOn('dm')) return;
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  tone(ctx, 784, 'triangle', t, 0.1, 0.3);
+  tone(ctx, 1047, 'triangle', t + 0.1, 0.15, 0.3);
+}
+
+// --- Settings modal ---
+const settingsModal = document.getElementById('settings-modal');
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+const notifToggles = { join: document.getElementById('notif-join'), leave: document.getElementById('notif-leave'), chat: document.getElementById('notif-chat'), dm: document.getElementById('notif-dm') };
+
+function openSettings() {
+  const s = getNotifSettings();
+  Object.entries(notifToggles).forEach(([k, el]) => { el.checked = s[k]; });
+  settingsModal.classList.remove('hidden');
+}
+
+Object.entries(notifToggles).forEach(([key, el]) => {
+  el.addEventListener('change', () => {
+    const s = getNotifSettings();
+    s[key] = el.checked;
+    localStorage.setItem('notif_settings', JSON.stringify(s));
+  });
+});
+
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+document.getElementById('settings-btn-room').addEventListener('click', openSettings);
+closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
 
 // --- Nickname setup screen ---
 const nicknameInput = document.getElementById('nickname-input');
@@ -858,6 +955,7 @@ function subscribeGlobalDM() {
       if (dmFriendId === msg.sender_id) return; // 이미 열린 대화
       dmUnreadMap[msg.sender_id] = (dmUnreadMap[msg.sender_id] || 0) + 1;
       updateDMBadge();
+      playDM();
     })
     .subscribe();
 }
@@ -1237,6 +1335,7 @@ function subscribeDM() {
       if (!msg) return;
       if (sentDmIds.has(msg.id)) { sentDmIds.delete(msg.id); return; }
       if (msg.sender_id !== dmFriendId) return;
+      playDM();
       const { data: profile } = await sb.from('profiles').select('nickname, display_name, email').eq('id', msg.sender_id).single();
       const name = profile?.nickname || profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음';
       appendDMMessage(msg, name);

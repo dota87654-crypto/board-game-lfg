@@ -44,6 +44,7 @@
         <button id="user-name" class="btn-username"></button>
         <button id="friends-btn" class="btn btn-sm" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
         <button id="dm-btn" class="btn btn-sm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
+        <button id="settings-btn" class="btn btn-sm" title="설정">⚙️</button>
         <button id="theme-btn" class="btn btn-sm" title="테마 변경">🌙</button>
         <button id="logout-btn" class="btn btn-sm">로그아웃</button>
       </div>
@@ -72,6 +73,35 @@
       <div id="rooms-list"></div>
     </div>
   </main>
+</div>
+
+<!-- 설정 모달 -->
+<div id="settings-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>설정</h3>
+      <button class="modal-close" id="close-settings-btn">&times;</button>
+    </div>
+    <div class="settings-body">
+      <p class="settings-section-title">알림음</p>
+      <div class="toggle-row">
+        <span class="toggle-label">🚪 방 입장 알림</span>
+        <label class="toggle"><input type="checkbox" id="notif-join" /><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">🚶 방 퇴장 알림</span>
+        <label class="toggle"><input type="checkbox" id="notif-leave" /><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">💬 방 채팅 알림</span>
+        <label class="toggle"><input type="checkbox" id="notif-chat" /><span class="toggle-slider"></span></label>
+      </div>
+      <div class="toggle-row" style="border-bottom:none;">
+        <span class="toggle-label">✉️ DM 알림</span>
+        <label class="toggle"><input type="checkbox" id="notif-dm" /><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 친구 모달 -->
@@ -206,6 +236,7 @@
         <span id="room-meta"></span>
       </div>
       <div id="room-members-info"></div>
+      <button id="settings-btn-room" class="btn btn-sm" title="설정">⚙️</button>
       <button id="leave-btn" class="btn btn-sm btn-danger">나가기</button>
     </div>
   </header>
