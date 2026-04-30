@@ -258,6 +258,7 @@
         <span id="room-meta"></span>
       </div>
       <div id="room-members-info"></div>
+      <button id="members-panel-btn" class="btn btn-sm" data-i18n-title="title.members" title="참여 인원">👥</button>
       <button id="settings-btn-room" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️</button>
       <button id="leave-btn" class="btn btn-sm btn-danger" data-i18n="btn.leave">나가기</button>
     </div>
@@ -317,6 +318,15 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- 참여 인원 패널 -->
+<div id="members-panel" class="members-panel">
+  <div class="members-panel-header">
+    <span data-i18n="members.title">참여 인원</span>
+    <button id="close-members-btn" class="modal-close">&times;</button>
+  </div>
+  <div id="members-panel-body" class="members-panel-body"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>

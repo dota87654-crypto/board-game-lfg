@@ -61,6 +61,7 @@ const TRANSLATIONS = {
     'chat.placeholder': '메시지를 입력하세요...',
     'room.leave.err': '나가기 실패: ', 'login.err': '로그인 오류: ', 'friend.req.err': '친구 요청 실패: ',
     'unknown': '알 수 없음', 'time.yesterday': '어제', 'time.days-ago': '%s일 전',
+    'members.title': '참여 인원', 'title.members': '참여 인원',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -123,6 +124,7 @@ const TRANSLATIONS = {
     'chat.placeholder': 'Type a message...',
     'room.leave.err': 'Failed to leave: ', 'login.err': 'Login error: ', 'friend.req.err': 'Friend request failed: ',
     'unknown': 'Unknown', 'time.yesterday': 'Yesterday', 'time.days-ago': '%s days ago',
+    'members.title': 'Members', 'title.members': 'Members',
   },
 };
 
@@ -170,6 +172,8 @@ const SUPABASE_KEY = 'sb_publishable_qD9MADOLO1AdQgTY4KUvTA_ogSu_rTl';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- State ---
+const USER_ICON_SVG = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#4a8fe8" fill-opacity="0.15"/><circle cx="16" cy="12" r="5" fill="#4a8fe8"/><path d="M7 28c0-4.97 4.03-9 9-9s9 4.03 9 9H7z" fill="#4a8fe8"/></svg>`;
+
 let currentUser = null;
 let currentRoom = null;
 let currentFilter = '전체';
@@ -182,6 +186,7 @@ let globalDMChannel = null;
 let chatNotifChannel = null;
 let participatingRoomId = null;
 let roomUnreadMap = {};
+let currentRoomMembers = [];
 
 // --- DOM refs ---
 const loginScreen = document.getElementById('login-screen');
@@ -767,8 +772,10 @@ async function enterRoom(room) {
 
   participatingRoomId = room.id;
   clearRoomUnread(room.id);
+  document.getElementById('members-panel').classList.remove('open');
   await loadMessages(room.id);
   await updateMemberCount(room.id);
+  loadRoomMembers(room.id);
   subscribeChat(room.id);
   subscribeMembers(room.id);
   subscribeChatNotif(room.id);
@@ -778,6 +785,8 @@ async function enterRoom(room) {
 backBtn.addEventListener('click', () => {
   if (participatingRoomId) clearRoomUnread(participatingRoomId);
   currentRoom = null;
+  currentRoomMembers = [];
+  document.getElementById('members-panel').classList.remove('open');
   unsubscribeAll();
   showScreen('main');
   renderRooms();  // 즉시 현재 목록 표시
@@ -842,7 +851,9 @@ leaveBtn.addEventListener('click', async () => {
 
   currentRoom = null;
   participatingRoomId = null;
+  currentRoomMembers = [];
   roomUnreadMap = {};
+  document.getElementById('members-panel').classList.remove('open');
   showScreen('main');
   renderRooms();
   await loadRooms();
@@ -942,6 +953,42 @@ async function sendMessage() {
 sendBtn.addEventListener('click', sendMessage);
 chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 
+// --- Member list panel ---
+async function loadRoomMembers(roomId) {
+  const { data } = await sb.from('room_members')
+    .select('user_id, joined_at')
+    .eq('room_id', roomId)
+    .order('joined_at', { ascending: true });
+  if (!data?.length) { currentRoomMembers = []; renderMembersPanel(); return; }
+  const userIds = data.map(m => m.user_id);
+  const { data: profiles } = await sb.from('profiles')
+    .select('id, nickname, display_name, email')
+    .in('id', userIds);
+  const profileMap = {};
+  (profiles || []).forEach(p => {
+    profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown');
+  });
+  currentRoomMembers = data.map(m => ({
+    user_id: m.user_id,
+    nickname: profileMap[m.user_id] || t('unknown'),
+  }));
+  renderMembersPanel();
+}
+
+function renderMembersPanel() {
+  const body = document.getElementById('members-panel-body');
+  if (!body) return;
+  body.innerHTML = currentRoomMembers.map(m => {
+    const isHost = m.user_id === currentRoom?.host_id;
+    return `
+      <div class="member-item">
+        ${USER_ICON_SVG}
+        <span class="member-name">${isHost ? '👑 ' : ''}${escHtml(m.nickname)}</span>
+      </div>
+    `;
+  }).join('');
+}
+
 // --- Member count ---
 async function updateMemberCount(roomId) {
   const { count, error } = await sb.from('room_members')
@@ -1017,6 +1064,7 @@ function subscribeMembers(roomId) {
     }, payload => {
       if (payload.new?.user_id !== currentUser.id) playJoin();
       updateMemberCount(roomId);
+      loadRoomMembers(roomId);
     })
     .on('postgres_changes', {
       event: 'DELETE',
@@ -1026,6 +1074,18 @@ function subscribeMembers(roomId) {
     }, () => {
       playLeave();
       updateMemberCount(roomId);
+      loadRoomMembers(roomId);
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'rooms',
+      filter: `id=eq.${roomId}`
+    }, payload => {
+      if (payload.new?.host_id && currentRoom) {
+        currentRoom = { ...currentRoom, host_id: payload.new.host_id };
+        renderMembersPanel();
+      }
     })
     .subscribe();
   realtimeChannels.push(ch);
@@ -1209,6 +1269,14 @@ closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hi
 settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
 
 document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
+
+// --- Members panel ---
+document.getElementById('members-panel-btn').addEventListener('click', () => {
+  document.getElementById('members-panel').classList.toggle('open');
+});
+document.getElementById('close-members-btn').addEventListener('click', () => {
+  document.getElementById('members-panel').classList.remove('open');
+});
 
 // --- Nickname setup screen ---
 const nicknameInput = document.getElementById('nickname-input');
