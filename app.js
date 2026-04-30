@@ -1,3 +1,169 @@
+// --- i18n ---
+const TRANSLATIONS = {
+  ko: {
+    'app.name': '🎲 보드게임 LFG',
+    'login.subtitle': '함께 게임할 사람을 찾아보세요',
+    'login.google': 'Google로 로그인',
+    'login.discord': 'Discord로 로그인',
+    'nick.title': '닉네임 설정',
+    'nick.subtitle': '사용할 닉네임을 입력해주세요 (2~16자)',
+    'nick.placeholder': '닉네임을 입력하세요',
+    'nick.err.length': '닉네임은 2~16자로 입력해주세요.',
+    'nick.err.dup': '이미 사용 중인 닉네임이에요.',
+    'nick.err.save': '저장에 실패했어요. 다시 시도해주세요.',
+    'nick.changed': '닉네임이 변경됐어요!',
+    'main.rooms': '방 목록',
+    'main.create': '+ 방 만들기',
+    'filter.all': '전체', 'filter.private': '개인소유', 'filter.cafe': '보드게임방',
+    'filter.tabletop': '테이블탑 시뮬레이터', 'filter.bga': 'BGA', 'filter.steam': '스팀게임',
+    'room.empty': '방이 없습니다. 첫 번째로 방을 만들어보세요!',
+    'room.mine': '참여 중', 'room.unit': ' 명',
+    'cat.private': '개인소유', 'cat.cafe': '보드게임방', 'cat.tabletop': '테이블탑 시뮬레이터',
+    'cat.bga': 'BGA', 'cat.steam': '스팀게임',
+    'btn.logout': '로그아웃', 'btn.send': '전송', 'btn.search': '검색', 'btn.more': '더 보기',
+    'btn.back': '← 목록', 'btn.profile-back': '← 뒤로', 'btn.leave': '나가기',
+    'btn.edit': '변경', 'btn.save': '저장', 'btn.cancel': '취소', 'btn.done': '완료',
+    'btn.dm': '💬 DM', 'btn.remove': '삭제', 'btn.accept': '수락', 'btn.reject': '거절',
+    'btn.add-friend': '친구 추가', 'btn.requested': '요청됨',
+    'btn.create-room': '방 만들기', 'btn.creating': '생성 중...',
+    'settings.title': '설정', 'settings.sound': '알림음',
+    'settings.notif.join': '🚪 방 입장 알림', 'settings.notif.leave': '🚶 방 퇴장 알림',
+    'settings.notif.chat': '💬 방 채팅 알림', 'settings.notif.dm': '✉️ DM 알림',
+    'settings.detail': '세부 알림 설정',
+    'settings.notif.chat-in-room': '💬 방 채팅 중 알림',
+    'settings.notif.chat-in-list': '📋 방 목록 중 알림',
+    'settings.notif.dm-in-dm': '✉️ DM 채팅 중 알림',
+    'settings.lang': '언어', 'settings.lang.label': '표시 언어', 'lang.auto': '자동 감지',
+    'title.friends': '친구', 'title.dm': '메시지', 'title.settings': '설정', 'title.theme': '테마 변경',
+    'friends.title': '친구', 'friends.tab.list': '친구 목록',
+    'friends.tab.requests': '받은 요청', 'friends.tab.search': '유저 검색',
+    'friends.empty': '아직 친구가 없어요.<br>유저 검색 탭에서 친구를 추가해보세요!',
+    'friends.requests.empty': '받은 친구 요청이 없어요.',
+    'friends.search.placeholder': '닉네임으로 검색',
+    'friends.search.loading': '검색 중...', 'friends.search.empty': '검색 결과가 없어요.',
+    'dm.list.title': '메시지',
+    'dm.list.empty': '아직 대화가 없어요.<br>친구 목록에서 DM을 시작해보세요!',
+    'dm.list.loading': '로딩 중...', 'dm.mine.prefix': '나: ',
+    'dm.input.placeholder': '메시지를 입력하세요...',
+    'place.title': '장소 검색', 'place.placeholder': '장소명으로 검색',
+    'place.searching': '검색 중...', 'place.empty': '검색 결과가 없습니다',
+    'place.fail': '⚠️ 검색 실패. 다시 시도해주세요.',
+    'create.title': '방 만들기', 'create.category': '카테고리', 'create.cat.select': '선택하세요',
+    'create.cat.private': '개인소유', 'create.cat.cafe': '보드게임방',
+    'create.cat.tabletop': '테이블탑 시뮬레이터', 'create.cat.bga': 'BGA', 'create.cat.steam': '스팀게임',
+    'create.location': '장소', 'create.location.placeholder': '장소명으로 검색 (예: 레드버튼)',
+    'create.game': '게임 이름', 'create.game.placeholder': '예: 카탄, 스플렌더...',
+    'create.room-title': '방 제목', 'create.room-title.placeholder': '방 제목을 입력하세요',
+    'create.max-players': '최대 인원', 'create.scheduled': '예정 시간',
+    'create.err.input': '모든 항목을 입력해주세요.', 'create.err.fail': '방 만들기 실패: ',
+    'profile.title': '내 프로필', 'profile.nickname': '닉네임', 'profile.new-nick': '새 닉네임',
+    'profile.email': '이메일', 'profile.provider': '로그인 방식', 'profile.created': '가입일',
+    'chat.placeholder': '메시지를 입력하세요...',
+    'room.leave.err': '나가기 실패: ', 'login.err': '로그인 오류: ', 'friend.req.err': '친구 요청 실패: ',
+    'unknown': '알 수 없음', 'time.yesterday': '어제', 'time.days-ago': '%s일 전',
+  },
+  en: {
+    'app.name': '🎲 Board Game LFG',
+    'login.subtitle': 'Find people to play with',
+    'login.google': 'Log in with Google',
+    'login.discord': 'Log in with Discord',
+    'nick.title': 'Set Nickname',
+    'nick.subtitle': 'Enter a nickname to use (2–16 characters)',
+    'nick.placeholder': 'Enter your nickname',
+    'nick.err.length': 'Nickname must be 2–16 characters.',
+    'nick.err.dup': 'This nickname is already taken.',
+    'nick.err.save': 'Failed to save. Please try again.',
+    'nick.changed': 'Nickname updated!',
+    'main.rooms': 'Room List',
+    'main.create': '+ Create Room',
+    'filter.all': 'All', 'filter.private': 'Private', 'filter.cafe': 'BG Café',
+    'filter.tabletop': 'Tabletop Sim', 'filter.bga': 'BGA', 'filter.steam': 'Steam',
+    'room.empty': 'No rooms found. Be the first to create one!',
+    'room.mine': 'Joined', 'room.unit': ' players',
+    'cat.private': 'Private', 'cat.cafe': 'BG Café', 'cat.tabletop': 'Tabletop Sim',
+    'cat.bga': 'BGA', 'cat.steam': 'Steam',
+    'btn.logout': 'Logout', 'btn.send': 'Send', 'btn.search': 'Search', 'btn.more': 'Load More',
+    'btn.back': '← List', 'btn.profile-back': '← Back', 'btn.leave': 'Leave',
+    'btn.edit': 'Edit', 'btn.save': 'Save', 'btn.cancel': 'Cancel', 'btn.done': 'Done',
+    'btn.dm': '💬 DM', 'btn.remove': 'Remove', 'btn.accept': 'Accept', 'btn.reject': 'Decline',
+    'btn.add-friend': 'Add Friend', 'btn.requested': 'Requested',
+    'btn.create-room': 'Create Room', 'btn.creating': 'Creating...',
+    'settings.title': 'Settings', 'settings.sound': 'Sound Notifications',
+    'settings.notif.join': '🚪 Room Join Alert', 'settings.notif.leave': '🚶 Room Leave Alert',
+    'settings.notif.chat': '💬 Room Chat Alert', 'settings.notif.dm': '✉️ DM Alert',
+    'settings.detail': 'Detailed Notifications',
+    'settings.notif.chat-in-room': '💬 Alert while in room',
+    'settings.notif.chat-in-list': '📋 Alert while in list',
+    'settings.notif.dm-in-dm': '✉️ Alert while in DM',
+    'settings.lang': 'Language', 'settings.lang.label': 'Display Language', 'lang.auto': 'Auto Detect',
+    'title.friends': 'Friends', 'title.dm': 'Messages', 'title.settings': 'Settings', 'title.theme': 'Toggle Theme',
+    'friends.title': 'Friends', 'friends.tab.list': 'Friends',
+    'friends.tab.requests': 'Requests', 'friends.tab.search': 'Search Users',
+    'friends.empty': 'No friends yet.<br>Search for users to add friends!',
+    'friends.requests.empty': 'No pending friend requests.',
+    'friends.search.placeholder': 'Search by nickname',
+    'friends.search.loading': 'Searching...', 'friends.search.empty': 'No results found.',
+    'dm.list.title': 'Messages',
+    'dm.list.empty': 'No conversations yet.<br>Start a DM from your friends list!',
+    'dm.list.loading': 'Loading...', 'dm.mine.prefix': 'Me: ',
+    'dm.input.placeholder': 'Type a message...',
+    'place.title': 'Place Search', 'place.placeholder': 'Search by place name',
+    'place.searching': 'Searching...', 'place.empty': 'No results found',
+    'place.fail': '⚠️ Search failed. Please try again.',
+    'create.title': 'Create Room', 'create.category': 'Category', 'create.cat.select': 'Select',
+    'create.cat.private': 'Private', 'create.cat.cafe': 'BG Café',
+    'create.cat.tabletop': 'Tabletop Sim', 'create.cat.bga': 'BGA', 'create.cat.steam': 'Steam',
+    'create.location': 'Location', 'create.location.placeholder': 'Search for a location',
+    'create.game': 'Game Name', 'create.game.placeholder': 'e.g. Catan, Splendor...',
+    'create.room-title': 'Room Title', 'create.room-title.placeholder': 'Enter room title',
+    'create.max-players': 'Max Players', 'create.scheduled': 'Scheduled Time',
+    'create.err.input': 'Please fill in all fields.', 'create.err.fail': 'Failed to create room: ',
+    'profile.title': 'My Profile', 'profile.nickname': 'Nickname', 'profile.new-nick': 'New Nickname',
+    'profile.email': 'Email', 'profile.provider': 'Login Method', 'profile.created': 'Joined',
+    'chat.placeholder': 'Type a message...',
+    'room.leave.err': 'Failed to leave: ', 'login.err': 'Login error: ', 'friend.req.err': 'Friend request failed: ',
+    'unknown': 'Unknown', 'time.yesterday': 'Yesterday', 'time.days-ago': '%s days ago',
+  },
+};
+
+function detectLang() {
+  return (navigator.language || 'ko').toLowerCase().startsWith('ko') ? 'ko' : 'en';
+}
+
+let currentLang = detectLang();
+
+function t(key) {
+  return TRANSLATIONS[currentLang]?.[key] ?? TRANSLATIONS.ko[key] ?? key;
+}
+
+const CAT_KEY = {
+  '개인소유': 'cat.private', '보드게임방': 'cat.cafe',
+  '테이블탑 시뮬레이터': 'cat.tabletop', 'BGA': 'cat.bga', '스팀게임': 'cat.steam',
+};
+function tCat(cat) { return t(CAT_KEY[cat]) || cat; }
+function currentLocale() { return currentLang === 'ko' ? 'ko-KR' : 'en-US'; }
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+  document.documentElement.lang = currentLang;
+}
+
+function setLang(lang) {
+  currentLang = (!lang || lang === 'auto' || !TRANSLATIONS[lang]) ? detectLang() : lang;
+  applyI18n();
+  if (typeof mainScreen !== 'undefined' && !mainScreen.classList.contains('hidden')) renderRooms();
+}
+
+async function saveLang(lang) {
+  localStorage.setItem('lang', lang);
+  setLang(lang);
+  if (currentUser) {
+    await sb.from('profiles').update({ lang }).eq('id', currentUser.id);
+  }
+}
+
 const SUPABASE_URL = 'https://zjxryvtbzlbdsgqceygc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_qD9MADOLO1AdQgTY4KUvTA_ogSu_rTl';
 
@@ -82,13 +248,16 @@ themeBtn.addEventListener('click', () => {
   applyTheme(next);
 });
 
+// 초기 언어 적용 (로그인 전)
+applyI18n();
+
 // --- Auth ---
 googleLoginBtn.addEventListener('click', async () => {
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: location.origin }
   });
-  if (error) alert('로그인 오류: ' + error.message);
+  if (error) alert(t('login.err') + error.message);
 });
 
 discordLoginBtn.addEventListener('click', async () => {
@@ -96,7 +265,7 @@ discordLoginBtn.addEventListener('click', async () => {
     provider: 'discord',
     options: { redirectTo: location.origin }
   });
-  if (error) alert('로그인 오류: ' + error.message);
+  if (error) alert(t('login.err') + error.message);
 });
 
 logoutBtn.addEventListener('click', async () => {
@@ -127,7 +296,14 @@ async function onLogin(user) {
   unsubscribeAll();
   await upsertProfile(user);
 
-  const { data: profile } = await sb.from('profiles').select('nickname').eq('id', user.id).single();
+  const { data: profile } = await sb.from('profiles').select('nickname, lang').eq('id', user.id).single();
+
+  const savedLang = profile?.lang || localStorage.getItem('lang') || 'auto';
+  localStorage.setItem('lang', savedLang);
+  const langSelect = document.getElementById('lang-select');
+  if (langSelect) langSelect.value = savedLang;
+  setLang(savedLang);
+
   if (profile?.nickname) {
     currentNickname = profile.nickname;
     goToMain();
@@ -222,7 +398,7 @@ async function loadRooms() {
     if (!profilesRes.error) {
       const profileMap = {};
       (profilesRes.data || []).forEach(p => {
-        profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음';
+        profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown');
       });
       rooms.forEach(room => { room.host_name = profileMap[room.host_id] || '알 수 없음'; });
     }
@@ -249,7 +425,7 @@ function renderRooms() {
   filtered = filtered.filter(r => r.member_count === undefined || r.member_count > 0);
 
   if (filtered.length === 0) {
-    roomsList.innerHTML = '<div class="empty-state"><p>방이 없습니다. 첫 번째로 방을 만들어보세요!</p></div>';
+    roomsList.innerHTML = `<div class="empty-state"><p>${t('room.empty')}</p></div>`;
     return;
   }
 
@@ -257,27 +433,27 @@ function renderRooms() {
     const count = room.member_count ?? 0;
     const isFull = count >= room.max_players;
     const countClass = isFull ? 'full' : 'current';
-    const host = room.host_name || '알 수 없음';
+    const host = room.host_name || t('unknown');
     const isMine = myRoomIds.has(room.id);
     const unread = roomUnreadMap[room.id] || 0;
     const timeStr = room.scheduled_at
-      ? new Date(room.scheduled_at).toLocaleString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+      ? new Date(room.scheduled_at).toLocaleString(currentLocale(), { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
       : '';
     return `
       <div class="room-card${isMine ? ' my-room' : ''}" data-id="${room.id}">
         <div class="room-card-header">
           <div class="room-card-title">${escHtml(room.title)}</div>
           <div style="display:flex;gap:6px;align-items:center">
-            ${isMine ? '<span class="badge-mine">참여 중</span>' : ''}
+            ${isMine ? `<span class="badge-mine">${t('room.mine')}</span>` : ''}
             ${unread > 0 ? `<span class="room-unread-badge">${unread}</span>` : ''}
-            <div class="room-card-cat ${CAT_CLASS[room.category] || ''}">${escHtml(room.category)}</div>
+            <div class="room-card-cat ${CAT_CLASS[room.category] || ''}">${escHtml(tCat(room.category))}</div>
           </div>
         </div>
         <div class="room-card-game">🎮 ${escHtml(room.game_name)}</div>
         ${room.location ? `<div class="room-card-location">📍 ${escHtml(room.location)}</div>` : ''}
         <div class="room-card-footer">
           <div class="room-card-count">
-            <span class="${countClass}">${count}</span> / ${room.max_players} 명
+            <span class="${countClass}">${count}</span> / ${room.max_players}${t('room.unit')}
           </div>
           <div>
             ${timeStr ? `<div class="room-card-time">⏰ ${timeStr}</div>` : ''}
@@ -368,7 +544,7 @@ async function fetchPlaces(reset) {
   if (reset) {
     placeCurrentQuery = query;
     placeCurrentPage = 1;
-    placeSearchResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 중...</div></div>';
+    placeSearchResults.innerHTML = `<div class="location-result-item"><div class="location-result-name">${t('place.searching')}</div></div>`;
     placeSearchMoreWrap.classList.add('hidden');
   }
 
@@ -379,7 +555,7 @@ async function fetchPlaces(reset) {
     if (reset) placeSearchResults.innerHTML = '';
 
     if (!json.documents?.length && reset) {
-      placeSearchResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">검색 결과가 없습니다</div></div>';
+      placeSearchResults.innerHTML = `<div class="location-result-item"><div class="location-result-name">${t('place.empty')}</div></div>`;
       return;
     }
 
@@ -401,7 +577,7 @@ async function fetchPlaces(reset) {
     placeSearchMoreWrap.classList.toggle('hidden', placeIsEnd);
     placeCurrentPage++;
   } catch (e) {
-    if (reset) placeSearchResults.innerHTML = '<div class="location-result-item"><div class="location-result-name">⚠️ 검색 실패. 다시 시도해주세요.</div></div>';
+    if (reset) placeSearchResults.innerHTML = `<div class="location-result-item"><div class="location-result-name">${t('place.fail')}</div></div>`;
     console.error('place search error:', e);
   }
 }
@@ -472,11 +648,11 @@ createRoomForm.addEventListener('submit', async e => {
   const max_players = parseInt(fd.get('max_players'));
   const scheduled_at = fd.get('scheduled_at') || null;
 
-  if (!title || !game_name || !category) { alert('모든 항목을 입력해주세요.'); return; }
+  if (!title || !game_name || !category) { alert(t('create.err.input')); return; }
 
   const submitBtn = createRoomForm.querySelector('[type=submit]');
   submitBtn.disabled = true;
-  submitBtn.textContent = '생성 중...';
+  submitBtn.textContent = t('btn.creating');
 
   const location = (fd.get('location') || '').trim() || null;
 
@@ -492,9 +668,9 @@ createRoomForm.addEventListener('submit', async e => {
   }).select().single();
 
   submitBtn.disabled = false;
-  submitBtn.textContent = '방 만들기';
+  submitBtn.textContent = t('btn.create-room');
 
-  if (error) { alert('방 만들기 실패: ' + error.message); return; }
+  if (error) { alert(t('create.err.fail') + error.message); return; }
 
   // allRooms에 즉시 추가 (목록 돌아올 때 바로 보이도록)
   room.member_count = 1;
@@ -514,7 +690,7 @@ async function enterRoom(room) {
 
   roomTitleEl.textContent = room.title;
   const timeStr = room.scheduled_at
-    ? ' · ⏰ ' + new Date(room.scheduled_at).toLocaleString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+    ? ' · ⏰ ' + new Date(room.scheduled_at).toLocaleString(currentLocale(), { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
     : '';
   roomMetaEl.textContent = `🎮 ${room.game_name} · ${room.category}${timeStr}`;
 
@@ -611,7 +787,7 @@ leaveBtn.addEventListener('click', async () => {
 
   if (delErr) {
     console.error('leave error:', delErr);
-    alert('나가기 실패: ' + delErr.message);
+    alert(t('room.leave.err') + delErr.message);
     subscribeRooms();
     return;
   }
@@ -654,7 +830,7 @@ async function loadMessages(roomId) {
     const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
     const profileMap = {};
     (profiles || []).forEach(p => {
-      profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음';
+      profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown');
     });
     msgs.forEach(m => { m.profiles = { display_name: profileMap[m.user_id] || '알 수 없음' }; });
   }
@@ -738,7 +914,7 @@ async function updateMemberCount(roomId) {
 
   if (!error && currentRoom?.id === roomId) {
     const max = currentRoom.max_players;
-    roomMembersInfo.textContent = `👥 ${count} / ${max} 명`;
+    roomMembersInfo.textContent = `👥 ${count} / ${max}${t('room.unit')}`;
   }
 }
 
@@ -979,6 +1155,7 @@ const notifToggles = {
 function openSettings() {
   const s = getNotifSettings();
   Object.entries(notifToggles).forEach(([k, el]) => { el.checked = s[k]; });
+  document.getElementById('lang-select').value = localStorage.getItem('lang') || 'auto';
   settingsModal.classList.remove('hidden');
 }
 
@@ -995,6 +1172,8 @@ document.getElementById('settings-btn-room').addEventListener('click', openSetti
 closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
 settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
 
+document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
+
 // --- Nickname setup screen ---
 const nicknameInput = document.getElementById('nickname-input');
 const nicknameSubmitBtn = document.getElementById('nickname-submit-btn');
@@ -1006,7 +1185,7 @@ nicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitNi
 async function submitNickname() {
   const nick = nicknameInput.value.trim();
   if (nick.length < 2 || nick.length > 16) {
-    setNicknameMsg(nicknameMsg, '닉네임은 2~16자로 입력해주세요.', 'error');
+    setNicknameMsg(nicknameMsg, t('nick.err.length'), 'error');
     return;
   }
   nicknameSubmitBtn.disabled = true;
@@ -1021,12 +1200,12 @@ async function submitNickname() {
 async function saveNickname(nick, msgEl) {
   const { data: dup } = await sb.from('profiles').select('id').eq('nickname', nick).neq('id', currentUser.id).maybeSingle();
   if (dup) {
-    setNicknameMsg(msgEl, '이미 사용 중인 닉네임이에요.', 'error');
+    setNicknameMsg(msgEl, t('nick.err.dup'), 'error');
     return false;
   }
   const { error } = await sb.from('profiles').update({ nickname: nick }).eq('id', currentUser.id);
   if (error) {
-    setNicknameMsg(msgEl, '저장에 실패했어요. 다시 시도해주세요.', 'error');
+    setNicknameMsg(msgEl, t('nick.err.save'), 'error');
     return false;
   }
   return true;
@@ -1060,7 +1239,7 @@ function renderProfile() {
   const providerMap = { google: '🔵 Google', discord: '🟣 Discord' };
   document.getElementById('profile-provider').textContent = providerMap[provider] || provider || '-';
 
-  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+  const joined = u.created_at ? new Date(u.created_at).toLocaleDateString(currentLocale(), { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
   document.getElementById('profile-created').textContent = joined;
 
   // 편집 행 초기화
@@ -1099,7 +1278,7 @@ profileNicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') s
 async function saveProfileNickname() {
   const nick = profileNicknameInput.value.trim();
   if (nick.length < 2 || nick.length > 16) {
-    setNicknameMsg(profileNicknameMsg, '닉네임은 2~16자로 입력해주세요.', 'error');
+    setNicknameMsg(profileNicknameMsg, t('nick.err.length'), 'error');
     return;
   }
   if (nick === currentNickname) {
@@ -1113,7 +1292,7 @@ async function saveProfileNickname() {
     currentNickname = nick;
     userNameBtn.textContent = nick;
     document.getElementById('profile-nickname').textContent = nick;
-    setNicknameMsg(profileNicknameMsg, '닉네임이 변경됐어요!', 'success');
+    setNicknameMsg(profileNicknameMsg, t('nick.changed'), 'success');
     nicknameEditRow.classList.add('hidden');
     document.getElementById('profile-nickname-row').classList.remove('hidden');
   }
@@ -1196,7 +1375,7 @@ function subscribeGlobalDM() {
 
 async function openDMList() {
   dmListModal.classList.remove('hidden');
-  dmListBody.innerHTML = '<div class="empty-friends">로딩 중...</div>';
+  dmListBody.innerHTML = `<div class="empty-friends">${t('dm.list.loading')}</div>`;
 
   const { data } = await sb.from('dm_messages')
     .select('id, sender_id, receiver_id, content, created_at')
@@ -1205,7 +1384,7 @@ async function openDMList() {
     .limit(300);
 
   if (!data?.length) {
-    dmListBody.innerHTML = '<div class="empty-friends">아직 대화가 없어요.<br>친구 목록에서 DM을 시작해보세요!</div>';
+    dmListBody.innerHTML = `<div class="empty-friends">${t('dm.list.empty')}</div>`;
     return;
   }
 
@@ -1235,7 +1414,7 @@ async function openDMList() {
     const name = profileMap[partnerId] || '알 수 없음';
     const unread = dmUnreadMap[partnerId] || 0;
     const time = formatDMTime(msg.created_at);
-    const rawPreview = msg.sender_id === currentUser.id ? `나: ${msg.content}` : msg.content;
+    const rawPreview = msg.sender_id === currentUser.id ? `${t('dm.mine.prefix')}${msg.content}` : msg.content;
     const preview = rawPreview.length > 32 ? rawPreview.slice(0, 32) + '…' : rawPreview;
 
     const el = document.createElement('div');
@@ -1259,10 +1438,10 @@ function formatDMTime(isoStr) {
   const d = new Date(isoStr);
   const now = new Date();
   const diffDays = Math.floor((now - d) / 86400000);
-  if (diffDays === 0) return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return '어제';
-  if (diffDays < 7) return `${diffDays}일 전`;
-  return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+  if (diffDays === 0) return d.toLocaleTimeString(currentLocale(), { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return t('time.yesterday');
+  if (diffDays < 7) return t('time.days-ago').replace('%s', diffDays);
+  return d.toLocaleDateString(currentLocale(), { month: 'short', day: 'numeric' });
 }
 
 // --- Friends ---
@@ -1354,7 +1533,7 @@ async function loadFriends() {
 
 function renderFriendsList() {
   if (friendsList.length === 0) {
-    friendsListBody.innerHTML = '<div class="empty-friends">아직 친구가 없어요.<br>유저 검색 탭에서 친구를 추가해보세요!</div>';
+    friendsListBody.innerHTML = `<div class="empty-friends">${t('friends.empty')}</div>`;
     return;
   }
   friendsListBody.innerHTML = '';
@@ -1364,8 +1543,8 @@ function renderFriendsList() {
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(f.name)}</span>
       <div class="friend-item-actions">
-        <button class="btn btn-sm btn-primary" data-dm="${f.friendId}" data-name="${escHtml(f.name)}">💬 DM</button>
-        <button class="btn btn-sm btn-danger" data-remove="${f.id}">삭제</button>
+        <button class="btn btn-sm btn-primary" data-dm="${f.friendId}" data-name="${escHtml(f.name)}">${t('btn.dm')}</button>
+        <button class="btn btn-sm btn-danger" data-remove="${f.id}">${t('btn.remove')}</button>
       </div>
     `;
     el.querySelector('[data-dm]').addEventListener('click', () => openDM(f.friendId, f.name));
@@ -1376,7 +1555,7 @@ function renderFriendsList() {
 
 function renderPendingList() {
   if (pendingList.length === 0) {
-    friendsRequestsBody.innerHTML = '<div class="empty-friends">받은 친구 요청이 없어요.</div>';
+    friendsRequestsBody.innerHTML = `<div class="empty-friends">${t('friends.requests.empty')}</div>`;
     return;
   }
   friendsRequestsBody.innerHTML = '';
@@ -1386,8 +1565,8 @@ function renderPendingList() {
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(f.name)}</span>
       <div class="friend-item-actions">
-        <button class="btn btn-sm btn-primary" data-accept="${f.id}">수락</button>
-        <button class="btn btn-sm btn-danger" data-reject="${f.id}">거절</button>
+        <button class="btn btn-sm btn-primary" data-accept="${f.id}">${t('btn.accept')}</button>
+        <button class="btn btn-sm btn-danger" data-reject="${f.id}">${t('btn.reject')}</button>
       </div>
     `;
     el.querySelector('[data-accept]').addEventListener('click', () => acceptRequest(f.id));
@@ -1399,7 +1578,7 @@ function renderPendingList() {
 async function searchFriendUsers() {
   const query = friendSearchInput.value.trim();
   if (!query) return;
-  friendSearchBody.innerHTML = '<div class="empty-friends">검색 중...</div>';
+  friendSearchBody.innerHTML = `<div class="empty-friends">${t('friends.search.loading')}</div>`;
 
   const { data } = await sb.from('profiles')
     .select('id, display_name, email, nickname')
@@ -1408,7 +1587,7 @@ async function searchFriendUsers() {
     .limit(20);
 
   if (!data?.length) {
-    friendSearchBody.innerHTML = '<div class="empty-friends">검색 결과가 없어요.</div>';
+    friendSearchBody.innerHTML = `<div class="empty-friends">${t('friends.search.empty')}</div>`;
     return;
   }
 
@@ -1431,7 +1610,7 @@ async function searchFriendUsers() {
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(name)}</span>
       <button class="btn btn-sm ${alreadyRelated ? '' : 'btn-primary'}" ${alreadyRelated ? 'disabled' : ''} data-uid="${user.id}">
-        ${alreadyRelated ? '요청됨' : '친구 추가'}
+        ${alreadyRelated ? t('btn.requested') : t('btn.add-friend')}
       </button>
     `;
     if (!alreadyRelated) {
@@ -1447,7 +1626,7 @@ async function searchFriendUsers() {
 
 async function sendFriendRequest(addresseeId) {
   const { error } = await sb.from('friendships').insert({ requester_id: currentUser.id, addressee_id: addresseeId });
-  if (error) alert('친구 요청 실패: ' + error.message);
+  if (error) alert(t('friend.req.err') + error.message);
 }
 
 async function acceptRequest(id) {

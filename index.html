@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>보드게임 LFG</title>
+  <title>Board Game LFG</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,15 +11,15 @@
 <!-- 로그인 화면 -->
 <div id="login-screen" class="screen">
   <div class="login-box">
-    <h1>🎲 보드게임 LFG</h1>
-    <p>함께 게임할 사람을 찾아보세요</p>
+    <h1 data-i18n="app.name">🎲 보드게임 LFG</h1>
+    <p data-i18n="login.subtitle">함께 게임할 사람을 찾아보세요</p>
     <button id="google-login-btn" class="btn btn-google">
       <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-      Google로 로그인
+      <span data-i18n="login.google">Google로 로그인</span>
     </button>
     <button id="discord-login-btn" class="btn btn-discord">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-      Discord로 로그인
+      <span data-i18n="login.discord">Discord로 로그인</span>
     </button>
   </div>
 </div>
@@ -27,11 +27,11 @@
 <!-- 닉네임 설정 화면 -->
 <div id="nickname-screen" class="screen hidden">
   <div class="login-box">
-    <h2 style="margin-bottom:8px;">닉네임 설정</h2>
-    <p style="margin-bottom:24px;color:var(--text-muted);font-size:0.9rem;">사용할 닉네임을 입력해주세요 (2~16자)</p>
-    <input type="text" id="nickname-input" class="nickname-input" placeholder="닉네임을 입력하세요" maxlength="16" autocomplete="off" />
+    <h2 style="margin-bottom:8px;" data-i18n="nick.title">닉네임 설정</h2>
+    <p style="margin-bottom:24px;color:var(--text-muted);font-size:0.9rem;" data-i18n="nick.subtitle">사용할 닉네임을 입력해주세요 (2~16자)</p>
+    <input type="text" id="nickname-input" class="nickname-input" data-i18n-placeholder="nick.placeholder" placeholder="닉네임을 입력하세요" maxlength="16" autocomplete="off" />
     <div id="nickname-msg" class="nickname-msg"></div>
-    <button id="nickname-submit-btn" class="btn btn-primary" style="width:100%;margin-top:16px;">완료</button>
+    <button id="nickname-submit-btn" class="btn btn-primary" style="width:100%;margin-top:16px;" data-i18n="btn.done">완료</button>
   </div>
 </div>
 
@@ -39,37 +39,34 @@
 <div id="main-screen" class="screen hidden">
   <header>
     <div class="header-inner">
-      <h1>🎲 보드게임 LFG</h1>
+      <h1 data-i18n="app.name">🎲 보드게임 LFG</h1>
       <div class="header-right">
         <button id="user-name" class="btn-username"></button>
-        <button id="friends-btn" class="btn btn-sm" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
-        <button id="dm-btn" class="btn btn-sm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
-        <button id="settings-btn" class="btn btn-sm" title="설정">⚙️</button>
-        <button id="theme-btn" class="btn btn-sm" title="테마 변경">🌙</button>
-        <button id="logout-btn" class="btn btn-sm">로그아웃</button>
+        <button id="friends-btn" class="btn btn-sm" data-i18n-title="title.friends" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
+        <button id="dm-btn" class="btn btn-sm" data-i18n-title="title.dm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
+        <button id="settings-btn" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️</button>
+        <button id="theme-btn" class="btn btn-sm" data-i18n-title="title.theme" title="테마 변경">🌙</button>
+        <button id="logout-btn" class="btn btn-sm" data-i18n="btn.logout">로그아웃</button>
       </div>
     </div>
   </header>
 
   <main>
     <div class="container">
-      <!-- 방 만들기 버튼 -->
       <div class="top-bar">
-        <h2>방 목록</h2>
-        <button id="open-create-btn" class="btn btn-primary">+ 방 만들기</button>
+        <h2 data-i18n="main.rooms">방 목록</h2>
+        <button id="open-create-btn" class="btn btn-primary" data-i18n="main.create">+ 방 만들기</button>
       </div>
 
-      <!-- 카테고리 필터 -->
       <div class="filter-bar">
-        <button class="filter-btn active" data-cat="전체">전체</button>
-        <button class="filter-btn" data-cat="개인소유">개인소유</button>
-        <button class="filter-btn" data-cat="보드게임방">보드게임방</button>
-        <button class="filter-btn" data-cat="테이블탑 시뮬레이터">테이블탑 시뮬레이터</button>
-        <button class="filter-btn" data-cat="BGA">BGA</button>
-        <button class="filter-btn" data-cat="스팀게임">스팀게임</button>
+        <button class="filter-btn active" data-cat="전체" data-i18n="filter.all">전체</button>
+        <button class="filter-btn" data-cat="개인소유" data-i18n="filter.private">개인소유</button>
+        <button class="filter-btn" data-cat="보드게임방" data-i18n="filter.cafe">보드게임방</button>
+        <button class="filter-btn" data-cat="테이블탑 시뮬레이터" data-i18n="filter.tabletop">테이블탑 시뮬레이터</button>
+        <button class="filter-btn" data-cat="BGA" data-i18n="filter.bga">BGA</button>
+        <button class="filter-btn" data-cat="스팀게임" data-i18n="filter.steam">스팀게임</button>
       </div>
 
-      <!-- 방 목록 -->
       <div id="rooms-list"></div>
     </div>
   </main>
@@ -79,39 +76,48 @@
 <div id="settings-modal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <h3>설정</h3>
+      <h3 data-i18n="settings.title">설정</h3>
       <button class="modal-close" id="close-settings-btn">&times;</button>
     </div>
     <div class="settings-body">
-      <p class="settings-section-title">알림음</p>
+      <p class="settings-section-title" data-i18n="settings.sound">알림음</p>
       <div class="toggle-row">
-        <span class="toggle-label">🚪 방 입장 알림</span>
+        <span class="toggle-label" data-i18n="settings.notif.join">🚪 방 입장 알림</span>
         <label class="toggle"><input type="checkbox" id="notif-join" /><span class="toggle-slider"></span></label>
       </div>
       <div class="toggle-row">
-        <span class="toggle-label">🚶 방 퇴장 알림</span>
+        <span class="toggle-label" data-i18n="settings.notif.leave">🚶 방 퇴장 알림</span>
         <label class="toggle"><input type="checkbox" id="notif-leave" /><span class="toggle-slider"></span></label>
       </div>
       <div class="toggle-row">
-        <span class="toggle-label">💬 방 채팅 알림</span>
+        <span class="toggle-label" data-i18n="settings.notif.chat">💬 방 채팅 알림</span>
         <label class="toggle"><input type="checkbox" id="notif-chat" /><span class="toggle-slider"></span></label>
       </div>
       <div class="toggle-row">
-        <span class="toggle-label">✉️ DM 알림</span>
+        <span class="toggle-label" data-i18n="settings.notif.dm">✉️ DM 알림</span>
         <label class="toggle"><input type="checkbox" id="notif-dm" /><span class="toggle-slider"></span></label>
       </div>
-      <p class="settings-section-title" style="margin-top:16px;">세부 알림 설정</p>
+      <p class="settings-section-title" style="margin-top:16px;" data-i18n="settings.detail">세부 알림 설정</p>
       <div class="toggle-row">
-        <span class="toggle-label">💬 방 채팅 중 알림</span>
+        <span class="toggle-label" data-i18n="settings.notif.chat-in-room">💬 방 채팅 중 알림</span>
         <label class="toggle"><input type="checkbox" id="notif-chat-in-room" /><span class="toggle-slider"></span></label>
       </div>
       <div class="toggle-row">
-        <span class="toggle-label">📋 방 목록 중 알림</span>
+        <span class="toggle-label" data-i18n="settings.notif.chat-in-list">📋 방 목록 중 알림</span>
         <label class="toggle"><input type="checkbox" id="notif-chat-in-list" /><span class="toggle-slider"></span></label>
       </div>
-      <div class="toggle-row" style="border-bottom:none;">
-        <span class="toggle-label">✉️ DM 채팅 중 알림</span>
+      <div class="toggle-row">
+        <span class="toggle-label" data-i18n="settings.notif.dm-in-dm">✉️ DM 채팅 중 알림</span>
         <label class="toggle"><input type="checkbox" id="notif-dm-in-dm" /><span class="toggle-slider"></span></label>
+      </div>
+      <p class="settings-section-title" style="margin-top:16px;" data-i18n="settings.lang">언어</p>
+      <div class="toggle-row" style="border-bottom:none;">
+        <span class="toggle-label" data-i18n="settings.lang.label">표시 언어</span>
+        <select id="lang-select" class="lang-select">
+          <option value="auto" data-i18n="lang.auto">자동 감지</option>
+          <option value="ko">한국어</option>
+          <option value="en">English</option>
+        </select>
       </div>
     </div>
   </div>
@@ -121,13 +127,13 @@
 <div id="friends-modal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <h3>친구</h3>
+      <h3 data-i18n="friends.title">친구</h3>
       <button class="modal-close" id="close-friends-btn">&times;</button>
     </div>
     <div class="friends-tabs">
-      <button class="friends-tab active" data-tab="list">친구 목록</button>
-      <button class="friends-tab" data-tab="requests">받은 요청<span id="req-count-badge" class="friends-badge hidden"></span></button>
-      <button class="friends-tab" data-tab="search">유저 검색</button>
+      <button class="friends-tab active" data-tab="list" data-i18n="friends.tab.list">친구 목록</button>
+      <button class="friends-tab" data-tab="requests"><span data-i18n="friends.tab.requests">받은 요청</span><span id="req-count-badge" class="friends-badge hidden"></span></button>
+      <button class="friends-tab" data-tab="search" data-i18n="friends.tab.search">유저 검색</button>
     </div>
     <div id="ftab-list" class="ftab-content">
       <div id="friends-list-body"></div>
@@ -137,8 +143,8 @@
     </div>
     <div id="ftab-search" class="ftab-content hidden">
       <div class="location-input-row" style="margin-bottom:8px;">
-        <input type="text" id="friend-search-input" placeholder="닉네임으로 검색" autocomplete="off" />
-        <button type="button" id="friend-search-btn" class="btn btn-sm">검색</button>
+        <input type="text" id="friend-search-input" data-i18n-placeholder="friends.search.placeholder" placeholder="닉네임으로 검색" autocomplete="off" />
+        <button type="button" id="friend-search-btn" class="btn btn-sm" data-i18n="btn.search">검색</button>
       </div>
       <div id="friend-search-body"></div>
     </div>
@@ -149,7 +155,7 @@
 <div id="dm-list-modal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <h3>메시지</h3>
+      <h3 data-i18n="dm.list.title">메시지</h3>
       <button class="modal-close" id="close-dm-list-btn">&times;</button>
     </div>
     <div id="dm-list-body"></div>
@@ -165,8 +171,8 @@
     </div>
     <div id="dm-messages" class="dm-messages"></div>
     <div class="chat-input-bar" style="padding:12px;">
-      <input type="text" id="dm-input" placeholder="메시지를 입력하세요..." />
-      <button id="dm-send-btn" class="btn btn-primary">전송</button>
+      <input type="text" id="dm-input" data-i18n-placeholder="dm.input.placeholder" placeholder="메시지를 입력하세요..." />
+      <button id="dm-send-btn" class="btn btn-primary" data-i18n="btn.send">전송</button>
     </div>
   </div>
 </div>
@@ -175,17 +181,17 @@
 <div id="place-search-modal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <h3>장소 검색</h3>
+      <h3 data-i18n="place.title">장소 검색</h3>
       <button class="modal-close" id="close-place-search-btn">&times;</button>
     </div>
     <div class="place-search-body">
       <div class="location-input-row">
-        <input type="text" id="place-search-input" placeholder="장소명으로 검색" autocomplete="off" />
-        <button type="button" id="place-search-go-btn" class="btn btn-sm">검색</button>
+        <input type="text" id="place-search-input" data-i18n-placeholder="place.placeholder" placeholder="장소명으로 검색" autocomplete="off" />
+        <button type="button" id="place-search-go-btn" class="btn btn-sm" data-i18n="btn.search">검색</button>
       </div>
       <div id="place-search-results" class="place-search-results"></div>
       <div id="place-search-more-wrap" class="hidden" style="text-align:center;padding:10px 0;">
-        <button type="button" id="place-search-more-btn" class="btn btn-sm">더 보기</button>
+        <button type="button" id="place-search-more-btn" class="btn btn-sm" data-i18n="btn.more">더 보기</button>
       </div>
     </div>
   </div>
@@ -195,25 +201,25 @@
 <div id="create-modal" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
-      <h3>방 만들기</h3>
+      <h3 data-i18n="create.title">방 만들기</h3>
       <button class="modal-close" id="close-create-btn">&times;</button>
     </div>
     <form id="create-room-form">
-      <label>카테고리
+      <label><span data-i18n="create.category">카테고리</span>
         <select name="category" id="category-select" required>
-          <option value="">선택하세요</option>
-          <option value="개인소유">개인소유</option>
-          <option value="보드게임방">보드게임방</option>
-          <option value="테이블탑 시뮬레이터">테이블탑 시뮬레이터</option>
-          <option value="BGA">BGA</option>
-          <option value="스팀게임">스팀게임</option>
+          <option value="" data-i18n="create.cat.select">선택하세요</option>
+          <option value="개인소유" data-i18n="create.cat.private">개인소유</option>
+          <option value="보드게임방" data-i18n="create.cat.cafe">보드게임방</option>
+          <option value="테이블탑 시뮬레이터" data-i18n="create.cat.tabletop">테이블탑 시뮬레이터</option>
+          <option value="BGA" data-i18n="create.cat.bga">BGA</option>
+          <option value="스팀게임" data-i18n="create.cat.steam">스팀게임</option>
         </select>
       </label>
       <div id="location-field" class="hidden">
-        <label>장소
+        <label><span data-i18n="create.location">장소</span>
           <div class="location-input-row">
-            <input type="text" id="location-search-input" placeholder="장소명으로 검색 (예: 레드버튼)" autocomplete="off" />
-            <button type="button" id="location-search-btn" class="btn btn-sm">검색</button>
+            <input type="text" id="location-search-input" data-i18n-placeholder="create.location.placeholder" placeholder="장소명으로 검색 (예: 레드버튼)" autocomplete="off" />
+            <button type="button" id="location-search-btn" class="btn btn-sm" data-i18n="btn.search">검색</button>
           </div>
         </label>
         <div id="location-selected" class="location-selected hidden">
@@ -222,22 +228,22 @@
         </div>
         <input type="hidden" name="location" id="location-input" />
       </div>
-      <label>게임 이름
+      <label><span data-i18n="create.game">게임 이름</span>
         <div class="game-search-wrap">
-          <input type="text" id="game-name-input" name="game_name" placeholder="예: 카탄, 스플렌더..." required autocomplete="off" />
+          <input type="text" id="game-name-input" name="game_name" data-i18n-placeholder="create.game.placeholder" placeholder="예: 카탄, 스플렌더..." required autocomplete="off" />
           <div id="game-name-dropdown" class="game-name-dropdown hidden"></div>
         </div>
       </label>
-      <label>방 제목
-        <input type="text" name="title" placeholder="방 제목을 입력하세요" required />
+      <label><span data-i18n="create.room-title">방 제목</span>
+        <input type="text" name="title" data-i18n-placeholder="create.room-title.placeholder" placeholder="방 제목을 입력하세요" required />
       </label>
-      <label>최대 인원
+      <label><span data-i18n="create.max-players">최대 인원</span>
         <input type="number" name="max_players" min="2" max="20" value="4" required />
       </label>
-      <label>예정 시간
+      <label><span data-i18n="create.scheduled">예정 시간</span>
         <input type="datetime-local" name="scheduled_at" />
       </label>
-      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;">방 만들기</button>
+      <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;" data-i18n="btn.create-room">방 만들기</button>
     </form>
   </div>
 </div>
@@ -246,14 +252,14 @@
 <div id="room-screen" class="screen hidden">
   <header>
     <div class="header-inner">
-      <button id="back-btn" class="btn btn-sm">← 목록</button>
+      <button id="back-btn" class="btn btn-sm" data-i18n="btn.back">← 목록</button>
       <div id="room-title-area">
         <h2 id="room-title"></h2>
         <span id="room-meta"></span>
       </div>
       <div id="room-members-info"></div>
-      <button id="settings-btn-room" class="btn btn-sm" title="설정">⚙️</button>
-      <button id="leave-btn" class="btn btn-sm btn-danger">나가기</button>
+      <button id="settings-btn-room" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️</button>
+      <button id="leave-btn" class="btn btn-sm btn-danger" data-i18n="btn.leave">나가기</button>
     </div>
   </header>
 
@@ -261,8 +267,8 @@
     <div class="chat-area">
       <div id="messages-list"></div>
       <div class="chat-input-bar">
-        <input type="text" id="chat-input" placeholder="메시지를 입력하세요..." />
-        <button id="send-btn" class="btn btn-primary">전송</button>
+        <input type="text" id="chat-input" data-i18n-placeholder="chat.placeholder" placeholder="메시지를 입력하세요..." />
+        <button id="send-btn" class="btn btn-primary" data-i18n="btn.send">전송</button>
       </div>
     </div>
   </div>
@@ -272,8 +278,8 @@
 <div id="profile-screen" class="screen hidden">
   <header>
     <div class="header-inner">
-      <button id="profile-back-btn" class="btn btn-sm">← 뒤로</button>
-      <h2 style="flex:1;">내 프로필</h2>
+      <button id="profile-back-btn" class="btn btn-sm" data-i18n="btn.profile-back">← 뒤로</button>
+      <h2 style="flex:1;" data-i18n="profile.title">내 프로필</h2>
     </div>
   </header>
   <main>
@@ -282,29 +288,29 @@
         <img id="profile-avatar" class="profile-avatar" src="" alt="프로필 사진" />
         <div class="profile-info">
           <div class="profile-row" id="profile-nickname-row">
-            <span class="profile-label">닉네임</span>
+            <span class="profile-label" data-i18n="profile.nickname">닉네임</span>
             <span id="profile-nickname" class="profile-value"></span>
-            <button id="nickname-edit-btn" class="btn btn-sm" style="margin-left:auto;">변경</button>
+            <button id="nickname-edit-btn" class="btn btn-sm" style="margin-left:auto;" data-i18n="btn.edit">변경</button>
           </div>
           <div id="profile-nickname-edit-row" class="profile-row hidden">
-            <span class="profile-label">새 닉네임</span>
+            <span class="profile-label" data-i18n="profile.new-nick">새 닉네임</span>
             <input type="text" id="profile-nickname-input" class="nickname-input" maxlength="16" autocomplete="off" />
             <div style="display:flex;gap:6px;margin-left:8px;">
-              <button id="nickname-save-btn" class="btn btn-sm btn-primary">저장</button>
-              <button id="nickname-cancel-btn" class="btn btn-sm">취소</button>
+              <button id="nickname-save-btn" class="btn btn-sm btn-primary" data-i18n="btn.save">저장</button>
+              <button id="nickname-cancel-btn" class="btn btn-sm" data-i18n="btn.cancel">취소</button>
             </div>
           </div>
           <div id="profile-nickname-msg" class="nickname-msg" style="padding:0 4px;"></div>
           <div class="profile-row">
-            <span class="profile-label">이메일</span>
+            <span class="profile-label" data-i18n="profile.email">이메일</span>
             <span id="profile-email" class="profile-value"></span>
           </div>
           <div class="profile-row">
-            <span class="profile-label">로그인 방식</span>
+            <span class="profile-label" data-i18n="profile.provider">로그인 방식</span>
             <span id="profile-provider" class="profile-value"></span>
           </div>
           <div class="profile-row">
-            <span class="profile-label">가입일</span>
+            <span class="profile-label" data-i18n="profile.created">가입일</span>
             <span id="profile-created" class="profile-value"></span>
           </div>
         </div>
