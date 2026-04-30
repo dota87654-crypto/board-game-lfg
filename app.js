@@ -597,7 +597,12 @@ leaveBtn.addEventListener('click', async () => {
       subscribeRooms();
       return;
     }
-    allRooms = allRooms.map(r => r.id === roomId ? { ...r, host_id: newHostId } : r);
+    const { data: newHostProfile } = await sb.from('profiles')
+      .select('nickname, display_name, email')
+      .eq('id', newHostId)
+      .maybeSingle();
+    const newHostName = newHostProfile?.nickname || newHostProfile?.display_name || newHostProfile?.email?.split('@')[0] || '알 수 없음';
+    allRooms = allRooms.map(r => r.id === roomId ? { ...r, host_id: newHostId, host_name: newHostName } : r);
   }
 
   const { error: delErr } = await sb.from('room_members').delete()
@@ -740,7 +745,26 @@ async function updateMemberCount(roomId) {
 // --- Realtime ---
 function subscribeRooms() {
   const ch = sb.channel('rooms-list')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => loadRooms())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, () => loadRooms())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms' }, () => loadRooms())
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms' }, async payload => {
+      const updated = payload.new;
+      if (!updated) { loadRooms(); return; }
+      const local = allRooms.find(r => r.id === updated.id);
+      if (local && local.host_id !== updated.host_id) {
+        const { data: p } = await sb.from('profiles')
+          .select('nickname, display_name, email')
+          .eq('id', updated.host_id)
+          .maybeSingle();
+        const hostName = p?.nickname || p?.display_name || p?.email?.split('@')[0] || '알 수 없음';
+        allRooms = allRooms.map(r =>
+          r.id === updated.id ? { ...r, host_id: updated.host_id, host_name: hostName } : r
+        );
+        renderRooms();
+      } else {
+        loadRooms();
+      }
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members' }, () => loadRooms())
     .subscribe();
   realtimeChannels.push(ch);
