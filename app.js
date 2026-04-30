@@ -65,6 +65,7 @@ const TRANSLATIONS = {
     'ctx.add-friend': '친구 추가', 'ctx.dm': 'DM 보내기',
     'ctx.kick': '강퇴', 'ctx.block': '차단', 'ctx.unblock': '차단 해제',
     'kick.notice': '방에서 강퇴되었습니다.', 'block.dm.err': '차단한 유저에게는 DM을 보낼 수 없어요.',
+    'ban.notice': '강퇴된 방이라 다시 입장할 수 없어요.',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -131,6 +132,7 @@ const TRANSLATIONS = {
     'ctx.add-friend': 'Add Friend', 'ctx.dm': 'Send DM',
     'ctx.kick': 'Kick', 'ctx.block': 'Block', 'ctx.unblock': 'Unblock',
     'kick.notice': 'You have been kicked from the room.', 'block.dm.err': 'Cannot send DM to a blocked user.',
+    'ban.notice': 'You have been banned from this room and cannot re-enter.',
   },
 };
 
@@ -738,6 +740,10 @@ createRoomForm.addEventListener('submit', async e => {
 
 // --- Enter Room ---
 async function enterRoom(room) {
+  const { data: ban } = await sb.from('room_bans').select('room_id')
+    .eq('room_id', room.id).eq('user_id', currentUser.id).maybeSingle();
+  if (ban) { alert(t('ban.notice')); return; }
+
   currentRoom = room;
   unsubscribeAll();
 
@@ -1075,7 +1081,11 @@ async function kickMember(userId) {
   if (!currentRoom) return;
   const { error } = await sb.from('room_members').delete()
     .eq('room_id', currentRoom.id).eq('user_id', userId);
-  if (error) console.error('kick error:', error);
+  if (!error) {
+    await sb.from('room_bans').insert({ room_id: currentRoom.id, user_id: userId });
+  } else {
+    console.error('kick error:', error);
+  }
 }
 
 async function handleKicked() {
