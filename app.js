@@ -589,7 +589,16 @@ leaveBtn.addEventListener('click', async () => {
   // 방장 위임: room_members 삭제 전에 실행 (삭제 후엔 RLS로 UPDATE 권한 없을 수 있음)
   if (currentRoom.host_id === currentUser.id && remaining?.length) {
     const newHostId = remaining[0].user_id;
-    await sb.from('rooms').update({ host_id: newHostId }).eq('id', roomId);
+    const { data: updated, error: updateErr } = await sb.from('rooms')
+      .update({ host_id: newHostId })
+      .eq('id', roomId)
+      .select('host_id')
+      .maybeSingle();
+    if (updateErr || !updated) {
+      alert(`방장 위임 실패 (RLS 문제일 수 있음)\n\n아래 SQL을 Supabase SQL Editor에서 실행해주세요:\n\nDROP POLICY IF EXISTS "Enable update for users based on user_id" ON rooms;\nCREATE POLICY "host can update room" ON rooms\nFOR UPDATE USING (auth.uid() = host_id);`);
+      subscribeRooms();
+      return;
+    }
     allRooms = allRooms.map(r => r.id === roomId ? { ...r, host_id: newHostId } : r);
   }
 
