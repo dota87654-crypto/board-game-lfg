@@ -223,7 +223,10 @@
         <input type="hidden" name="location" id="location-input" />
       </div>
       <label>게임 이름
-        <input type="text" name="game_name" placeholder="예: 카탄, 스플렌더..." required />
+        <div class="game-search-wrap">
+          <input type="text" id="game-name-input" name="game_name" placeholder="예: 카탄, 스플렌더..." required autocomplete="off" />
+          <div id="game-name-dropdown" class="game-name-dropdown hidden"></div>
+        </div>
       </label>
       <label>방 제목
         <input type="text" name="title" placeholder="방 제목을 입력하세요" required />

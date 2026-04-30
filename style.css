@@ -613,6 +613,33 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 #chat-input:focus { outline: none; border-color: var(--primary); }
 
+/* Game name autocomplete */
+.game-search-wrap { position: relative; margin-top: 6px; }
+.game-search-wrap input { margin-top: 0 !important; }
+.game-name-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 50;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.game-dropdown-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.game-dropdown-item:last-child { border-bottom: none; }
+.game-dropdown-item:hover { background: var(--surface2); }
+.game-dropdown-ko { font-size: 0.9rem; font-weight: 600; }
+.game-dropdown-en { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

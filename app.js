@@ -410,6 +410,49 @@ openCreateBtn.addEventListener('click', () => createModal.classList.remove('hidd
 closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));
 createModal.addEventListener('click', e => { if (e.target === createModal) createModal.classList.add('hidden'); });
 
+// --- Game name autocomplete ---
+const gameNameInput = document.getElementById('game-name-input');
+const gameNameDropdown = document.getElementById('game-name-dropdown');
+let gameSearchTimer = null;
+
+gameNameInput.addEventListener('input', () => {
+  clearTimeout(gameSearchTimer);
+  const q = gameNameInput.value.trim();
+  if (!q) { gameNameDropdown.classList.add('hidden'); return; }
+  gameSearchTimer = setTimeout(() => searchGames(q), 200);
+});
+
+gameNameInput.addEventListener('blur', () => {
+  setTimeout(() => gameNameDropdown.classList.add('hidden'), 150);
+});
+
+async function searchGames(query) {
+  const { data } = await sb.from('boardgames')
+    .select('name_ko, name_en')
+    .or(`name_ko.ilike.%${query}%,name_en.ilike.%${query}%`)
+    .limit(10);
+
+  if (!data?.length) { gameNameDropdown.classList.add('hidden'); return; }
+
+  gameNameDropdown.innerHTML = '';
+  data.forEach(game => {
+    const ko = game.name_ko || '';
+    const en = game.name_en || '';
+    const item = document.createElement('div');
+    item.className = 'game-dropdown-item';
+    item.innerHTML = `
+      <div class="game-dropdown-ko">${escHtml(ko || en)}</div>
+      ${ko && en ? `<div class="game-dropdown-en">${escHtml(en)}</div>` : ''}
+    `;
+    item.addEventListener('mousedown', () => {
+      gameNameInput.value = ko || en;
+      gameNameDropdown.classList.add('hidden');
+    });
+    gameNameDropdown.appendChild(item);
+  });
+  gameNameDropdown.classList.remove('hidden');
+}
+
 createRoomForm.addEventListener('submit', async e => {
   e.preventDefault();
   if (!currentUser) return;
