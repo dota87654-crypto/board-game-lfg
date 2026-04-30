@@ -524,16 +524,30 @@ async function enterRoom(room) {
   // 이전 참여 방 기록 (위임 처리용)
   const prevRoomId = (participatingRoomId && participatingRoomId !== room.id) ? participatingRoomId : null;
 
-  // 삭제 전에 이전 방 남은 멤버 미리 조회
-  const prevRemaining = prevRoomId ? await fetchRemainingMembers(prevRoomId) : null;
+  if (prevRoomId) {
+    const prevRoom = allRooms.find(r => r.id === prevRoomId);
+    const prevRemaining = await fetchRemainingMembers(prevRoomId);
 
-  // 다른 방에 참여 중이면 먼저 모두 나가기
-  await sb.from('room_members').delete()
-    .eq('user_id', currentUser.id)
-    .neq('room_id', room.id);
+    // 방장 위임: room_members 삭제 전에 실행 (RLS)
+    if (prevRoom?.host_id === currentUser.id && prevRemaining?.length) {
+      const newHostId = prevRemaining[0].user_id;
+      await sb.from('rooms').update({ host_id: newHostId }).eq('id', prevRoomId);
+      allRooms = allRooms.map(r => r.id === prevRoomId ? { ...r, host_id: newHostId } : r);
+    }
 
-  // 이전 방 방장 위임/삭제 처리
-  if (prevRoomId) await handleLeaveRoom(prevRoomId, prevRemaining);
+    await sb.from('room_members').delete()
+      .eq('user_id', currentUser.id)
+      .neq('room_id', room.id);
+
+    if (!prevRemaining?.length) {
+      await sb.from('rooms').delete().eq('id', prevRoomId);
+      allRooms = allRooms.filter(r => r.id !== prevRoomId);
+    }
+  } else {
+    await sb.from('room_members').delete()
+      .eq('user_id', currentUser.id)
+      .neq('room_id', room.id);
+  }
 
   // 현재 방 참여 (이미 있으면 무시)
   await sb.from('room_members')
@@ -567,12 +581,17 @@ leaveBtn.addEventListener('click', async () => {
   if (!currentRoom) return;
   const roomId = currentRoom.id;
 
-  // 삭제 전에 남은 멤버 미리 조회 (삭제 후엔 RLS로 조회 불가)
   const remaining = await fetchRemainingMembers(roomId);
 
-  // 리얼타임 먼저 해제 — 삭제 이벤트가 loadRooms()를 트리거해 DB 업데이트 전 구버전 host로 덮어쓰는 경쟁 방지
   if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
   unsubscribeAll();
+
+  // 방장 위임: room_members 삭제 전에 실행 (삭제 후엔 RLS로 UPDATE 권한 없을 수 있음)
+  if (currentRoom.host_id === currentUser.id && remaining?.length) {
+    const newHostId = remaining[0].user_id;
+    await sb.from('rooms').update({ host_id: newHostId }).eq('id', roomId);
+    allRooms = allRooms.map(r => r.id === roomId ? { ...r, host_id: newHostId } : r);
+  }
 
   const { error: delErr } = await sb.from('room_members').delete()
     .eq('room_id', roomId)
@@ -591,7 +610,11 @@ leaveBtn.addEventListener('click', async () => {
   });
   myRoomIds.delete(roomId);
 
-  await handleLeaveRoom(roomId, remaining);
+  // 남은 멤버 없으면 방 삭제 (host_id가 아직 본인 → RLS 통과)
+  if (!remaining?.length) {
+    await sb.from('rooms').delete().eq('id', roomId);
+    allRooms = allRooms.filter(r => r.id !== roomId);
+  }
 
   currentRoom = null;
   participatingRoomId = null;
@@ -814,31 +837,21 @@ async function initRoomUnread() {
   }
 }
 
-// remaining: 삭제 전에 미리 조회한 멤버 배열 (RLS 우회)
-async function handleLeaveRoom(roomId, remaining) {
-  const room = allRooms.find(r => r.id === roomId);
-  const wasHost = room?.host_id === currentUser.id;
-
-  if (!remaining?.length) {
-    await sb.from('rooms').delete().eq('id', roomId);
-    allRooms = allRooms.filter(r => r.id !== roomId);
-    return;
-  }
-
-  if (wasHost) {
-    const newHostId = remaining[0].user_id;
-    await sb.from('rooms').update({ host_id: newHostId }).eq('id', roomId);
-    allRooms = allRooms.map(r => r.id === roomId ? { ...r, host_id: newHostId } : r);
-  }
-}
-
 async function fetchRemainingMembers(roomId) {
-  const { data } = await sb.from('room_members')
+  // joined_at 기준 정렬 시도, 컬럼 없으면 순서 무관하게 재조회
+  let { data, error } = await sb.from('room_members')
     .select('user_id')
     .eq('room_id', roomId)
     .neq('user_id', currentUser.id)
     .order('joined_at', { ascending: true })
     .limit(1);
+  if (error) {
+    ({ data } = await sb.from('room_members')
+      .select('user_id')
+      .eq('room_id', roomId)
+      .neq('user_id', currentUser.id)
+      .limit(1));
+  }
   return data;
 }
 
