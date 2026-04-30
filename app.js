@@ -145,6 +145,20 @@ function goToMain() {
   subscribeFriends();
   initDMUnread();
   subscribeGlobalDM();
+  resumeRoomSubscription();
+}
+
+async function resumeRoomSubscription() {
+  if (participatingRoomId) return; // 이미 구독 중
+  const { data } = await sb.from('room_members')
+    .select('room_id')
+    .eq('user_id', currentUser.id)
+    .limit(1)
+    .maybeSingle();
+  if (data?.room_id) {
+    participatingRoomId = data.room_id;
+    subscribeChatNotif(data.room_id);
+  }
 }
 
 function onLogout() {
@@ -948,16 +962,21 @@ dmBtn.addEventListener('click', openDMList);
 closeDmListBtn.addEventListener('click', () => dmListModal.classList.add('hidden'));
 dmListModal.addEventListener('click', e => { if (e.target === dmListModal) dmListModal.classList.add('hidden'); });
 
-function getLastReadMap() {
-  if (!currentUser) return {};
-  try { return JSON.parse(localStorage.getItem(`dm_lastread_${currentUser.id}`) || '{}'); }
-  catch { return {}; }
+async function fetchDMReadMap() {
+  const { data } = await sb.from('dm_reads')
+    .select('partner_id, last_read_at')
+    .eq('user_id', currentUser.id);
+  const map = {};
+  (data || []).forEach(r => { map[r.partner_id] = r.last_read_at; });
+  return map;
 }
 
-function setLastRead(friendId) {
-  const map = getLastReadMap();
-  map[friendId] = new Date().toISOString();
-  localStorage.setItem(`dm_lastread_${currentUser.id}`, JSON.stringify(map));
+async function setLastRead(friendId) {
+  await sb.from('dm_reads').upsert({
+    user_id: currentUser.id,
+    partner_id: friendId,
+    last_read_at: new Date().toISOString()
+  }, { onConflict: 'user_id,partner_id' });
 }
 
 function updateDMBadge() {
@@ -971,15 +990,17 @@ function updateDMBadge() {
 }
 
 async function initDMUnread() {
-  const lastReadMap = getLastReadMap();
-  const { data } = await sb.from('dm_messages')
-    .select('sender_id, created_at')
-    .eq('receiver_id', currentUser.id)
-    .order('created_at', { ascending: false })
-    .limit(300);
+  const [lastReadMap, msgsRes] = await Promise.all([
+    fetchDMReadMap(),
+    sb.from('dm_messages')
+      .select('sender_id, created_at')
+      .eq('receiver_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(300)
+  ]);
 
   dmUnreadMap = {};
-  (data || []).forEach(msg => {
+  (msgsRes.data || []).forEach(msg => {
     const lastRead = lastReadMap[msg.sender_id];
     if (!lastRead || new Date(msg.created_at) > new Date(lastRead)) {
       dmUnreadMap[msg.sender_id] = (dmUnreadMap[msg.sender_id] || 0) + 1;
