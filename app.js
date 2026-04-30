@@ -1153,9 +1153,16 @@ async function blockUser(userId) {
     const { data: p } = await sb.from('profiles').select('nickname, display_name, email').eq('id', userId).maybeSingle();
     const nickname = p?.nickname || p?.display_name || p?.email?.split('@')[0] || t('unknown');
     blockedList.push({ userId, nickname });
-    // 친구 관계도 삭제
-    await sb.from('friendships').delete()
-      .or(`and(requester_id.eq.${currentUser.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${currentUser.id})`);
+    // 친구 관계 삭제 (ID로 직접 or 양방향 삭제)
+    const existing = friendsList.find(f => f.friendId === userId);
+    if (existing) {
+      await sb.from('friendships').delete().eq('id', existing.id);
+    } else {
+      await sb.from('friendships').delete()
+        .eq('requester_id', currentUser.id).eq('addressee_id', userId);
+      await sb.from('friendships').delete()
+        .eq('requester_id', userId).eq('addressee_id', currentUser.id);
+    }
     await loadFriends();
     renderMembersPanel();
     renderBlockedList();
@@ -1844,9 +1851,11 @@ friendSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.
 
 async function loadPendingBadge() {
   if (!currentUser) return;
-  const { count } = await sb.from('friendships')
-    .select('id', { count: 'exact', head: true })
-    .eq('addressee_id', currentUser.id).eq('status', 'pending');
+  const { data } = await sb.from('friendships')
+    .select('id')
+    .eq('addressee_id', currentUser.id)
+    .eq('status', 'pending');
+  const count = data?.length ?? 0;
   if (count > 0) {
     friendsBadge.textContent = count;
     friendsBadge.classList.remove('hidden');
@@ -2047,15 +2056,16 @@ async function removeFriend(id) {
 
 function subscribeFriends() {
   const ch = sb.channel('friendships-realtime')
-    .on('postgres_changes', {
-      event: 'INSERT', schema: 'public', table: 'friendships',
-      filter: `addressee_id=eq.${currentUser.id}`
-    }, payload => {
-      if (payload.new?.status === 'pending') playFriendRequest();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, payload => {
+      if (
+        payload.eventType === 'INSERT' &&
+        payload.new?.status === 'pending' &&
+        payload.new?.addressee_id === currentUser.id
+      ) {
+        playFriendRequest();
+      }
       loadFriends();
     })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friendships' }, () => loadFriends())
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'friendships' }, () => loadFriends())
     .subscribe();
   realtimeChannels.push(ch);
 }
