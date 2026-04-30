@@ -319,6 +319,15 @@ main { padding: 24px 20px; }
   color: #fff;
   white-space: nowrap;
 }
+.room-unread-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+  white-space: nowrap;
+}
 
 .empty-state { text-align: center; color: var(--text-muted); padding: 60px 0; grid-column: 1/-1; }
 .empty-state p { font-size: 1rem; }

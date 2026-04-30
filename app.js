@@ -13,6 +13,9 @@ let realtimeChannels = [];
 let currentNickname = '';
 let dmUnreadMap = {};
 let globalDMChannel = null;
+let chatNotifChannel = null;
+let participatingRoomId = null;
+let roomUnreadMap = {};
 
 // --- DOM refs ---
 const loginScreen = document.getElementById('login-screen');
@@ -147,8 +150,11 @@ function goToMain() {
 function onLogout() {
   currentUser = null;
   currentRoom = null;
+  participatingRoomId = null;
   dmUnreadMap = {};
+  roomUnreadMap = {};
   if (globalDMChannel) { sb.removeChannel(globalDMChannel); globalDMChannel = null; }
+  if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
   unsubscribeAll();
   showScreen('login');
 }
@@ -230,6 +236,7 @@ function renderRooms() {
     const countClass = isFull ? 'full' : 'current';
     const host = room.host_name || '알 수 없음';
     const isMine = myRoomIds.has(room.id);
+    const unread = roomUnreadMap[room.id] || 0;
     const timeStr = room.scheduled_at
       ? new Date(room.scheduled_at).toLocaleString('ko-KR', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
       : '';
@@ -239,6 +246,7 @@ function renderRooms() {
           <div class="room-card-title">${escHtml(room.title)}</div>
           <div style="display:flex;gap:6px;align-items:center">
             ${isMine ? '<span class="badge-mine">참여 중</span>' : ''}
+            ${unread > 0 ? `<span class="room-unread-badge">${unread}</span>` : ''}
             <div class="room-card-cat">${escHtml(room.category)}</div>
           </div>
         </div>
@@ -458,10 +466,13 @@ async function enterRoom(room) {
     .select()
     .maybeSingle();
 
+  participatingRoomId = room.id;
+  clearRoomUnread(room.id);
   await loadMessages(room.id);
   await updateMemberCount(room.id);
   subscribeChat(room.id);
   subscribeMembers(room.id);
+  subscribeChatNotif(room.id);
 }
 
 // 목록 버튼: 방 유지하고 목록으로만 이동
@@ -508,10 +519,13 @@ leaveBtn.addEventListener('click', async () => {
   }
 
   currentRoom = null;
+  participatingRoomId = null;
+  roomUnreadMap = {};
+  if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
   unsubscribeAll();
   showScreen('main');
-  renderRooms();   // 즉시 반영
-  loadRooms();     // DB 재확인
+  renderRooms();
+  loadRooms();
   subscribeRooms();
 });
 
@@ -676,6 +690,29 @@ function subscribeMembers(roomId) {
     })
     .subscribe();
   realtimeChannels.push(ch);
+}
+
+function subscribeChatNotif(roomId) {
+  if (chatNotifChannel) sb.removeChannel(chatNotifChannel);
+  chatNotifChannel = sb.channel(`chat-notif-${roomId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `room_id=eq.${roomId}`
+    }, payload => {
+      const msg = payload.new;
+      if (!msg || msg.user_id === currentUser.id) return;
+      if (!roomScreen.classList.contains('hidden')) return; // 방 화면이면 subscribeChat이 처리
+      playChat();
+      roomUnreadMap[roomId] = (roomUnreadMap[roomId] || 0) + 1;
+      renderRooms();
+    })
+    .subscribe();
+}
+
+function clearRoomUnread(roomId) {
+  delete roomUnreadMap[roomId];
 }
 
 function unsubscribeAll() {
