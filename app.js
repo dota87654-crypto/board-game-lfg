@@ -570,6 +570,10 @@ leaveBtn.addEventListener('click', async () => {
   // 삭제 전에 남은 멤버 미리 조회 (삭제 후엔 RLS로 조회 불가)
   const remaining = await fetchRemainingMembers(roomId);
 
+  // 리얼타임 먼저 해제 — 삭제 이벤트가 loadRooms()를 트리거해 DB 업데이트 전 구버전 host로 덮어쓰는 경쟁 방지
+  if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
+  unsubscribeAll();
+
   const { error: delErr } = await sb.from('room_members').delete()
     .eq('room_id', roomId)
     .eq('user_id', currentUser.id);
@@ -577,27 +581,24 @@ leaveBtn.addEventListener('click', async () => {
   if (delErr) {
     console.error('leave error:', delErr);
     alert('나가기 실패: ' + delErr.message);
+    subscribeRooms();
     return;
   }
 
-  // 로컬 상태 즉시 반영 (목록에서 바로 숨김)
   allRooms = allRooms.map(r => {
     if (r.id === roomId) return { ...r, member_count: Math.max(0, (r.member_count || 1) - 1) };
     return r;
   });
   myRoomIds.delete(roomId);
 
-  // 방장 위임 또는 방 삭제
   await handleLeaveRoom(roomId, remaining);
 
   currentRoom = null;
   participatingRoomId = null;
   roomUnreadMap = {};
-  if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
-  unsubscribeAll();
   showScreen('main');
   renderRooms();
-  loadRooms();
+  await loadRooms();
   subscribeRooms();
 });
 
