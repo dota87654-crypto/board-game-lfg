@@ -451,6 +451,23 @@ form label input:focus { outline: none; border-color: var(--primary); }
 
 .empty-friends { color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 24px 0; }
 
+.dm-list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 8px;
+}
+.dm-list-item:last-child { border-bottom: none; }
+.dm-list-item:hover { background: var(--surface2); }
+.dm-list-header { display: flex; justify-content: space-between; align-items: center; }
+.dm-list-name { font-size: 0.92rem; font-weight: 600; }
+.dm-list-time { font-size: 0.75rem; color: var(--text-muted); }
+.dm-list-preview { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+
 .dm-modal { display: flex; flex-direction: column; height: 70vh; max-height: 560px; }
 .dm-messages {
   flex: 1;

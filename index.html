@@ -43,6 +43,7 @@
       <div class="header-right">
         <button id="user-name" class="btn-username"></button>
         <button id="friends-btn" class="btn btn-sm" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
+        <button id="dm-btn" class="btn btn-sm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
         <button id="theme-btn" class="btn btn-sm" title="테마 변경">🌙</button>
         <button id="logout-btn" class="btn btn-sm">로그아웃</button>
       </div>
@@ -98,6 +99,17 @@
       </div>
       <div id="friend-search-body"></div>
     </div>
+  </div>
+</div>
+
+<!-- DM 목록 모달 -->
+<div id="dm-list-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>메시지</h3>
+      <button class="modal-close" id="close-dm-list-btn">&times;</button>
+    </div>
+    <div id="dm-list-body"></div>
   </div>
 </div>
 

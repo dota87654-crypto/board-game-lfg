@@ -11,6 +11,8 @@ let allRooms = [];
 let myRoomIds = new Set();
 let realtimeChannels = [];
 let currentNickname = '';
+let dmUnreadMap = {};
+let globalDMChannel = null;
 
 // --- DOM refs ---
 const loginScreen = document.getElementById('login-screen');
@@ -138,11 +140,15 @@ function goToMain() {
   subscribeRooms();
   loadFriends();
   subscribeFriends();
+  initDMUnread();
+  subscribeGlobalDM();
 }
 
 function onLogout() {
   currentUser = null;
   currentRoom = null;
+  dmUnreadMap = {};
+  if (globalDMChannel) { sb.removeChannel(globalDMChannel); globalDMChannel = null; }
   unsubscribeAll();
   showScreen('login');
 }
@@ -789,6 +795,144 @@ async function saveProfileNickname() {
   }
 }
 
+// --- DM Notifications ---
+const dmBtn = document.getElementById('dm-btn');
+const dmBadge = document.getElementById('dm-badge');
+const dmListModal = document.getElementById('dm-list-modal');
+const dmListBody = document.getElementById('dm-list-body');
+const closeDmListBtn = document.getElementById('close-dm-list-btn');
+
+dmBtn.addEventListener('click', openDMList);
+closeDmListBtn.addEventListener('click', () => dmListModal.classList.add('hidden'));
+dmListModal.addEventListener('click', e => { if (e.target === dmListModal) dmListModal.classList.add('hidden'); });
+
+function getLastReadMap() {
+  if (!currentUser) return {};
+  try { return JSON.parse(localStorage.getItem(`dm_lastread_${currentUser.id}`) || '{}'); }
+  catch { return {}; }
+}
+
+function setLastRead(friendId) {
+  const map = getLastReadMap();
+  map[friendId] = new Date().toISOString();
+  localStorage.setItem(`dm_lastread_${currentUser.id}`, JSON.stringify(map));
+}
+
+function updateDMBadge() {
+  const total = Object.values(dmUnreadMap).reduce((a, b) => a + b, 0);
+  if (total > 0) {
+    dmBadge.textContent = total > 99 ? '99+' : total;
+    dmBadge.classList.remove('hidden');
+  } else {
+    dmBadge.classList.add('hidden');
+  }
+}
+
+async function initDMUnread() {
+  const lastReadMap = getLastReadMap();
+  const { data } = await sb.from('dm_messages')
+    .select('sender_id, created_at')
+    .eq('receiver_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(300);
+
+  dmUnreadMap = {};
+  (data || []).forEach(msg => {
+    const lastRead = lastReadMap[msg.sender_id];
+    if (!lastRead || new Date(msg.created_at) > new Date(lastRead)) {
+      dmUnreadMap[msg.sender_id] = (dmUnreadMap[msg.sender_id] || 0) + 1;
+    }
+  });
+  updateDMBadge();
+}
+
+function subscribeGlobalDM() {
+  if (globalDMChannel) sb.removeChannel(globalDMChannel);
+  globalDMChannel = sb.channel(`global-dm-${currentUser.id}`)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'dm_messages',
+      filter: `receiver_id=eq.${currentUser.id}`
+    }, payload => {
+      const msg = payload.new;
+      if (!msg) return;
+      if (dmFriendId === msg.sender_id) return; // 이미 열린 대화
+      dmUnreadMap[msg.sender_id] = (dmUnreadMap[msg.sender_id] || 0) + 1;
+      updateDMBadge();
+    })
+    .subscribe();
+}
+
+async function openDMList() {
+  dmListModal.classList.remove('hidden');
+  dmListBody.innerHTML = '<div class="empty-friends">로딩 중...</div>';
+
+  const { data } = await sb.from('dm_messages')
+    .select('id, sender_id, receiver_id, content, created_at')
+    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+    .order('created_at', { ascending: false })
+    .limit(300);
+
+  if (!data?.length) {
+    dmListBody.innerHTML = '<div class="empty-friends">아직 대화가 없어요.<br>친구 목록에서 DM을 시작해보세요!</div>';
+    return;
+  }
+
+  const convMap = {};
+  data.forEach(msg => {
+    const partnerId = msg.sender_id === currentUser.id ? msg.receiver_id : msg.sender_id;
+    if (!convMap[partnerId]) convMap[partnerId] = msg;
+  });
+
+  const partnerIds = Object.keys(convMap);
+  const { data: profiles } = await sb.from('profiles')
+    .select('id, nickname, display_name, email')
+    .in('id', partnerIds);
+
+  const profileMap = {};
+  (profiles || []).forEach(p => {
+    profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음';
+  });
+
+  const sorted = partnerIds.sort((a, b) =>
+    new Date(convMap[b].created_at) - new Date(convMap[a].created_at)
+  );
+
+  dmListBody.innerHTML = '';
+  sorted.forEach(partnerId => {
+    const msg = convMap[partnerId];
+    const name = profileMap[partnerId] || '알 수 없음';
+    const unread = dmUnreadMap[partnerId] || 0;
+    const time = formatDMTime(msg.created_at);
+    const rawPreview = msg.sender_id === currentUser.id ? `나: ${msg.content}` : msg.content;
+    const preview = rawPreview.length > 32 ? rawPreview.slice(0, 32) + '…' : rawPreview;
+
+    const el = document.createElement('div');
+    el.className = 'dm-list-item';
+    el.innerHTML = `
+      <div class="dm-list-header">
+        <span class="dm-list-name">${escHtml(name)}${unread ? `<span class="friends-badge" style="margin-left:6px;">${unread}</span>` : ''}</span>
+        <span class="dm-list-time">${time}</span>
+      </div>
+      <div class="dm-list-preview">${escHtml(preview)}</div>
+    `;
+    el.addEventListener('click', () => {
+      dmListModal.classList.add('hidden');
+      openDM(partnerId, name);
+    });
+    dmListBody.appendChild(el);
+  });
+}
+
+function formatDMTime(isoStr) {
+  const d = new Date(isoStr);
+  const now = new Date();
+  const diffDays = Math.floor((now - d) / 86400000);
+  if (diffDays === 0) return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  if (diffDays === 1) return '어제';
+  if (diffDays < 7) return `${diffDays}일 전`;
+  return d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+}
+
 // --- Friends ---
 let friendsList = [];
 let pendingList = [];
@@ -1003,6 +1147,10 @@ async function openDM(friendId, friendName) {
   dmMessages.innerHTML = '';
   friendsModal.classList.add('hidden');
   dmModal.classList.remove('hidden');
+  // 읽음 처리
+  setLastRead(friendId);
+  delete dmUnreadMap[friendId];
+  updateDMBadge();
   await loadDMMessages();
   subscribeDM();
   dmInput.focus();
@@ -1027,8 +1175,8 @@ async function loadDMMessages() {
   const userIds = [...new Set((data || []).map(m => m.sender_id))];
   const profileMap = {};
   if (userIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, display_name, email').in('id', userIds);
-    (profiles || []).forEach(p => { profileMap[p.id] = p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
+    (profiles || []).forEach(p => { profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
   }
 
   dmMessages.innerHTML = '';
@@ -1084,8 +1232,8 @@ function subscribeDM() {
       if (!msg) return;
       if (sentDmIds.has(msg.id)) { sentDmIds.delete(msg.id); return; }
       if (msg.sender_id !== dmFriendId) return;
-      const { data: profile } = await sb.from('profiles').select('display_name, email').eq('id', msg.sender_id).single();
-      const name = profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음';
+      const { data: profile } = await sb.from('profiles').select('nickname, display_name, email').eq('id', msg.sender_id).single();
+      const name = profile?.nickname || profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음';
       appendDMMessage(msg, name);
       dmMessages.scrollTop = dmMessages.scrollHeight;
     })
