@@ -378,10 +378,9 @@ async function onLogin(user) {
 async function goToMain() {
   userNameBtn.textContent = currentNickname || currentUser.user_metadata?.full_name || currentUser.email;
   showScreen('main');
-  await loadPendingBadge();
+  await loadFriends();
   loadRooms();
   subscribeRooms();
-  loadFriends();
   subscribeFriends();
   initDMUnread();
   subscribeGlobalDM();
@@ -1852,10 +1851,9 @@ friendSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.
 async function loadPendingBadge() {
   if (!currentUser) return;
   const { data } = await sb.from('friendships')
-    .select('id')
-    .eq('addressee_id', currentUser.id)
-    .eq('status', 'pending');
-  const count = data?.length ?? 0;
+    .select('id, addressee_id, status')
+    .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`);
+  const count = (data || []).filter(f => f.status === 'pending' && f.addressee_id === currentUser.id).length;
   if (count > 0) {
     friendsBadge.textContent = count;
     friendsBadge.classList.remove('hidden');
