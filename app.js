@@ -67,6 +67,8 @@ const TRANSLATIONS = {
     'ctx.add-friend': '친구 추가', 'ctx.dm': 'DM 보내기',
     'ctx.kick': '강퇴', 'ctx.block': '차단', 'ctx.unblock': '차단 해제',
     'kick.notice': '방에서 강퇴되었습니다.', 'block.dm.err': '차단한 유저에게는 DM을 보낼 수 없어요.',
+    'block.recv.err': '메시지를 보낼 수 없습니다.', 'block.friend.err': '친구 요청을 보낼 수 없어요.',
+    'settings.blocked': '차단 목록', 'settings.blocked.empty': '차단한 유저가 없어요.',
     'ban.notice': '강퇴된 방이라 다시 입장할 수 없어요.',
     'btn.invite': '초대', 'title.invite': '친구 초대',
     'invite.sent': '%s님에게 초대를 보냈어요!', 'invite.already': '이미 초대한 유저예요.',
@@ -140,6 +142,8 @@ const TRANSLATIONS = {
     'ctx.add-friend': 'Add Friend', 'ctx.dm': 'Send DM',
     'ctx.kick': 'Kick', 'ctx.block': 'Block', 'ctx.unblock': 'Unblock',
     'kick.notice': 'You have been kicked from the room.', 'block.dm.err': 'Cannot send DM to a blocked user.',
+    'block.recv.err': 'Cannot send message.', 'block.friend.err': 'Cannot send friend request.',
+    'settings.blocked': 'Blocked Users', 'settings.blocked.empty': 'No blocked users.',
     'ban.notice': 'You have been banned from this room and cannot re-enter.',
     'btn.invite': 'Invite', 'title.invite': 'Invite Friends',
     'invite.sent': 'Invite sent to %s!', 'invite.already': 'Already invited this user.',
@@ -220,6 +224,8 @@ let participatingRoomId = null;
 let roomUnreadMap = {};
 let currentRoomMembers = [];
 let blockedSet = new Set();
+let blockedList = [];
+let dmBlockedByFriend = false;
 
 // --- DOM refs ---
 const loginScreen = document.getElementById('login-screen');
@@ -1086,18 +1092,57 @@ function hideContextMenu() {
 async function loadBlocks() {
   if (!currentUser) return;
   const { data } = await sb.from('blocks').select('blocked_id').eq('blocker_id', currentUser.id);
-  blockedSet = new Set((data || []).map(b => b.blocked_id));
+  const ids = (data || []).map(b => b.blocked_id);
+  blockedSet = new Set(ids);
+  if (!ids.length) { blockedList = []; renderBlockedList(); return; }
+  const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', ids);
+  const pm = {};
+  (profiles || []).forEach(p => { pm[p.id] = p; });
+  blockedList = ids.map(id => {
+    const p = pm[id];
+    return { userId: id, nickname: p?.nickname || p?.display_name || p?.email?.split('@')[0] || t('unknown') };
+  });
+  renderBlockedList();
+}
+
+function renderBlockedList() {
+  const body = document.getElementById('blocked-list-body');
+  if (!body) return;
+  if (!blockedList.length) {
+    body.innerHTML = `<p class="empty-blocked">${t('settings.blocked.empty')}</p>`;
+    return;
+  }
+  body.innerHTML = '';
+  blockedList.forEach(u => {
+    const el = document.createElement('div');
+    el.className = 'friend-item';
+    el.innerHTML = `
+      <span class="friend-item-name">${escHtml(u.nickname)}</span>
+      <button class="btn btn-sm">${t('ctx.unblock')}</button>
+    `;
+    el.querySelector('button').addEventListener('click', () => unblockUser(u.userId));
+    body.appendChild(el);
+  });
 }
 
 async function blockUser(userId) {
   const { error } = await sb.from('blocks').insert({ blocker_id: currentUser.id, blocked_id: userId });
-  if (!error) { blockedSet.add(userId); renderMembersPanel(); }
+  if (!error) {
+    blockedSet.add(userId);
+    const { data: p } = await sb.from('profiles').select('nickname, display_name, email').eq('id', userId).maybeSingle();
+    const nickname = p?.nickname || p?.display_name || p?.email?.split('@')[0] || t('unknown');
+    blockedList.push({ userId, nickname });
+    renderMembersPanel();
+    renderBlockedList();
+  }
 }
 
 async function unblockUser(userId) {
   await sb.from('blocks').delete().eq('blocker_id', currentUser.id).eq('blocked_id', userId);
   blockedSet.delete(userId);
+  blockedList = blockedList.filter(u => u.userId !== userId);
   renderMembersPanel();
+  renderBlockedList();
 }
 
 async function kickMember(userId) {
@@ -1909,6 +1954,9 @@ async function searchFriendUsers() {
 }
 
 async function sendFriendRequest(addresseeId) {
+  const { data: blk } = await sb.from('blocks').select('blocker_id')
+    .eq('blocker_id', addresseeId).eq('blocked_id', currentUser.id).maybeSingle();
+  if (blk) { alert(t('block.friend.err')); return; }
   const { error } = await sb.from('friendships').insert({ requester_id: currentUser.id, addressee_id: addresseeId });
   if (error) alert(t('friend.req.err') + error.message);
 }
@@ -1989,6 +2037,10 @@ async function openDM(friendId, friendName) {
   dmMessages.innerHTML = '';
   friendsModal.classList.add('hidden');
   dmModal.classList.remove('hidden');
+  // 상대방이 나를 차단했는지 확인
+  const { data: blk } = await sb.from('blocks').select('blocker_id')
+    .eq('blocker_id', friendId).eq('blocked_id', currentUser.id).maybeSingle();
+  dmBlockedByFriend = !!blk;
   // 읽음 처리
   setLastRead(friendId);
   delete dmUnreadMap[friendId];
@@ -2043,6 +2095,7 @@ async function sendDMMessage() {
   const content = dmInput.value.trim();
   if (!content || !dmFriendId) return;
   if (blockedSet.has(dmFriendId)) { alert(t('block.dm.err')); return; }
+  if (dmBlockedByFriend) { alert(t('block.recv.err')); return; }
   dmInput.value = '';
 
   const tempMsg = {

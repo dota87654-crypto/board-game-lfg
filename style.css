@@ -522,6 +522,7 @@ form label input:focus { outline: none; border-color: var(--primary); }
 .friend-item-actions { display: flex; gap: 6px; }
 
 .empty-friends { color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 24px 0; }
+.empty-blocked { color: var(--text-muted); font-size: 0.88rem; margin: 10px 0 4px; }
 
 .dm-list-item {
   display: flex;
