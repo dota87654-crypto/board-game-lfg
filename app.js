@@ -252,15 +252,12 @@ document.querySelectorAll('input[type="datetime-local"]').forEach(input => {
 });
 
 // --- Theme ---
-const themeBtn = document.getElementById('theme-btn');
 
 function applyTheme(mode) {
   if (mode === 'light') {
     document.body.classList.add('light');
-    themeBtn.textContent = '☀️';
   } else {
     document.body.classList.remove('light');
-    themeBtn.textContent = '🌙';
   }
   const toggle = document.getElementById('theme-toggle');
   if (toggle) toggle.checked = mode !== 'light';
@@ -269,12 +266,6 @@ function applyTheme(mode) {
 // 저장된 테마 적용
 applyTheme(localStorage.getItem('theme') || 'dark');
 
-themeBtn.addEventListener('click', () => {
-  const isLight = document.body.classList.contains('light');
-  const next = isLight ? 'dark' : 'light';
-  localStorage.setItem('theme', next);
-  applyTheme(next);
-});
 
 document.getElementById('theme-toggle').addEventListener('change', e => {
   const next = e.target.checked ? 'dark' : 'light';
