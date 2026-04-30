@@ -275,6 +275,18 @@ main { padding: 24px 20px; }
 .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
 .filter-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
+.filter-btn[data-cat="보드게임방"]:hover  { border-color: #d4813a; color: #d4813a; }
+.filter-btn[data-cat="개인소유"]:hover    { border-color: #9b6fd4; color: #9b6fd4; }
+.filter-btn[data-cat="테이블탑 시뮬레이터"]:hover { border-color: #35b8a8; color: #35b8a8; }
+.filter-btn[data-cat="BGA"]:hover         { border-color: #4a9fd4; color: #4a9fd4; }
+.filter-btn[data-cat="스팀게임"]:hover    { border-color: #6b9dc8; color: #6b9dc8; }
+
+.filter-btn[data-cat="보드게임방"].active  { background: #d4813a; border-color: #d4813a; }
+.filter-btn[data-cat="개인소유"].active    { background: #9b6fd4; border-color: #9b6fd4; }
+.filter-btn[data-cat="테이블탑 시뮬레이터"].active { background: #35b8a8; border-color: #35b8a8; }
+.filter-btn[data-cat="BGA"].active         { background: #4a9fd4; border-color: #4a9fd4; }
+.filter-btn[data-cat="스팀게임"].active    { background: #6b9dc8; border-color: #6b9dc8; }
+
 /* Rooms list */
 #rooms-list {
   display: grid;
