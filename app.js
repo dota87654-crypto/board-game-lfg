@@ -651,10 +651,10 @@ async function loadMessages(roomId) {
   // 메시지 작성자 프로필 별도 조회
   const userIds = [...new Set(msgs.map(m => m.user_id).filter(Boolean))];
   if (userIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, display_name, email').in('id', userIds);
+    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
     const profileMap = {};
     (profiles || []).forEach(p => {
-      profileMap[p.id] = p.display_name || p.email?.split('@')[0] || '알 수 없음';
+      profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음';
     });
     msgs.forEach(m => { m.profiles = { display_name: profileMap[m.user_id] || '알 수 없음' }; });
   }
@@ -786,8 +786,8 @@ function subscribeChat(roomId) {
         return;
       }
       if (isNotifOn('chat_in_room')) playChat();
-      const { data: profile } = await sb.from('profiles').select('display_name, email').eq('id', msg.user_id).single();
-      msg.profiles = { display_name: profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음' };
+      const { data: profile } = await sb.from('profiles').select('nickname, display_name, email').eq('id', msg.user_id).single();
+      msg.profiles = { display_name: profile?.nickname || profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음' };
       appendMessage(msg);
       scrollToBottom();
     })
