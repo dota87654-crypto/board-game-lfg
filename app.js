@@ -420,6 +420,7 @@ function onLogout() {
 
 // --- Init ---
 sb.auth.onAuthStateChange((event, session) => {
+  console.log('[auth]', event, !!session?.user);
   if (session?.user) {
     onLogin(session.user);
   } else {
@@ -1895,6 +1896,7 @@ async function loadFriends() {
     id: f.id, requesterId: f.requester_id, name: profileMap[f.requester_id] || '알 수 없음'
   }));
 
+  console.log('[loadFriends] pending:', pendingList.length);
   if (pendingList.length > 0) {
     friendsBadge.textContent = pendingList.length;
     friendsBadge.classList.remove('hidden');
