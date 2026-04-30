@@ -259,6 +259,7 @@
       </div>
       <div id="room-members-info"></div>
       <button id="members-panel-btn" class="btn btn-sm" data-i18n-title="title.members" title="참여 인원">👥</button>
+      <button id="invite-friends-btn" class="btn btn-sm" data-i18n-title="title.invite" title="친구 초대">📨</button>
       <button id="settings-btn-room" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️</button>
       <button id="leave-btn" class="btn btn-sm btn-danger" data-i18n="btn.leave">나가기</button>
     </div>
@@ -318,6 +319,15 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- 초대 토스트 -->
+<div id="invite-toast" class="invite-toast hidden">
+  <p id="invite-toast-msg"></p>
+  <div class="invite-toast-actions">
+    <button id="invite-decline-btn" class="btn btn-sm" data-i18n="btn.reject">거절</button>
+    <button id="invite-accept-btn" class="btn btn-sm btn-primary" data-i18n="btn.accept">수락</button>
+  </div>
 </div>
 
 <!-- 컨텍스트 메뉴 -->

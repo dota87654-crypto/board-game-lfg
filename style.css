@@ -745,6 +745,28 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   .members-panel { width: 100%; }
 }
 
+/* Invite toast */
+.invite-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+  padding: 14px 18px;
+  z-index: 1000;
+  max-width: 360px;
+  width: calc(100% - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.invite-toast.hidden { display: none; }
+.invite-toast p { margin: 0; font-size: 0.9rem; color: var(--text); }
+.invite-toast-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

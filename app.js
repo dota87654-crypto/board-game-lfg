@@ -66,6 +66,10 @@ const TRANSLATIONS = {
     'ctx.kick': '강퇴', 'ctx.block': '차단', 'ctx.unblock': '차단 해제',
     'kick.notice': '방에서 강퇴되었습니다.', 'block.dm.err': '차단한 유저에게는 DM을 보낼 수 없어요.',
     'ban.notice': '강퇴된 방이라 다시 입장할 수 없어요.',
+    'btn.invite': '초대', 'title.invite': '친구 초대',
+    'invite.sent': '%s님에게 초대를 보냈어요!', 'invite.already': '이미 초대한 유저예요.',
+    'invite.err': '초대 전송에 실패했어요.',
+    'invite.toast': '%i님이 [%r]에 초대했어요',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -133,6 +137,10 @@ const TRANSLATIONS = {
     'ctx.kick': 'Kick', 'ctx.block': 'Block', 'ctx.unblock': 'Unblock',
     'kick.notice': 'You have been kicked from the room.', 'block.dm.err': 'Cannot send DM to a blocked user.',
     'ban.notice': 'You have been banned from this room and cannot re-enter.',
+    'btn.invite': 'Invite', 'title.invite': 'Invite Friends',
+    'invite.sent': 'Invite sent to %s!', 'invite.already': 'Already invited this user.',
+    'invite.err': 'Failed to send invite.',
+    'invite.toast': '%i invited you to [%r]',
   },
 };
 
@@ -340,6 +348,8 @@ function goToMain() {
   resumeRoomSubscription();
   initRoomUnread();
   loadBlocks();
+  subscribeInvites();
+  loadPendingInvites();
 }
 
 async function resumeRoomSubscription() {
@@ -1692,6 +1702,32 @@ friendsBtn.addEventListener('click', () => {
   friendsModal.classList.remove('hidden');
   loadFriends();
 });
+
+document.getElementById('invite-friends-btn').addEventListener('click', () => {
+  friendsModal.classList.remove('hidden');
+  loadFriends();
+});
+
+document.getElementById('invite-accept-btn').addEventListener('click', async () => {
+  const toast = document.getElementById('invite-toast');
+  const roomId = toast.dataset.roomId;
+  const inviteId = toast.dataset.inviteId;
+  toast.classList.add('hidden');
+  await sb.from('room_invites').delete().eq('id', inviteId);
+  const room = allRooms.find(r => r.id === roomId);
+  if (room) {
+    enterRoom(room);
+  } else {
+    const { data } = await sb.from('rooms').select('*').eq('id', roomId).maybeSingle();
+    if (data) enterRoom(data);
+  }
+});
+
+document.getElementById('invite-decline-btn').addEventListener('click', async () => {
+  const toast = document.getElementById('invite-toast');
+  await sb.from('room_invites').delete().eq('id', toast.dataset.inviteId);
+  toast.classList.add('hidden');
+});
 closeFriendsBtn.addEventListener('click', () => friendsModal.classList.add('hidden'));
 friendsModal.addEventListener('click', e => { if (e.target === friendsModal) friendsModal.classList.add('hidden'); });
 
@@ -1757,18 +1793,21 @@ function renderFriendsList() {
     return;
   }
   friendsListBody.innerHTML = '';
+  const inRoom = !!currentRoom;
   friendsList.forEach(f => {
     const el = document.createElement('div');
     el.className = 'friend-item';
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(f.name)}</span>
       <div class="friend-item-actions">
+        ${inRoom ? `<button class="btn btn-sm btn-primary" data-invite="${f.friendId}">${t('btn.invite')}</button>` : ''}
         <button class="btn btn-sm btn-primary" data-dm="${f.friendId}" data-name="${escHtml(f.name)}">${t('btn.dm')}</button>
-        <button class="btn btn-sm btn-danger" data-remove="${f.id}">${t('btn.remove')}</button>
+        ${!inRoom ? `<button class="btn btn-sm btn-danger" data-remove="${f.id}">${t('btn.remove')}</button>` : ''}
       </div>
     `;
+    if (inRoom) el.querySelector('[data-invite]').addEventListener('click', () => inviteFriend(f.friendId, f.name));
     el.querySelector('[data-dm]').addEventListener('click', () => openDM(f.friendId, f.name));
-    el.querySelector('[data-remove]').addEventListener('click', () => removeFriend(f.id));
+    if (!inRoom) el.querySelector('[data-remove]').addEventListener('click', () => removeFriend(f.id));
     friendsListBody.appendChild(el);
   });
 }
@@ -1867,6 +1906,53 @@ async function removeFriend(id) {
 function subscribeFriends() {
   const ch = sb.channel('friendships-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => loadFriends())
+    .subscribe();
+  realtimeChannels.push(ch);
+}
+
+async function inviteFriend(friendId, friendName) {
+  if (!currentRoom) return;
+  const { error } = await sb.from('room_invites').insert({
+    room_id: currentRoom.id,
+    inviter_id: currentUser.id,
+    invitee_id: friendId
+  });
+  if (error) {
+    alert(error.code === '23505' ? t('invite.already') : t('invite.err'));
+  } else {
+    alert(t('invite.sent').replace('%s', friendName));
+    friendsModal.classList.add('hidden');
+  }
+}
+
+async function showInviteToast(invite) {
+  const [{ data: room }, { data: inviter }] = await Promise.all([
+    sb.from('rooms').select('id, title').eq('id', invite.room_id).maybeSingle(),
+    sb.from('profiles').select('nickname').eq('id', invite.inviter_id).maybeSingle()
+  ]);
+  if (!room) return;
+  const inviterName = inviter?.nickname || t('unknown');
+  const toast = document.getElementById('invite-toast');
+  document.getElementById('invite-toast-msg').textContent =
+    t('invite.toast').replace('%i', inviterName).replace('%r', room.title);
+  toast.dataset.inviteId = invite.id;
+  toast.dataset.roomId = invite.room_id;
+  toast.classList.remove('hidden');
+}
+
+async function loadPendingInvites() {
+  const { data } = await sb.from('room_invites')
+    .select('*').eq('invitee_id', currentUser.id)
+    .order('created_at', { ascending: false }).limit(1);
+  if (data?.length > 0) showInviteToast(data[0]);
+}
+
+function subscribeInvites() {
+  const ch = sb.channel('room-invites-realtime')
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'room_invites',
+      filter: `invitee_id=eq.${currentUser.id}`
+    }, payload => showInviteToast(payload.new))
     .subscribe();
   realtimeChannels.push(ch);
 }
