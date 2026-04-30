@@ -549,33 +549,69 @@ async function fetchPlaces(reset) {
   }
 
   try {
-    const res = await fetch(`https://board-game-lfg-kakao.dota87654.workers.dev?query=${encodeURIComponent(placeCurrentQuery)}&page=${placeCurrentPage}`);
-    const json = await res.json();
+    if (currentLang === 'ko') {
+      // 한국어 유저: 카카오 로컬 API
+      const res = await fetch(`https://board-game-lfg-kakao.dota87654.workers.dev?query=${encodeURIComponent(placeCurrentQuery)}&page=${placeCurrentPage}`);
+      const json = await res.json();
 
-    if (reset) placeSearchResults.innerHTML = '';
+      if (reset) placeSearchResults.innerHTML = '';
 
-    if (!json.documents?.length && reset) {
-      placeSearchResults.innerHTML = `<div class="location-result-item"><div class="location-result-name">${t('place.empty')}</div></div>`;
-      return;
-    }
+      if (!json.documents?.length && reset) {
+        placeSearchResults.innerHTML = `<div class="location-result-item"><div class="location-result-name">${t('place.empty')}</div></div>`;
+        return;
+      }
 
-    json.documents.forEach(place => {
-      const item = document.createElement('div');
-      item.className = 'location-result-item';
-      item.innerHTML = `
-        <div class="location-result-name">${escHtml(place.place_name)}</div>
-        <div class="location-result-addr">${escHtml(place.road_address_name || place.address_name)}</div>
-      `;
-      item.addEventListener('click', () => {
-        locationSearchInput.value = place.place_name;
-        selectLocation(place.place_name, place.road_address_name || place.address_name);
+      json.documents.forEach(place => {
+        const item = document.createElement('div');
+        item.className = 'location-result-item';
+        item.innerHTML = `
+          <div class="location-result-name">${escHtml(place.place_name)}</div>
+          <div class="location-result-addr">${escHtml(place.road_address_name || place.address_name)}</div>
+        `;
+        item.addEventListener('click', () => {
+          locationSearchInput.value = place.place_name;
+          selectLocation(place.place_name, place.road_address_name || place.address_name);
+        });
+        placeSearchResults.appendChild(item);
       });
-      placeSearchResults.appendChild(item);
-    });
 
-    placeIsEnd = json.meta?.is_end ?? true;
-    placeSearchMoreWrap.classList.toggle('hidden', placeIsEnd);
-    placeCurrentPage++;
+      placeIsEnd = json.meta?.is_end ?? true;
+      placeSearchMoreWrap.classList.toggle('hidden', placeIsEnd);
+      placeCurrentPage++;
+    } else {
+      // 비한국어 유저: OpenStreetMap Nominatim (무료, 전세계)
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeCurrentQuery)}&format=json&limit=10&addressdetails=1&accept-language=${currentLang}&email=dota87654@gmail.com`
+      );
+      const json = await res.json();
+
+      if (reset) placeSearchResults.innerHTML = '';
+
+      if (!json.length && reset) {
+        placeSearchResults.innerHTML = `<div class="location-result-item"><div class="location-result-name">${t('place.empty')}</div></div>`;
+        return;
+      }
+
+      json.forEach(place => {
+        const parts = place.display_name.split(', ');
+        const placeName = parts[0];
+        const address = parts.slice(1).join(', ');
+        const item = document.createElement('div');
+        item.className = 'location-result-item';
+        item.innerHTML = `
+          <div class="location-result-name">${escHtml(placeName)}</div>
+          <div class="location-result-addr">${escHtml(address)}</div>
+        `;
+        item.addEventListener('click', () => {
+          locationSearchInput.value = placeName;
+          selectLocation(placeName, address);
+        });
+        placeSearchResults.appendChild(item);
+      });
+
+      // Nominatim은 페이지네이션 없음
+      placeSearchMoreWrap.classList.add('hidden');
+    }
   } catch (e) {
     if (reset) placeSearchResults.innerHTML = `<div class="location-result-item"><div class="location-result-name">${t('place.fail')}</div></div>`;
     console.error('place search error:', e);
