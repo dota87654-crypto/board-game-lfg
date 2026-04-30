@@ -33,6 +33,7 @@ const TRANSLATIONS = {
     'settings.notif.chat-in-room': '💬 방 채팅 중 알림',
     'settings.notif.chat-in-list': '📋 방 목록 중 알림',
     'settings.notif.dm-in-dm': '✉️ DM 채팅 중 알림',
+    'settings.theme': '테마', 'settings.theme.label': '다크 모드',
     'settings.lang': '언어', 'settings.lang.label': '표시 언어', 'lang.auto': '자동 감지',
     'title.friends': '친구', 'title.dm': '메시지', 'title.settings': '설정', 'title.theme': '테마 변경',
     'friends.title': '친구', 'friends.tab.list': '친구 목록',
@@ -104,6 +105,7 @@ const TRANSLATIONS = {
     'settings.notif.chat-in-room': '💬 Alert while in room',
     'settings.notif.chat-in-list': '📋 Alert while in list',
     'settings.notif.dm-in-dm': '✉️ Alert while in DM',
+    'settings.theme': 'Theme', 'settings.theme.label': 'Dark Mode',
     'settings.lang': 'Language', 'settings.lang.label': 'Display Language', 'lang.auto': 'Auto Detect',
     'title.friends': 'Friends', 'title.dm': 'Messages', 'title.settings': 'Settings', 'title.theme': 'Toggle Theme',
     'friends.title': 'Friends', 'friends.tab.list': 'Friends',
@@ -260,6 +262,8 @@ function applyTheme(mode) {
     document.body.classList.remove('light');
     themeBtn.textContent = '🌙';
   }
+  const toggle = document.getElementById('theme-toggle');
+  if (toggle) toggle.checked = mode !== 'light';
 }
 
 // 저장된 테마 적용
@@ -268,6 +272,12 @@ applyTheme(localStorage.getItem('theme') || 'dark');
 themeBtn.addEventListener('click', () => {
   const isLight = document.body.classList.contains('light');
   const next = isLight ? 'dark' : 'light';
+  localStorage.setItem('theme', next);
+  applyTheme(next);
+});
+
+document.getElementById('theme-toggle').addEventListener('change', e => {
+  const next = e.target.checked ? 'dark' : 'light';
   localStorage.setItem('theme', next);
   applyTheme(next);
 });
