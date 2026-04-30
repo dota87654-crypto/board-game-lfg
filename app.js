@@ -658,7 +658,7 @@ function subscribeChat(roomId) {
         sentMessageIds.delete(msg.id);
         return;
       }
-      playChat();
+      if (isNotifOn('chat_in_room')) playChat();
       const { data: profile } = await sb.from('profiles').select('display_name, email').eq('id', msg.user_id).single();
       msg.profiles = { display_name: profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음' };
       appendMessage(msg);
@@ -704,7 +704,7 @@ function subscribeChatNotif(roomId) {
       const msg = payload.new;
       if (!msg || msg.user_id === currentUser.id) return;
       if (!roomScreen.classList.contains('hidden')) return; // 방 화면이면 subscribeChat이 처리
-      playChat();
+      if (isNotifOn('chat_in_list')) playChat();
       roomUnreadMap[roomId] = (roomUnreadMap[roomId] || 0) + 1;
       renderRooms();
     })
@@ -721,7 +721,7 @@ function unsubscribeAll() {
 }
 
 // --- Notifications (Web Audio API) ---
-const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true };
+const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, chat_in_list: true, dm_in_dm: true };
 let audioCtx = null;
 
 function getAudioCtx() {
@@ -784,7 +784,15 @@ function playDM() {
 // --- Settings modal ---
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
-const notifToggles = { join: document.getElementById('notif-join'), leave: document.getElementById('notif-leave'), chat: document.getElementById('notif-chat'), dm: document.getElementById('notif-dm') };
+const notifToggles = {
+  join: document.getElementById('notif-join'),
+  leave: document.getElementById('notif-leave'),
+  chat: document.getElementById('notif-chat'),
+  dm: document.getElementById('notif-dm'),
+  chat_in_room: document.getElementById('notif-chat-in-room'),
+  chat_in_list: document.getElementById('notif-chat-in-list'),
+  dm_in_dm: document.getElementById('notif-dm-in-dm'),
+};
 
 function openSettings() {
   const s = getNotifSettings();
@@ -1372,7 +1380,7 @@ function subscribeDM() {
       if (!msg) return;
       if (sentDmIds.has(msg.id)) { sentDmIds.delete(msg.id); return; }
       if (msg.sender_id !== dmFriendId) return;
-      playDM();
+      if (isNotifOn('dm_in_dm')) playDM();
       const { data: profile } = await sb.from('profiles').select('nickname, display_name, email').eq('id', msg.sender_id).single();
       const name = profile?.nickname || profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음';
       appendDMMessage(msg, name);
