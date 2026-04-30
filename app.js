@@ -10,6 +10,7 @@ const TRANSLATIONS = {
     'nick.placeholder': '닉네임을 입력하세요',
     'nick.err.length': '닉네임은 2~16자로 입력해주세요.',
     'nick.err.dup': '이미 사용 중인 닉네임이에요.',
+    'nick.err.profanity': '사용할 수 없는 닉네임입니다.',
     'nick.err.save': '저장에 실패했어요. 다시 시도해주세요.',
     'nick.changed': '닉네임이 변경됐어요!',
     'main.rooms': '방 목록',
@@ -82,6 +83,7 @@ const TRANSLATIONS = {
     'nick.placeholder': 'Enter your nickname',
     'nick.err.length': 'Nickname must be 2–16 characters.',
     'nick.err.dup': 'This nickname is already taken.',
+    'nick.err.profanity': 'This nickname is not allowed.',
     'nick.err.save': 'Failed to save. Please try again.',
     'nick.changed': 'Nickname updated!',
     'main.rooms': 'Room List',
@@ -145,6 +147,16 @@ const TRANSLATIONS = {
     'invite.toast': '%i invited you to [%r]',
   },
 };
+
+// --- Profanity filter ---
+const PROFANITY_LIST = [
+  '시발','씨발','씨팔','시팔','ㅅㅂ','ㅆㅂ','개새끼','새끼','병신','ㅂㅅ','보지','자지','섹스','창녀','창년','미친놈','미친년','존나','좆','찐따','빠구리','개년','썅','년놈','지랄',
+  'fuck','shit','bitch','asshole','bastard','cunt','dick','pussy','cock','whore','slut','nigger','nigga','faggot','retard',
+];
+function containsProfanity(text) {
+  const lower = text.toLowerCase().replace(/\s/g, '');
+  return PROFANITY_LIST.some(w => lower.includes(w));
+}
 
 function detectLang() {
   return (navigator.language || 'ko').toLowerCase().startsWith('ko') ? 'ko' : 'en';
@@ -1419,6 +1431,10 @@ async function submitNickname() {
     setNicknameMsg(nicknameMsg, t('nick.err.length'), 'error');
     return;
   }
+  if (containsProfanity(nick)) {
+    setNicknameMsg(nicknameMsg, t('nick.err.profanity'), 'error');
+    return;
+  }
   nicknameSubmitBtn.disabled = true;
   const ok = await saveNickname(nick, nicknameMsg);
   nicknameSubmitBtn.disabled = false;
@@ -1510,6 +1526,10 @@ async function saveProfileNickname() {
   const nick = profileNicknameInput.value.trim();
   if (nick.length < 2 || nick.length > 16) {
     setNicknameMsg(profileNicknameMsg, t('nick.err.length'), 'error');
+    return;
+  }
+  if (containsProfanity(nick)) {
+    setNicknameMsg(profileNicknameMsg, t('nick.err.profanity'), 'error');
     return;
   }
   if (nick === currentNickname) {
