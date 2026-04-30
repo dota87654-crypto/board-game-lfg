@@ -492,6 +492,7 @@ async function enterRoom(room) {
 
 // 목록 버튼: 방 유지하고 목록으로만 이동
 backBtn.addEventListener('click', () => {
+  if (participatingRoomId) clearRoomUnread(participatingRoomId);
   currentRoom = null;
   unsubscribeAll();
   showScreen('main');
