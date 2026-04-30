@@ -232,6 +232,14 @@ async function loadRooms() {
   renderRooms();
 }
 
+const CAT_CLASS = {
+  '보드게임방': 'cat-boardgame',
+  '개인소유': 'cat-private',
+  '테이블탑 시뮬레이터': 'cat-tabletop',
+  'BGA': 'cat-bga',
+  '스팀게임': 'cat-steam',
+};
+
 function renderRooms() {
   let filtered = currentFilter === '전체'
     ? allRooms
@@ -262,7 +270,7 @@ function renderRooms() {
           <div style="display:flex;gap:6px;align-items:center">
             ${isMine ? '<span class="badge-mine">참여 중</span>' : ''}
             ${unread > 0 ? `<span class="room-unread-badge">${unread}</span>` : ''}
-            <div class="room-card-cat">${escHtml(room.category)}</div>
+            <div class="room-card-cat ${CAT_CLASS[room.category] || ''}">${escHtml(room.category)}</div>
           </div>
         </div>
         <div class="room-card-game">🎮 ${escHtml(room.game_name)}</div>
