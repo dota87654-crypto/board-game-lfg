@@ -1227,7 +1227,12 @@ dmInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey)
 function subscribeDM() {
   if (dmChannel) sb.removeChannel(dmChannel);
   dmChannel = sb.channel(`dm-${[currentUser.id, dmFriendId].sort().join('-')}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages' }, async payload => {
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'dm_messages',
+      filter: `receiver_id=eq.${currentUser.id}`
+    }, async payload => {
       const msg = payload.new;
       if (!msg) return;
       if (sentDmIds.has(msg.id)) { sentDmIds.delete(msg.id); return; }
