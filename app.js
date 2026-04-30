@@ -549,11 +549,9 @@ async function enterRoom(room) {
       .neq('room_id', room.id);
   }
 
-  // 현재 방 참여 (이미 있으면 무시)
+  // 현재 방 참여 (이미 있으면 무시 — upsert로 409 방지)
   await sb.from('room_members')
-    .insert({ room_id: room.id, user_id: currentUser.id })
-    .select()
-    .maybeSingle();
+    .upsert({ room_id: room.id, user_id: currentUser.id }, { onConflict: 'room_id,user_id', ignoreDuplicates: true });
 
   participatingRoomId = room.id;
   clearRoomUnread(room.id);
