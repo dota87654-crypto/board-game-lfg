@@ -154,12 +154,32 @@ const TRANSLATIONS = {
 
 // --- Profanity filter ---
 const PROFANITY_LIST = [
-  '시발','씨발','씨팔','시팔','ㅅㅂ','ㅆㅂ','개새끼','새끼','병신','ㅂㅅ','보지','자지','섹스','창녀','창년','미친놈','미친년','존나','좆','찐따','빠구리','개년','썅','년놈','지랄',
-  'fuck','shit','bitch','asshole','bastard','cunt','dick','pussy','cock','whore','slut','nigger','nigga','faggot','retard',
+  // 씨발 계열
+  '시발','씨발','씨팔','시팔','쉬발','씌발','씹발','시빨','ㅅㅂ','ㅆㅂ',
+  // 병신 계열
+  '병신','ㅂㅅ','븅신','뵹신','병싱','뼝신',
+  // 보지/자지 계열
+  '보지','자지','보쥐','봊','자즤',
+  // 새끼 계열
+  '개새끼','새끼','개쉐끼','개세끼','개쉑',
+  // 기타 한국어
+  '섹스','창녀','창년','미친놈','미친년','존나','졸라','좆','찐따','빠구리','개년','썅','썅놈','닥쳐','느금마','니애미','니엄마','꺼져','지랄','년놈',
+  // 영어
+  'fuck','shit','bitch','asshole','bastard','cunt','dick','pussy','ass','cock','whore','slut','nigger','nigga','faggot','retard',
 ];
+function normalizeLeet(text) {
+  return text.toLowerCase().replace(/\s/g, '')
+    .replace(/@/g, 'a').replace(/\$/g, 's').replace(/5/g, 's')
+    .replace(/1/g, 'i').replace(/!/g, 'i')
+    .replace(/0/g, 'o').replace(/3/g, 'e').replace(/4/g, 'a')
+    .replace(/v/g, 'u')
+    .replace(/[*_.+]/g, '');
+}
 function containsProfanity(text) {
-  const lower = text.toLowerCase().replace(/\s/g, '');
-  return PROFANITY_LIST.some(w => lower.includes(w));
+  const raw = text.toLowerCase().replace(/\s/g, '');
+  const leet = normalizeLeet(text);
+  const noDigits = raw.replace(/\d/g, '');
+  return PROFANITY_LIST.some(w => raw.includes(w) || leet.includes(w) || noDigits.includes(w));
 }
 
 function detectLang() {
