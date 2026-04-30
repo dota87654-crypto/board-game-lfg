@@ -25,7 +25,7 @@ const TRANSLATIONS = {
     'btn.back': '← 목록', 'btn.profile-back': '← 뒤로', 'btn.leave': '나가기',
     'btn.edit': '변경', 'btn.save': '저장', 'btn.cancel': '취소', 'btn.done': '완료',
     'btn.dm': '💬 DM', 'btn.remove': '삭제', 'btn.accept': '수락', 'btn.reject': '거절',
-    'btn.add-friend': '친구 추가', 'btn.requested': '요청됨',
+    'btn.add-friend': '친구 추가', 'btn.requested': '요청됨', 'btn.friends': '친구',
     'btn.create-room': '방 만들기', 'btn.creating': '생성 중...',
     'settings.title': '설정', 'settings.sound': '알림음',
     'settings.notif.join': '🚪 방 입장 알림', 'settings.notif.leave': '🚶 방 퇴장 알림',
@@ -100,7 +100,7 @@ const TRANSLATIONS = {
     'btn.back': '← List', 'btn.profile-back': '← Back', 'btn.leave': 'Leave',
     'btn.edit': 'Edit', 'btn.save': 'Save', 'btn.cancel': 'Cancel', 'btn.done': 'Done',
     'btn.dm': '💬 DM', 'btn.remove': 'Remove', 'btn.accept': 'Accept', 'btn.reject': 'Decline',
-    'btn.add-friend': 'Add Friend', 'btn.requested': 'Requested',
+    'btn.add-friend': 'Add Friend', 'btn.requested': 'Requested', 'btn.friends': 'Friends',
     'btn.create-room': 'Create Room', 'btn.creating': 'Creating...',
     'settings.title': 'Settings', 'settings.sound': 'Sound Notifications',
     'settings.notif.join': '🚪 Room Join Alert', 'settings.notif.leave': '🚶 Room Leave Alert',
@@ -380,6 +380,7 @@ function goToMain() {
   showScreen('main');
   loadRooms();
   subscribeRooms();
+  loadPendingBadge();
   loadFriends();
   subscribeFriends();
   initDMUnread();
@@ -1152,6 +1153,10 @@ async function blockUser(userId) {
     const { data: p } = await sb.from('profiles').select('nickname, display_name, email').eq('id', userId).maybeSingle();
     const nickname = p?.nickname || p?.display_name || p?.email?.split('@')[0] || t('unknown');
     blockedList.push({ userId, nickname });
+    // 친구 관계도 삭제
+    await sb.from('friendships').delete()
+      .or(`and(requester_id.eq.${currentUser.id},addressee_id.eq.${userId}),and(requester_id.eq.${userId},addressee_id.eq.${currentUser.id})`);
+    await loadFriends();
     renderMembersPanel();
     renderBlockedList();
   }
@@ -1435,6 +1440,14 @@ function playDM() {
   const ctx = getAudioCtx(), t = ctx.currentTime;
   tone(ctx, 784, 'triangle', t, 0.1, 0.3);
   tone(ctx, 1047, 'triangle', t + 0.1, 0.15, 0.3);
+}
+
+// 친구 요청: sine 3연 상승 (A5→C6→E6) 밝고 경쾌한 느낌
+function playFriendRequest() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  tone(ctx, 880, 'sine', t, 0.12, 0.22);
+  tone(ctx, 1047, 'sine', t + 0.1, 0.12, 0.22);
+  tone(ctx, 1319, 'sine', t + 0.2, 0.18, 0.3);
 }
 
 // --- Settings modal ---
@@ -1829,6 +1842,22 @@ document.querySelectorAll('.friends-tab').forEach(tab => {
 friendSearchBtn.addEventListener('click', searchFriendUsers);
 friendSearchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); searchFriendUsers(); } });
 
+async function loadPendingBadge() {
+  if (!currentUser) return;
+  const { count } = await sb.from('friendships')
+    .select('id', { count: 'exact', head: true })
+    .eq('addressee_id', currentUser.id).eq('status', 'pending');
+  if (count > 0) {
+    friendsBadge.textContent = count;
+    friendsBadge.classList.remove('hidden');
+    reqCountBadge.textContent = count;
+    reqCountBadge.classList.remove('hidden');
+  } else {
+    friendsBadge.classList.add('hidden');
+    reqCountBadge.classList.add('hidden');
+  }
+}
+
 async function loadFriends() {
   const { data, error } = await sb.from('friendships')
     .select('id, requester_id, addressee_id, status')
@@ -1936,39 +1965,59 @@ async function searchFriendUsers() {
     return;
   }
 
-  // 이미 친구이거나 요청 보낸 유저 ID 목록
   const { data: existing } = await sb.from('friendships')
     .select('requester_id, addressee_id, status')
     .or(`requester_id.eq.${currentUser.id},addressee_id.eq.${currentUser.id}`);
 
-  const existingSet = new Set();
+  const acceptedSet = new Set();
+  const pendingSet = new Set();
   (existing || []).forEach(f => {
-    existingSet.add(f.requester_id === currentUser.id ? f.addressee_id : f.requester_id);
+    const otherId = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
+    if (f.status === 'accepted') acceptedSet.add(otherId);
+    else pendingSet.add(otherId);
   });
 
   friendSearchBody.innerHTML = '';
   data.forEach(user => {
     const name = user.nickname || user.display_name || user.email?.split('@')[0] || '알 수 없음';
-    const alreadyRelated = existingSet.has(user.id);
+    const isFriend  = acceptedSet.has(user.id);
+    const isPending = pendingSet.has(user.id);
+    const isBlocked = blockedSet.has(user.id);
+
+    let friendBtnHtml;
+    if (isFriend)       friendBtnHtml = `<button class="btn btn-sm" disabled data-add>${t('btn.friends')}</button>`;
+    else if (isPending) friendBtnHtml = `<button class="btn btn-sm" disabled data-add>${t('btn.requested')}</button>`;
+    else                friendBtnHtml = `<button class="btn btn-sm btn-primary" data-add>${t('btn.add-friend')}</button>`;
+
     const el = document.createElement('div');
     el.className = 'friend-item';
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(name)}</span>
       <div class="friend-item-actions">
-        <button class="btn btn-sm ${alreadyRelated ? '' : 'btn-primary'}" ${alreadyRelated ? 'disabled' : ''} data-add>
-          ${alreadyRelated ? t('btn.requested') : t('btn.add-friend')}
-        </button>
-        ${currentRoom ? `<button class="btn btn-sm btn-primary" data-invite>${t('btn.invite')}</button>` : ''}
+        ${friendBtnHtml}
+        ${isFriend ? `<button class="btn btn-sm btn-primary" data-dm>${t('btn.dm')}</button>` : ''}
+        ${currentRoom ? `<button class="btn btn-sm" data-invite>${t('btn.invite')}</button>` : ''}
+        <button class="btn btn-sm btn-danger" data-block>${isBlocked ? t('ctx.unblock') : t('ctx.block')}</button>
       </div>
     `;
-    if (!alreadyRelated) {
+    if (!isFriend && !isPending) {
       el.querySelector('[data-add]').addEventListener('click', async () => {
         await sendFriendRequest(user.id);
         el.querySelector('[data-add]').disabled = true;
         el.querySelector('[data-add]').textContent = t('btn.requested');
       });
     }
+    if (isFriend) el.querySelector('[data-dm]').addEventListener('click', () => openDM(user.id, name));
     if (currentRoom) el.querySelector('[data-invite]').addEventListener('click', () => inviteFriend(user.id, name));
+    el.querySelector('[data-block]').addEventListener('click', async () => {
+      if (isBlocked) {
+        await unblockUser(user.id);
+        el.querySelector('[data-block]').textContent = t('ctx.block');
+      } else {
+        await blockUser(user.id);
+        el.querySelector('[data-block]').textContent = t('ctx.unblock');
+      }
+    });
     friendSearchBody.appendChild(el);
   });
 }
@@ -1998,7 +2047,15 @@ async function removeFriend(id) {
 
 function subscribeFriends() {
   const ch = sb.channel('friendships-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => loadFriends())
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'friendships',
+      filter: `addressee_id=eq.${currentUser.id}`
+    }, payload => {
+      if (payload.new?.status === 'pending') playFriendRequest();
+      loadFriends();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friendships' }, () => loadFriends())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'friendships' }, () => loadFriends())
     .subscribe();
   realtimeChannels.push(ch);
 }
