@@ -369,18 +369,18 @@ async function onLogin(user) {
 
   if (profile?.nickname) {
     currentNickname = profile.nickname;
-    goToMain();
+    await goToMain();
   } else {
     showScreen('nickname');
   }
 }
 
-function goToMain() {
+async function goToMain() {
   userNameBtn.textContent = currentNickname || currentUser.user_metadata?.full_name || currentUser.email;
   showScreen('main');
+  await loadPendingBadge();
   loadRooms();
   subscribeRooms();
-  loadPendingBadge();
   loadFriends();
   subscribeFriends();
   initDMUnread();
@@ -1525,7 +1525,7 @@ async function submitNickname() {
   nicknameSubmitBtn.disabled = false;
   if (ok) {
     currentNickname = nick;
-    goToMain();
+    await goToMain();
   }
 }
 
