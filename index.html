@@ -342,6 +342,20 @@
 <!-- 컨텍스트 메뉴 -->
 <div id="member-context-menu" class="member-context-menu hidden"></div>
 
+<!-- DM 목록 컨텍스트 메뉴 -->
+<div id="dm-list-context-menu" class="member-context-menu hidden"></div>
+
+<!-- DM 삭제 확인 모달 -->
+<div id="dm-delete-modal" class="modal-overlay hidden" style="z-index:600;">
+  <div class="modal confirm-modal">
+    <p id="dm-delete-msg" data-i18n="dm.delete.confirm">정말로 삭제하시겠습니까?</p>
+    <div class="confirm-modal-btns">
+      <button id="dm-delete-cancel-btn" class="btn btn-sm" data-i18n="btn.cancel">취소</button>
+      <button id="dm-delete-ok-btn" class="btn btn-sm btn-danger" data-i18n="btn.delete">삭제</button>
+    </div>
+  </div>
+</div>
+
 <!-- 참여 인원 패널 -->
 <div id="members-panel" class="members-panel">
   <div class="members-panel-header">

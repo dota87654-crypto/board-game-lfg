@@ -68,6 +68,8 @@ const TRANSLATIONS = {
     'members.title': '참여 인원', 'title.members': '참여 인원',
     'ctx.add-friend': '친구 추가', 'ctx.dm': 'DM 보내기',
     'ctx.kick': '강퇴', 'ctx.block': '차단', 'ctx.unblock': '차단 해제',
+    'ctx.dm.pin': '고정', 'ctx.dm.unpin': '고정 해제', 'ctx.dm.delete': '대화 삭제',
+    'dm.delete.confirm': '정말로 삭제하시겠습니까?', 'dm.delete.ok': '삭제', 'btn.cancel': '취소', 'btn.delete': '삭제',
     'kick.notice': '방에서 강퇴되었습니다.', 'block.dm.err': '차단한 유저에게는 DM을 보낼 수 없어요.',
     'block.recv.err': '메시지를 보낼 수 없습니다.', 'block.friend.err': '친구 요청을 보낼 수 없어요.',
     'settings.blocked': '차단 목록', 'settings.blocked.empty': '차단한 유저가 없어요.',
@@ -145,6 +147,8 @@ const TRANSLATIONS = {
     'members.title': 'Members', 'title.members': 'Members',
     'ctx.add-friend': 'Add Friend', 'ctx.dm': 'Send DM',
     'ctx.kick': 'Kick', 'ctx.block': 'Block', 'ctx.unblock': 'Unblock',
+    'ctx.dm.pin': 'Pin', 'ctx.dm.unpin': 'Unpin', 'ctx.dm.delete': 'Delete Conversation',
+    'dm.delete.confirm': 'Are you sure you want to delete this conversation?', 'dm.delete.ok': 'Delete', 'btn.cancel': 'Cancel', 'btn.delete': 'Delete',
     'kick.notice': 'You have been kicked from the room.', 'block.dm.err': 'Cannot send DM to a blocked user.',
     'block.recv.err': 'Cannot send message.', 'block.friend.err': 'Cannot send friend request.',
     'settings.blocked': 'Blocked Users', 'settings.blocked.empty': 'No blocked users.',
@@ -1495,7 +1499,7 @@ settingsModal.addEventListener('click', e => { if (e.target === settingsModal) s
 
 document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
 
-document.addEventListener('click', hideContextMenu);
+document.addEventListener('click', () => { hideContextMenu(); hideDMListContextMenu(); });
 
 // --- Members panel ---
 document.getElementById('members-panel-btn').addEventListener('click', () => {
@@ -1715,22 +1719,35 @@ function subscribeGlobalDM() {
 
 let dmListConvs = [];
 
+function getPinnedDMs() {
+  try { return JSON.parse(localStorage.getItem('dm_pinned') || '[]'); } catch { return []; }
+}
+function setPinnedDMs(arr) {
+  localStorage.setItem('dm_pinned', JSON.stringify(arr));
+}
+
 function renderDMList(query) {
   const q = (query || '').trim().toLowerCase();
-  const filtered = q ? dmListConvs.filter(c => c.name.toLowerCase().includes(q)) : dmListConvs;
+  const pinned = getPinnedDMs();
+  const base = q ? dmListConvs.filter(c => c.name.toLowerCase().includes(q)) : dmListConvs;
+  const sorted = [
+    ...base.filter(c => pinned.includes(c.partnerId)),
+    ...base.filter(c => !pinned.includes(c.partnerId)),
+  ];
 
-  if (!filtered.length) {
+  if (!sorted.length) {
     dmListBody.innerHTML = `<div class="empty-friends">${q ? t('dm.list.search.empty') : t('dm.list.empty')}</div>`;
     return;
   }
 
   dmListBody.innerHTML = '';
-  filtered.forEach(({ partnerId, name, unread, time, preview }) => {
+  sorted.forEach(({ partnerId, name, unread, time, preview }) => {
+    const isPinned = pinned.includes(partnerId);
     const el = document.createElement('div');
     el.className = 'dm-list-item';
     el.innerHTML = `
       <div class="dm-list-header">
-        <span class="dm-list-name">${escHtml(name)}${unread ? `<span class="friends-badge" style="margin-left:6px;">${unread}</span>` : ''}</span>
+        <span class="dm-list-name">${isPinned ? '<span class="dm-pin-icon">📌</span>' : ''}${escHtml(name)}${unread ? `<span class="friends-badge" style="margin-left:6px;">${unread}</span>` : ''}</span>
         <span class="dm-list-time">${time}</span>
       </div>
       <div class="dm-list-preview">${escHtml(preview)}</div>
@@ -1739,6 +1756,12 @@ function renderDMList(query) {
       dmListModal.classList.add('hidden');
       openDM(partnerId, name);
     });
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      showDMListContextMenu(e, partnerId, name);
+    });
+    attachDMLongPress(el, partnerId, name);
     dmListBody.appendChild(el);
   });
 }
@@ -1793,6 +1816,96 @@ async function openDMList() {
   });
 
   renderDMList('');
+}
+
+// --- DM List Context Menu ---
+let dmListLongPressTimer = null;
+
+function attachDMLongPress(el, partnerId, name) {
+  el.addEventListener('touchstart', e => {
+    dmListLongPressTimer = setTimeout(() => {
+      dmListLongPressTimer = null;
+      const touch = e.touches[0];
+      showDMListContextMenu({ clientX: touch.clientX, clientY: touch.clientY }, partnerId, name);
+    }, 500);
+  }, { passive: true });
+  el.addEventListener('touchend', () => {
+    if (dmListLongPressTimer) { clearTimeout(dmListLongPressTimer); dmListLongPressTimer = null; }
+  });
+  el.addEventListener('touchmove', () => {
+    if (dmListLongPressTimer) { clearTimeout(dmListLongPressTimer); dmListLongPressTimer = null; }
+  });
+}
+
+function showDMListContextMenu(event, partnerId, name) {
+  const menu = document.getElementById('dm-list-context-menu');
+  const pinned = getPinnedDMs();
+  const isPinned = pinned.includes(partnerId);
+
+  menu.innerHTML = '';
+  const pinBtn = document.createElement('button');
+  pinBtn.className = 'ctx-menu-item';
+  pinBtn.textContent = isPinned ? t('ctx.dm.unpin') : t('ctx.dm.pin');
+  pinBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const p = getPinnedDMs();
+    if (isPinned) setPinnedDMs(p.filter(id => id !== partnerId));
+    else setPinnedDMs([...p, partnerId]);
+    hideDMListContextMenu();
+    renderDMList(document.getElementById('dm-list-search').value);
+  });
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'ctx-menu-item danger';
+  delBtn.textContent = t('ctx.dm.delete');
+  delBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    hideDMListContextMenu();
+    showDMDeleteConfirm(partnerId);
+  });
+
+  menu.appendChild(pinBtn);
+  menu.appendChild(delBtn);
+  menu.classList.remove('hidden');
+
+  const x = Math.min(event.clientX, window.innerWidth - 170);
+  const y = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 8);
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
+}
+
+function hideDMListContextMenu() {
+  document.getElementById('dm-list-context-menu').classList.add('hidden');
+}
+
+function showDMDeleteConfirm(partnerId) {
+  const modal = document.getElementById('dm-delete-modal');
+  modal.classList.remove('hidden');
+
+  const okBtn = document.getElementById('dm-delete-ok-btn');
+  const cancelBtn = document.getElementById('dm-delete-cancel-btn');
+
+  const cleanup = () => modal.classList.add('hidden');
+
+  const newOk = okBtn.cloneNode(true);
+  okBtn.replaceWith(newOk);
+  newOk.addEventListener('click', async () => {
+    cleanup();
+    await deleteDMConversation(partnerId);
+  });
+  cancelBtn.onclick = cleanup;
+  modal.onclick = e => { if (e.target === modal) cleanup(); };
+}
+
+async function deleteDMConversation(partnerId) {
+  await sb.from('dm_messages')
+    .delete()
+    .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUser.id})`);
+
+  dmListConvs = dmListConvs.filter(c => c.partnerId !== partnerId);
+  const p = getPinnedDMs().filter(id => id !== partnerId);
+  setPinnedDMs(p);
+  renderDMList(document.getElementById('dm-list-search').value);
 }
 
 function formatDMTime(isoStr) {
