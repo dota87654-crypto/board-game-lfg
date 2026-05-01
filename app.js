@@ -301,6 +301,8 @@ let currentRoom = null;
 const currentFilters = new Set(); // 비어있으면 전체
 const currentTagFilters = new Set();
 let currentSearch = '';
+let gameNameMatches = null; // boardgames 테이블 검색 결과 (소문자 Set), null이면 미사용
+let bgSearchId = 0;         // 경쟁 조건 방지용 시퀀스
 let allRooms = [];
 let myRoomIds = new Set();
 let realtimeChannels = [];
@@ -587,8 +589,9 @@ function renderRooms() {
     const q = currentSearch.toLowerCase();
     filtered = filtered.filter(r =>
       r.title?.toLowerCase().includes(q) ||
+      (r.host_name || '').toLowerCase().includes(q) ||
       r.game_name?.toLowerCase().includes(q) ||
-      (r.host_name || '').toLowerCase().includes(q)
+      (gameNameMatches !== null && gameNameMatches.has(r.game_name?.toLowerCase()))
     );
   }
 
@@ -677,9 +680,41 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
   });
 });
 
+let bgSearchTimer = null;
 document.getElementById('room-search-input').addEventListener('input', e => {
   currentSearch = e.target.value.trim();
+
+  if (!currentSearch) {
+    gameNameMatches = null;
+    clearTimeout(bgSearchTimer);
+    renderRooms();
+    return;
+  }
+
+  // 즉시 현재 데이터로 렌더 (제목·방장 매칭)
   renderRooms();
+
+  // boardgames 테이블 비동기 검색 (300ms 디바운스)
+  clearTimeout(bgSearchTimer);
+  bgSearchTimer = setTimeout(async () => {
+    const myId = ++bgSearchId;
+    const q = currentSearch;
+    const { data } = await sb.from('boardgames')
+      .select('name_ko, name_en')
+      .or(`name_ko.ilike.%${q}%,name_en.ilike.%${q}%`)
+      .limit(50);
+    if (myId !== bgSearchId) return; // 뒤늦은 응답 무시
+    if (!data?.length) {
+      gameNameMatches = null;
+    } else {
+      gameNameMatches = new Set();
+      data.forEach(g => {
+        if (g.name_ko) gameNameMatches.add(g.name_ko.toLowerCase());
+        if (g.name_en) gameNameMatches.add(g.name_en.toLowerCase());
+      });
+    }
+    renderRooms();
+  }, 300);
 });
 
 // --- Tag UI ---
