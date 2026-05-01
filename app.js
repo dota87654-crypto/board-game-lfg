@@ -37,9 +37,8 @@ const TRANSLATIONS = {
     'settings.notif.vol': '전체 알림 볼륨',
     'settings.notif.room-group': '[방]', 'settings.notif.dm-group': '[DM]', 'settings.notif.friend-group': '[친구]',
     'settings.notif.join': '🚪 방 입장 알림', 'settings.notif.leave': '🚶 방 퇴장 알림',
-    'settings.notif.chat': '💬 방 채팅 알림', 'settings.notif.dm': '✉️ DM 알림',
-    'settings.notif.chat-in-room': '💬 방 채팅 중 알림',
-    'settings.notif.chat-in-list': '📋 방 목록 중 알림',
+    'settings.notif.chat': '💬 방 채팅 알림 (목록)', 'settings.notif.dm': '✉️ DM 알림',
+    'settings.notif.chat-in-room': '💬 방 채팅 알림 (방 안)',
     'settings.notif.dm-in-dm': '✉️ DM 채팅 중 알림',
     'settings.notif.friend-req': '👤 친구 요청 알림',
     'settings.theme': '테마', 'settings.theme.label': '다크 모드',
@@ -147,9 +146,8 @@ const TRANSLATIONS = {
     'settings.notif.vol': 'Master Volume',
     'settings.notif.room-group': '[Room]', 'settings.notif.dm-group': '[DM]', 'settings.notif.friend-group': '[Friends]',
     'settings.notif.join': '🚪 Room Join Alert', 'settings.notif.leave': '🚶 Room Leave Alert',
-    'settings.notif.chat': '💬 Room Chat Alert', 'settings.notif.dm': '✉️ DM Alert',
-    'settings.notif.chat-in-room': '💬 Alert while in room',
-    'settings.notif.chat-in-list': '📋 Alert while in list',
+    'settings.notif.chat': '💬 Room Chat Alert (List)', 'settings.notif.dm': '✉️ DM Alert',
+    'settings.notif.chat-in-room': '💬 Room Chat Alert (In Room)',
     'settings.notif.dm-in-dm': '✉️ Alert while in DM',
     'settings.notif.friend-req': '👤 Friend Request Alert',
     'settings.theme': 'Theme', 'settings.theme.label': 'Dark Mode',
@@ -1923,7 +1921,7 @@ function subscribeChatNotif(roomId) {
       const msg = payload.new;
       if (!msg || msg.user_id === currentUser.id) return;
       if (!roomScreen.classList.contains('hidden')) return; // 방 화면이면 subscribeChat이 처리
-      if (isNotifOn('chat_in_list')) playChat();
+      if (isNotifOn('chat')) playChat();
       roomUnreadMap[roomId] = (roomUnreadMap[roomId] || 0) + 1;
       renderRooms();
     })
@@ -1996,7 +1994,7 @@ function unsubscribeAll() {
 }
 
 // --- Notifications (Web Audio API) ---
-const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, chat_in_list: true, dm_in_dm: true, friend_req: true };
+const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, dm_in_dm: true, friend_req: true };
 let audioCtx = null;
 
 function getAudioCtx() {
@@ -2050,7 +2048,6 @@ function playLeave() {
 
 // 채팅: 짧고 가벼운 1음 틱
 function playChat() {
-  if (!isNotifOn('chat')) return;
   tone(getAudioCtx(), 1000, 'sine', getAudioCtx().currentTime, 0.12, 0.15);
 }
 
@@ -2080,7 +2077,6 @@ const notifToggles = {
   chat: document.getElementById('notif-chat'),
   dm: document.getElementById('notif-dm'),
   chat_in_room: document.getElementById('notif-chat-in-room'),
-  chat_in_list: document.getElementById('notif-chat-in-list'),
   dm_in_dm: document.getElementById('notif-dm-in-dm'),
   friend_req: document.getElementById('notif-friend-req'),
 };
