@@ -2175,10 +2175,11 @@ async function loadDMMessages() {
   const { data } = await sb.from('dm_messages')
     .select('id, sender_id, content, created_at')
     .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${dmFriendId}),and(sender_id.eq.${dmFriendId},receiver_id.eq.${currentUser.id})`)
-    .order('created_at', { ascending: true })
-    .limit(50);
+    .order('created_at', { ascending: false })
+    .limit(150);
 
-  const userIds = [...new Set((data || []).map(m => m.sender_id))];
+  const messages = (data || []).reverse();
+  const userIds = [...new Set(messages.map(m => m.sender_id))];
   const profileMap = {};
   if (userIds.length > 0) {
     const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
@@ -2186,7 +2187,7 @@ async function loadDMMessages() {
   }
 
   dmMessages.innerHTML = '';
-  (data || []).forEach(msg => appendDMMessage(msg, profileMap[msg.sender_id] || '알 수 없음'));
+  messages.forEach(msg => appendDMMessage(msg, profileMap[msg.sender_id] || '알 수 없음'));
   dmMessages.scrollTop = dmMessages.scrollHeight;
 }
 
