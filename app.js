@@ -2053,7 +2053,6 @@ function playChat() {
 
 // DM: triangle 2연타 (G5→C6)
 function playDM() {
-  if (!isNotifOn('dm')) return;
   const ctx = getAudioCtx(), t = ctx.currentTime;
   tone(ctx, 784, 'triangle', t, 0.1, 0.3);
   tone(ctx, 1047, 'triangle', t + 0.1, 0.15, 0.3);
@@ -2352,7 +2351,7 @@ function subscribeGlobalDM() {
       if (dmFriendId === msg.sender_id) return; // 이미 열린 대화
       dmUnreadMap[msg.sender_id] = (dmUnreadMap[msg.sender_id] || 0) + 1;
       updateDMBadge();
-      playDM();
+      if (isNotifOn('dm')) playDM();
     })
     .subscribe();
 }
