@@ -827,6 +827,7 @@ createRoomForm.addEventListener('submit', async e => {
 
 // --- Room Password ---
 async function tryEnterRoom(room) {
+  if (myRoomIds.has(room.id)) { enterRoom(room); return; }
   const { data } = await sb.from('rooms').select('password_hash').eq('id', room.id).maybeSingle();
   const hash = data?.password_hash;
   if (!hash) { enterRoom(room); return; }
