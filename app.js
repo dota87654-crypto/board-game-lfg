@@ -694,7 +694,7 @@ document.getElementById('room-search-input').addEventListener('input', e => {
   // 즉시 현재 데이터로 렌더 (제목·방장 매칭)
   renderRooms();
 
-  // boardgames 테이블 비동기 검색 (300ms 디바운스)
+  // boardgames 테이블 비동기 검색 (100ms 디바운스)
   clearTimeout(bgSearchTimer);
   bgSearchTimer = setTimeout(async () => {
     const myId = ++bgSearchId;
@@ -704,17 +704,13 @@ document.getElementById('room-search-input').addEventListener('input', e => {
       .or(`name_ko.ilike.%${q}%,name_en.ilike.%${q}%`)
       .limit(50);
     if (myId !== bgSearchId) return; // 뒤늦은 응답 무시
-    if (!data?.length) {
-      gameNameMatches = null;
-    } else {
-      gameNameMatches = new Set();
-      data.forEach(g => {
-        if (g.name_ko) gameNameMatches.add(g.name_ko.toLowerCase());
-        if (g.name_en) gameNameMatches.add(g.name_en.toLowerCase());
-      });
-    }
+    gameNameMatches = new Set();
+    (data || []).forEach(g => {
+      if (g.name_ko) gameNameMatches.add(g.name_ko.toLowerCase());
+      if (g.name_en) gameNameMatches.add(g.name_en.toLowerCase());
+    });
     renderRooms();
-  }, 300);
+  }, 100);
 });
 
 // --- Tag UI ---
@@ -1134,12 +1130,12 @@ function showEntryLimitModal() {
 
 // --- Room Password ---
 async function tryEnterRoom(room) {
-  if (myRoomIds.has(room.id)) { enterRoom(room); return; }
-
-  // 방장은 제한 없음
+  // 방장은 제한 없음, 일반 멤버는 재입장 포함 횟수 체크
   if (currentUser.id !== room.host_id) {
     if (await isEntryLimitExceeded(room.id)) { showEntryLimitModal(); return; }
   }
+
+  if (myRoomIds.has(room.id)) { enterRoom(room); return; }
 
   const { data } = await sb.from('rooms').select('password_hash').eq('id', room.id).maybeSingle();
   const hash = data?.password_hash;
@@ -1192,8 +1188,8 @@ async function enterRoom(room) {
     .eq('room_id', room.id).eq('user_id', currentUser.id).maybeSingle();
   if (ban) { alert(t('ban.notice')); return; }
 
-  // 새 입장(기존 멤버 아님, 방장 아님)일 때만 로그
-  if (currentUser.id !== room.host_id && !myRoomIds.has(room.id)) {
+  // 방장 제외, 재입장 포함 매번 로그
+  if (currentUser.id !== room.host_id) {
     logRoomEntry(room.id);
   }
 
