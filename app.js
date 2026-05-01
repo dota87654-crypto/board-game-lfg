@@ -301,6 +301,7 @@ let currentRoom = null;
 const currentFilters = new Set(); // 비어있으면 전체
 const currentTagFilters = new Set();
 let currentSearch = '';
+let currentGameChipFilter = null; // ⭐ 칩 클릭으로 설정된 게임명 필터 (소문자)
 let gameNameMatches = null; // boardgames 테이블 검색 결과 (소문자 Set), null이면 미사용
 let bgSearchId = 0;         // 경쟁 조건 방지용 시퀀스
 let allRooms = [];
@@ -458,6 +459,7 @@ async function onLogin(user) {
 async function goToMain() {
   userNameBtn.textContent = currentNickname || currentUser.user_metadata?.full_name || currentUser.email;
   showScreen('main');
+  renderRoomFavBar();
   await loadFriends();
   loadRooms();
   subscribeRooms();
@@ -585,7 +587,9 @@ function renderRooms() {
   // member_count가 명확히 0인 방만 숨김 (undefined면 표시)
   filtered = filtered.filter(r => r.member_count === undefined || r.member_count > 0);
 
-  if (currentSearch) {
+  if (currentGameChipFilter) {
+    filtered = filtered.filter(r => r.game_name?.toLowerCase() === currentGameChipFilter);
+  } else if (currentSearch) {
     const q = currentSearch.toLowerCase();
     filtered = filtered.filter(r =>
       r.title?.toLowerCase().includes(q) ||
@@ -609,7 +613,7 @@ function renderRooms() {
   });
 
   if (filtered.length === 0) {
-    roomsList.innerHTML = `<div class="empty-state"><p>${currentSearch ? t('room.search.empty') : t('room.empty')}</p></div>`;
+    roomsList.innerHTML = `<div class="empty-state"><p>${(currentSearch || currentGameChipFilter) ? t('room.search.empty') : t('room.empty')}</p></div>`;
     return;
   }
 
@@ -681,20 +685,24 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 });
 
 let bgSearchTimer = null;
-document.getElementById('room-search-input').addEventListener('input', e => {
+const roomSearchInput = document.getElementById('room-search-input');
+
+roomSearchInput.addEventListener('input', e => {
   currentSearch = e.target.value.trim();
+  currentGameChipFilter = null;
 
   if (!currentSearch) {
     gameNameMatches = null;
     clearTimeout(bgSearchTimer);
+    hideRoomSearchDropdown();
+    renderRoomFavBar();
     renderRooms();
     return;
   }
 
-  // 즉시 현재 데이터로 렌더 (제목·방장 매칭)
   renderRooms();
+  renderRoomFavBar(); // 칩 active 해제 반영
 
-  // boardgames 테이블 비동기 검색 (100ms 디바운스)
   clearTimeout(bgSearchTimer);
   bgSearchTimer = setTimeout(async () => {
     const myId = ++bgSearchId;
@@ -702,8 +710,11 @@ document.getElementById('room-search-input').addEventListener('input', e => {
     const { data } = await sb.from('boardgames')
       .select('name_ko, name_en')
       .or(`name_ko.ilike.%${q}%,name_en.ilike.%${q}%`)
-      .limit(50);
-    if (myId !== bgSearchId) return; // 뒤늦은 응답 무시
+      .limit(20);
+    if (myId !== bgSearchId) return;
+
+    renderRoomSearchDropdown(data || []);
+
     gameNameMatches = new Set();
     (data || []).forEach(g => {
       if (g.name_ko) gameNameMatches.add(g.name_ko.toLowerCase());
@@ -711,6 +722,98 @@ document.getElementById('room-search-input').addEventListener('input', e => {
     });
     renderRooms();
   }, 100);
+});
+
+roomSearchInput.addEventListener('blur', () => {
+  setTimeout(hideRoomSearchDropdown, 150);
+});
+
+function renderRoomSearchDropdown(games) {
+  const dropdown = document.getElementById('room-search-dropdown');
+  if (!games.length) { dropdown.classList.add('hidden'); return; }
+  const favSet = new Set(getFavoriteGames());
+  dropdown.innerHTML = '';
+  games.forEach(game => {
+    const ko = game.name_ko || '';
+    const en = game.name_en || '';
+    const name = ko || en;
+    if (!name) return;
+    const isFav = favSet.has(name);
+    const item = document.createElement('div');
+    item.className = 'room-search-dropdown-item';
+    item.innerHTML = `
+      <div class="room-search-game-info">
+        <span class="room-search-game-ko">${escHtml(ko || en)}</span>
+        ${ko && en ? `<span class="room-search-game-en">${escHtml(en)}</span>` : ''}
+      </div>
+      <button type="button" class="room-fav-btn${isFav ? ' active' : ''}" title="즐겨찾기">⭐</button>
+    `;
+    item.querySelector('.room-search-game-info').addEventListener('mousedown', () => {
+      roomSearchInput.value = name;
+      currentSearch = name;
+      currentGameChipFilter = name.toLowerCase();
+      gameNameMatches = null;
+      hideRoomSearchDropdown();
+      renderRooms();
+      renderRoomFavBar();
+    });
+    item.querySelector('.room-fav-btn').addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleRoomFavoriteGame(name, e.currentTarget);
+    });
+    dropdown.appendChild(item);
+  });
+  dropdown.classList.remove('hidden');
+}
+
+function hideRoomSearchDropdown() {
+  document.getElementById('room-search-dropdown').classList.add('hidden');
+}
+
+function toggleRoomFavoriteGame(name, btn) {
+  let favs = getFavoriteGames();
+  if (favs.includes(name)) {
+    favs = favs.filter(f => f !== name);
+    btn.classList.remove('active');
+  } else {
+    if (favs.length >= 10) { showSnackbar('즐겨찾기는 최대 10개까지 가능해요.'); return; }
+    favs.push(name);
+    btn.classList.add('active');
+  }
+  setFavoriteGames(favs);
+  renderRoomFavBar();
+  renderFavoriteGames(); // 방 만들기 모달 즐겨찾기 바도 갱신
+}
+
+function renderRoomFavBar() {
+  const bar = document.getElementById('room-game-fav-bar');
+  if (!bar) return;
+  const favs = getFavoriteGames();
+  if (!favs.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = favs.map(name => {
+    const isActive = currentGameChipFilter === name.toLowerCase();
+    return `<button type="button" class="room-game-fav-chip${isActive ? ' active' : ''}" data-name="${escHtml(name)}">${escHtml(name)}</button>`;
+  }).join('');
+}
+
+document.getElementById('room-game-fav-bar').addEventListener('click', e => {
+  const chip = e.target.closest('.room-game-fav-chip');
+  if (!chip) return;
+  const name = chip.dataset.name;
+  if (currentGameChipFilter === name.toLowerCase()) {
+    currentGameChipFilter = null;
+    roomSearchInput.value = '';
+    currentSearch = '';
+    gameNameMatches = null;
+  } else {
+    currentGameChipFilter = name.toLowerCase();
+    roomSearchInput.value = name;
+    currentSearch = name;
+    gameNameMatches = null;
+  }
+  renderRoomFavBar();
+  renderRooms();
 });
 
 // --- Tag UI ---

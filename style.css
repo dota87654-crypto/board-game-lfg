@@ -326,7 +326,73 @@ main { padding: 24px 20px; }
 .tag-reset-btn:hover { border-color: var(--danger); color: var(--danger); }
 
 .room-search-wrap {
-  margin-bottom: 16px;
+  position: relative;
+  margin-bottom: 6px;
+}
+.room-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  z-index: 50;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+.room-search-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.room-search-dropdown-item:last-child { border-bottom: none; }
+.room-search-dropdown-item:hover { background: var(--surface2); }
+.room-search-game-info { flex: 1; cursor: pointer; min-width: 0; display: flex; flex-direction: column; }
+.room-search-game-ko { font-size: 0.9rem; font-weight: 600; }
+.room-search-game-en { font-size: 0.78rem; color: var(--text-muted); margin-top: 1px; }
+.room-fav-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.25;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+.room-search-dropdown-item:hover .room-fav-btn { opacity: 0.55; }
+.room-fav-btn:hover, .room-fav-btn.active { opacity: 1 !important; }
+.room-game-fav-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  min-height: 0;
+}
+.room-game-fav-chip {
+  padding: 4px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.room-game-fav-chip:hover { border-color: var(--primary); color: var(--primary); }
+.room-game-fav-chip.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface2));
+  font-weight: 600;
 }
 .room-search-wrap input {
   width: 100%;
