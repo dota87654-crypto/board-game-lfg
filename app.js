@@ -83,6 +83,7 @@ const TRANSLATIONS = {
     'kick.notice': '방에서 강퇴되었습니다.', 'block.dm.err': '차단한 유저에게는 DM을 보낼 수 없어요.',
     'block.recv.err': '메시지를 보낼 수 없습니다.', 'block.friend.err': '친구 요청을 보낼 수 없어요.',
     'settings.blocked': '차단 목록', 'settings.blocked.empty': '차단한 유저가 없어요.',
+    'settings.blocked.view': '차단 목록 보기',
     'ban.notice': '강퇴된 방이라 다시 입장할 수 없어요.',
     'btn.invite': '초대', 'title.invite': '친구 초대',
     'invite.sent': '%s님에게 초대를 보냈어요!', 'invite.already': '이미 초대한 유저예요.',
@@ -172,6 +173,7 @@ const TRANSLATIONS = {
     'kick.notice': 'You have been kicked from the room.', 'block.dm.err': 'Cannot send DM to a blocked user.',
     'block.recv.err': 'Cannot send message.', 'block.friend.err': 'Cannot send friend request.',
     'settings.blocked': 'Blocked Users', 'settings.blocked.empty': 'No blocked users.',
+    'settings.blocked.view': 'View Blocked Users',
     'ban.notice': 'You have been banned from this room and cannot re-enter.',
     'btn.invite': 'Invite', 'title.invite': 'Invite Friends',
     'invite.sent': 'Invite sent to %s!', 'invite.already': 'Already invited this user.',
@@ -1580,6 +1582,15 @@ document.getElementById('settings-btn').addEventListener('click', openSettings);
 document.getElementById('settings-btn-room').addEventListener('click', openSettings);
 closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
 settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
+
+const blockedListModal = document.getElementById('blocked-list-modal');
+document.getElementById('open-blocked-list-btn').addEventListener('click', () => {
+  blockedListModal.classList.remove('hidden');
+});
+document.getElementById('close-blocked-list-btn').addEventListener('click', () => {
+  blockedListModal.classList.add('hidden');
+});
+blockedListModal.addEventListener('click', e => { if (e.target === blockedListModal) blockedListModal.classList.add('hidden'); });
 
 document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
 
