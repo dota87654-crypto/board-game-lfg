@@ -1754,7 +1754,7 @@ async function openDMList() {
     .select('id, sender_id, receiver_id, content, created_at')
     .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
     .order('created_at', { ascending: false })
-    .limit(300);
+    .limit(50);
 
   if (!data?.length) {
     dmListConvs = [];
