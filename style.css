@@ -276,24 +276,54 @@ main { padding: 24px 20px; }
 }
 
 /* Tag filter bar */
-.tag-filter-bar {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+/* Tag filter wrap (dropdown) */
+.tag-filter-wrap {
+  position: relative;
   margin-bottom: 12px;
 }
-.tag-filter-btn {
-  padding: 4px 12px;
+.tag-filter-toggle {
+  padding: 5px 14px;
   border-radius: 20px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.tag-filter-toggle:hover,
+.tag-filter-toggle.open,
+.tag-filter-toggle.has-selection { border-color: var(--primary); color: var(--primary); }
+.tag-filter-toggle.has-selection { background: color-mix(in srgb, var(--primary) 12%, transparent); }
+.tag-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  z-index: 150;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tag-filter-dropdown.hidden { display: none; }
+.tag-chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-dropdown-footer { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 8px; }
+.tag-reset-btn {
+  padding: 3px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
   font-size: 0.8rem;
+  cursor: pointer;
   transition: all 0.18s;
 }
-.tag-filter-btn:hover { border-color: var(--primary); color: var(--primary); }
-.tag-filter-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.tag-reset-btn:hover { border-color: var(--danger); color: var(--danger); }
 
 .room-search-wrap {
   margin-bottom: 16px;
@@ -471,11 +501,36 @@ form label input:focus { outline: none; border-color: var(--primary); }
 
 #location-field label { margin-bottom: 6px; }
 
-/* Create room tag picker */
+/* Create room tag toggle */
 .create-tags-field { margin-bottom: 16px; }
-.create-tags-label { display: block; font-weight: 500; font-size: 0.92rem; margin-bottom: 8px; }
-.create-tags-optional { font-weight: 400; color: var(--text-muted); font-size: 0.82rem; margin-left: 6px; }
-.create-tag-picker { display: flex; flex-wrap: wrap; gap: 7px; }
+.create-tag-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: left;
+}
+.create-tag-toggle:hover,
+.create-tag-toggle.open { border-color: var(--primary); color: var(--primary); }
+.create-tag-panel {
+  margin-top: 8px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.create-tag-panel.hidden { display: none; }
 .tag-chip {
   padding: 5px 13px;
   border-radius: 20px;

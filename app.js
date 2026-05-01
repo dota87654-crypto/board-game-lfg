@@ -290,12 +290,12 @@ function userIconSvg(color) {
   return `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="${color}" fill-opacity="0.15"/><circle cx="16" cy="12" r="5" fill="${color}"/><path d="M7 28c0-4.97 4.03-9 9-9s9 4.03 9 9H7z" fill="${color}"/></svg>`;
 }
 
-const ROOM_TAGS = ['초보환영', '숙련자', '빠른게임', '긴게임', '친목', '진지하게', '음성채팅', '텍스트만'];
+const ROOM_TAGS = ['온라인', '오프라인', '초보환영', '숙련자', '빠른게임', '긴게임', '친목', '진지하게', '음성채팅', '텍스트만'];
 
 let currentUser = null;
 let currentRoom = null;
 let currentFilter = '전체';
-let currentTagFilter = null;
+const currentTagFilters = new Set();
 let currentSearch = '';
 let allRooms = [];
 let myRoomIds = new Set();
@@ -584,8 +584,10 @@ function renderRooms() {
     );
   }
 
-  if (currentTagFilter) {
-    filtered = filtered.filter(r => Array.isArray(r.tags) && r.tags.includes(currentTagFilter));
+  if (currentTagFilters.size > 0) {
+    filtered = filtered.filter(r =>
+      Array.isArray(r.tags) && [...currentTagFilters].every(tag => r.tags.includes(tag))
+    );
   }
 
   // 참여 중인 방 최상단 고정
@@ -660,21 +662,88 @@ document.getElementById('room-search-input').addEventListener('input', e => {
   renderRooms();
 });
 
-// 태그 필터
-document.getElementById('tag-filter-bar').addEventListener('click', e => {
-  const btn = e.target.closest('.tag-filter-btn');
-  if (!btn) return;
-  const tag = btn.dataset.tag || null;
-  currentTagFilter = (currentTagFilter === tag) ? null : tag;
-  document.querySelectorAll('.tag-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.tag === currentTagFilter));
-  renderRooms();
+// --- Tag UI ---
+function initTagUI() {
+  const chipsHtml = ROOM_TAGS.map(tag =>
+    `<button type="button" class="tag-chip" data-tag="${tag}">${tag}</button>`
+  ).join('');
+  const footer = `<div class="tag-dropdown-footer"><button type="button" class="tag-reset-btn">초기화</button></div>`;
+
+  document.getElementById('tag-filter-dropdown').innerHTML =
+    `<div class="tag-chips-wrap">${chipsHtml}</div>${footer}`;
+
+  document.getElementById('create-tag-panel').innerHTML =
+    `<div class="tag-chips-wrap">${chipsHtml}</div>${footer}`;
+}
+initTagUI();
+
+function updateTagFilterBtn() {
+  const n = currentTagFilters.size;
+  const btn = document.getElementById('tag-filter-btn');
+  btn.textContent = n > 0 ? `🏷️ 태그 · ${n}개` : '🏷️ 태그 필터';
+  btn.classList.toggle('has-selection', n > 0);
+}
+
+function updateCreateTagToggle() {
+  const n = document.querySelectorAll('#create-tag-panel .tag-chip.selected').length;
+  document.getElementById('create-tag-toggle').textContent =
+    n > 0 ? `🏷️ 태그 선택 · ${n}개 선택됨` : '🏷️ 태그 선택';
+}
+
+// 태그 필터 드롭다운
+const tagFilterBtn = document.getElementById('tag-filter-btn');
+const tagFilterDropdown = document.getElementById('tag-filter-dropdown');
+
+tagFilterBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  const open = !tagFilterDropdown.classList.contains('hidden');
+  tagFilterDropdown.classList.toggle('hidden', open);
+  tagFilterBtn.classList.toggle('open', !open);
 });
 
-// 방 만들기 태그 칩 선택
-document.getElementById('create-tag-picker').addEventListener('click', e => {
+tagFilterDropdown.addEventListener('click', e => {
+  e.stopPropagation();
   const chip = e.target.closest('.tag-chip');
-  if (!chip) return;
-  chip.classList.toggle('selected');
+  const reset = e.target.closest('.tag-reset-btn');
+  if (chip) {
+    const tag = chip.dataset.tag;
+    if (currentTagFilters.has(tag)) { currentTagFilters.delete(tag); chip.classList.remove('selected'); }
+    else { currentTagFilters.add(tag); chip.classList.add('selected'); }
+    updateTagFilterBtn();
+    renderRooms();
+  } else if (reset) {
+    currentTagFilters.clear();
+    tagFilterDropdown.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
+    updateTagFilterBtn();
+    renderRooms();
+  }
+});
+
+document.addEventListener('click', () => {
+  tagFilterDropdown.classList.add('hidden');
+  tagFilterBtn.classList.remove('open');
+});
+
+// 방 만들기 태그 토글
+const createTagToggle = document.getElementById('create-tag-toggle');
+const createTagPanel = document.getElementById('create-tag-panel');
+
+createTagToggle.addEventListener('click', () => {
+  const open = !createTagPanel.classList.contains('hidden');
+  createTagPanel.classList.toggle('hidden', open);
+  createTagToggle.classList.toggle('open', !open);
+});
+
+createTagPanel.addEventListener('click', e => {
+  const chip = e.target.closest('.tag-chip');
+  const reset = e.target.closest('.tag-reset-btn');
+  if (chip) {
+    chip.classList.toggle('selected');
+    updateCreateTagToggle();
+  } else if (reset) {
+    createTagPanel.querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
+    updateCreateTagToggle();
+  }
 });
 
 // --- Create Room ---
@@ -895,7 +964,7 @@ createRoomForm.addEventListener('submit', async e => {
 
   const location = (fd.get('location') || '').trim() || null;
   const password_hash = rawPassword ? await sha256(rawPassword) : null;
-  const tags = [...document.querySelectorAll('#create-tag-picker .tag-chip.selected')].map(b => b.dataset.tag);
+  const tags = [...document.querySelectorAll('#create-tag-panel .tag-chip.selected')].map(b => b.dataset.tag);
 
   const { data: room, error } = await sb.from('rooms').insert({
     title,
@@ -924,7 +993,10 @@ createRoomForm.addEventListener('submit', async e => {
   createModal.classList.add('hidden');
   createRoomForm.reset();
   document.getElementById('room-password-create').value = '';
-  document.querySelectorAll('#create-tag-picker .tag-chip.selected').forEach(b => b.classList.remove('selected'));
+  createTagPanel.querySelectorAll('.tag-chip').forEach(b => b.classList.remove('selected'));
+  createTagPanel.classList.add('hidden');
+  createTagToggle.classList.remove('open');
+  updateCreateTagToggle();
   enterRoom(room); // enterRoom 내부에서 upsert로 참여 처리
 });
 
