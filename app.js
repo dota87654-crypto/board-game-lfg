@@ -25,6 +25,9 @@ const TRANSLATIONS = {
     'btn.back': '← 목록', 'btn.profile-back': '← 뒤로', 'btn.leave': '나가기',
     'btn.edit': '변경', 'btn.save': '저장', 'btn.cancel': '취소', 'btn.done': '완료',
     'btn.dm': '💬 DM', 'btn.remove': '삭제', 'btn.accept': '수락', 'btn.reject': '거절',
+    'btn.block': '차단',
+    'confirm.remove-friend': '정말로 친구를 삭제하시겠습니까?',
+    'confirm.block-friend': '정말로 차단하시겠습니까?\n차단하면 친구 관계도 삭제됩니다.',
     'btn.add-friend': '친구 추가', 'btn.requested': '요청됨', 'btn.friends': '친구',
     'btn.create-room': '방 만들기', 'btn.creating': '생성 중...',
     'settings.title': '설정', 'settings.sound': '알림음',
@@ -111,6 +114,9 @@ const TRANSLATIONS = {
     'btn.back': '← List', 'btn.profile-back': '← Back', 'btn.leave': 'Leave',
     'btn.edit': 'Edit', 'btn.save': 'Save', 'btn.cancel': 'Cancel', 'btn.done': 'Done',
     'btn.dm': '💬 DM', 'btn.remove': 'Remove', 'btn.accept': 'Accept', 'btn.reject': 'Decline',
+    'btn.block': 'Block',
+    'confirm.remove-friend': 'Are you sure you want to remove this friend?',
+    'confirm.block-friend': 'Are you sure you want to block this user?\nThis will also remove the friendship.',
     'btn.add-friend': 'Add Friend', 'btn.requested': 'Requested', 'btn.friends': 'Friends',
     'btn.create-room': 'Create Room', 'btn.creating': 'Creating...',
     'settings.title': 'Settings', 'settings.sound': 'Sound Notifications',
@@ -1956,23 +1962,28 @@ function hideDMListContextMenu() {
   document.getElementById('dm-list-context-menu').classList.add('hidden');
 }
 
-function showDMDeleteConfirm(partnerId) {
+function showConfirm(message, onOk) {
   const modal = document.getElementById('dm-delete-modal');
+  document.getElementById('dm-delete-msg').textContent = message;
   modal.classList.remove('hidden');
 
   const okBtn = document.getElementById('dm-delete-ok-btn');
   const cancelBtn = document.getElementById('dm-delete-cancel-btn');
-
   const cleanup = () => modal.classList.add('hidden');
 
   const newOk = okBtn.cloneNode(true);
   okBtn.replaceWith(newOk);
-  newOk.addEventListener('click', async () => {
-    cleanup();
-    await deleteDMConversation(partnerId);
-  });
+  newOk.addEventListener('click', async () => { cleanup(); await onOk(); });
   cancelBtn.onclick = cleanup;
   modal.onclick = e => { if (e.target === modal) cleanup(); };
+}
+
+function showDMDeleteConfirm(partnerId) {
+  showConfirm(t('dm.delete.confirm'), () => deleteDMConversation(partnerId));
+}
+
+function showFriendConfirm(message, onOk) {
+  showConfirm(message, onOk);
 }
 
 async function deleteDMConversation(partnerId) {
@@ -2142,12 +2153,20 @@ function renderFriendsList() {
       <div class="friend-item-actions">
         ${inRoom ? `<button class="btn btn-sm btn-primary" data-invite="${f.friendId}">${t('btn.invite')}</button>` : ''}
         <button class="btn btn-sm btn-primary" data-dm="${f.friendId}" data-name="${escHtml(f.name)}">${t('btn.dm')}</button>
+        ${!inRoom ? `<button class="btn btn-sm btn-danger" data-block="${f.friendId}">${t('btn.block')}</button>` : ''}
         ${!inRoom ? `<button class="btn btn-sm btn-danger" data-remove="${f.id}">${t('btn.remove')}</button>` : ''}
       </div>
     `;
     if (inRoom) el.querySelector('[data-invite]').addEventListener('click', () => inviteFriend(f.friendId, f.name));
     el.querySelector('[data-dm]').addEventListener('click', () => openDM(f.friendId, f.name));
-    if (!inRoom) el.querySelector('[data-remove]').addEventListener('click', () => removeFriend(f.id));
+    if (!inRoom) {
+      el.querySelector('[data-remove]').addEventListener('click', () => {
+        showFriendConfirm(t('confirm.remove-friend'), () => removeFriend(f.id));
+      });
+      el.querySelector('[data-block]').addEventListener('click', () => {
+        showFriendConfirm(t('confirm.block-friend'), () => blockUser(f.friendId));
+      });
+    }
     friendsListBody.appendChild(el);
   });
 }
