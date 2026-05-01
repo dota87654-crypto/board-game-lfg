@@ -577,6 +577,13 @@ function renderRooms() {
     );
   }
 
+  // 참여 중인 방 최상단 고정
+  filtered = [...filtered].sort((a, b) => {
+    const am = myRoomIds.has(a.id) ? 0 : 1;
+    const bm = myRoomIds.has(b.id) ? 0 : 1;
+    return am - bm;
+  });
+
   if (filtered.length === 0) {
     roomsList.innerHTML = `<div class="empty-state"><p>${currentSearch ? t('room.search.empty') : t('room.empty')}</p></div>`;
     return;
