@@ -391,6 +391,16 @@
 <!-- DM 목록 컨텍스트 메뉴 -->
 <div id="dm-list-context-menu" class="member-context-menu hidden"></div>
 
+<!-- 입장 제한 모달 -->
+<div id="entry-limit-modal" class="modal-overlay hidden" style="z-index:600;">
+  <div class="modal confirm-modal" style="text-align:center;">
+    <div style="font-size:2rem;margin-bottom:12px;">🚫</div>
+    <h3 data-i18n="entry.limit.title" style="margin-bottom:12px;">입장 제한</h3>
+    <p data-i18n="entry.limit.exceeded" style="color:var(--text-muted);font-size:0.93rem;line-height:1.6;">오늘 이 방 입장 횟수를 초과했습니다 (최대 3회)</p>
+    <button id="entry-limit-ok-btn" class="btn btn-primary" style="margin-top:20px;width:100%;" data-i18n="btn.done">확인</button>
+  </div>
+</div>
+
 <!-- 방 비밀번호 입력 모달 -->
 <div id="room-password-modal" class="modal-overlay hidden" style="z-index:600;">
   <div class="modal confirm-modal">

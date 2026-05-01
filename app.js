@@ -88,6 +88,8 @@ const TRANSLATIONS = {
     'settings.blocked': '차단 목록', 'settings.blocked.empty': '차단한 유저가 없어요.',
     'settings.blocked.view': '차단 목록 보기',
     'ban.notice': '강퇴된 방이라 다시 입장할 수 없어요.',
+    'entry.limit.exceeded': '오늘 이 방 입장 횟수를 초과했습니다 (최대 3회)',
+    'entry.limit.title': '입장 제한',
     'btn.invite': '초대', 'title.invite': '친구 초대',
     'invite.sent': '%s님에게 초대를 보냈어요!', 'invite.already': '이미 초대한 유저예요.',
     'invite.err': '초대 전송에 실패했어요.',
@@ -193,6 +195,8 @@ const TRANSLATIONS = {
     'settings.blocked': 'Blocked Users', 'settings.blocked.empty': 'No blocked users.',
     'settings.blocked.view': 'View Blocked Users',
     'ban.notice': 'You have been banned from this room and cannot re-enter.',
+    'entry.limit.exceeded': 'You have exceeded the entry limit for this room today (max 3 times)',
+    'entry.limit.title': 'Entry Limit Reached',
     'btn.invite': 'Invite', 'title.invite': 'Invite Friends',
     'invite.sent': 'Invite sent to %s!', 'invite.already': 'Already invited this user.',
     'invite.err': 'Failed to send invite.',
@@ -1016,9 +1020,44 @@ createRoomForm.addEventListener('submit', async e => {
   enterRoom(room); // enterRoom 내부에서 upsert로 참여 처리
 });
 
+// --- Entry Limit (들락방지) ---
+async function isEntryLimitExceeded(roomId) {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const { count } = await sb.from('room_entry_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('room_id', roomId)
+    .eq('user_id', currentUser.id)
+    .gte('entered_at', todayStart.toISOString());
+  return count >= 3;
+}
+
+function logRoomEntry(roomId) {
+  sb.from('room_entry_logs').insert({ room_id: roomId, user_id: currentUser.id }).then();
+}
+
+const entryLimitModal = document.getElementById('entry-limit-modal');
+document.getElementById('entry-limit-ok-btn').addEventListener('click', () => {
+  entryLimitModal.classList.add('hidden');
+});
+entryLimitModal.addEventListener('click', e => {
+  if (e.target === entryLimitModal) entryLimitModal.classList.add('hidden');
+});
+
+function showEntryLimitModal() {
+  applyI18n();
+  entryLimitModal.classList.remove('hidden');
+}
+
 // --- Room Password ---
 async function tryEnterRoom(room) {
   if (myRoomIds.has(room.id)) { enterRoom(room); return; }
+
+  // 방장은 제한 없음
+  if (currentUser.id !== room.host_id) {
+    if (await isEntryLimitExceeded(room.id)) { showEntryLimitModal(); return; }
+  }
+
   const { data } = await sb.from('rooms').select('password_hash').eq('id', room.id).maybeSingle();
   const hash = data?.password_hash;
   if (!hash) { enterRoom(room); return; }
@@ -1069,6 +1108,11 @@ async function enterRoom(room) {
   const { data: ban } = await sb.from('room_bans').select('room_id')
     .eq('room_id', room.id).eq('user_id', currentUser.id).maybeSingle();
   if (ban) { alert(t('ban.notice')); return; }
+
+  // 새 입장(기존 멤버 아님, 방장 아님)일 때만 로그
+  if (currentUser.id !== room.host_id && !myRoomIds.has(room.id)) {
+    logRoomEntry(room.id);
+  }
 
   currentRoom = room;
   unsubscribeAll();
@@ -2645,6 +2689,12 @@ async function handlePendingInvite() {
   const { count } = await sb.from('room_members')
     .select('*', { count: 'exact', head: true }).eq('room_id', room.id);
   if (count >= room.max_players) { alert(t('invite.link.full')); return; }
+
+  // 들락방지 확인 (방장 제외)
+  if (currentUser.id !== room.host_id && await isEntryLimitExceeded(room.id)) {
+    showEntryLimitModal();
+    return;
+  }
 
   // 비밀번호 확인 후 입장
   if (room.password_hash) {
