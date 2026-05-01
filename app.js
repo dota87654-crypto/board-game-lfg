@@ -18,6 +18,8 @@ const TRANSLATIONS = {
     'filter.all': '전체', 'filter.private': '개인소유', 'filter.cafe': '보드게임방',
     'filter.tabletop': '테이블탑 시뮬레이터', 'filter.bga': 'BGA', 'filter.steam': '스팀게임',
     'room.empty': '방이 없습니다. 첫 번째로 방을 만들어보세요!',
+    'room.search.placeholder': '방 제목, 게임, 방장으로 검색...',
+    'room.search.empty': '검색 결과가 없습니다.',
     'room.mine': '참여 중', 'room.unit': ' 명',
     'cat.private': '개인소유', 'cat.cafe': '보드게임방', 'cat.tabletop': '테이블탑 시뮬레이터',
     'cat.bga': 'BGA', 'cat.steam': '스팀게임',
@@ -109,6 +111,8 @@ const TRANSLATIONS = {
     'filter.all': 'All', 'filter.private': 'Private', 'filter.cafe': 'BG Café',
     'filter.tabletop': 'Tabletop Sim', 'filter.bga': 'BGA', 'filter.steam': 'Steam',
     'room.empty': 'No rooms found. Be the first to create one!',
+    'room.search.placeholder': 'Search by title, game, or host...',
+    'room.search.empty': 'No results found.',
     'room.mine': 'Joined', 'room.unit': ' players',
     'cat.private': 'Private', 'cat.cafe': 'BG Café', 'cat.tabletop': 'Tabletop Sim',
     'cat.bga': 'BGA', 'cat.steam': 'Steam',
@@ -265,6 +269,7 @@ function userIconSvg(color) {
 let currentUser = null;
 let currentRoom = null;
 let currentFilter = '전체';
+let currentSearch = '';
 let allRooms = [];
 let myRoomIds = new Set();
 let realtimeChannels = [];
@@ -533,8 +538,17 @@ function renderRooms() {
   // member_count가 명확히 0인 방만 숨김 (undefined면 표시)
   filtered = filtered.filter(r => r.member_count === undefined || r.member_count > 0);
 
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    filtered = filtered.filter(r =>
+      r.title?.toLowerCase().includes(q) ||
+      r.game_name?.toLowerCase().includes(q) ||
+      (r.host_name || '').toLowerCase().includes(q)
+    );
+  }
+
   if (filtered.length === 0) {
-    roomsList.innerHTML = `<div class="empty-state"><p>${t('room.empty')}</p></div>`;
+    roomsList.innerHTML = `<div class="empty-state"><p>${currentSearch ? t('room.search.empty') : t('room.empty')}</p></div>`;
     return;
   }
 
@@ -582,7 +596,7 @@ function renderRooms() {
   });
 }
 
-// --- Filter ---
+// --- Filter & Search ---
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -590,6 +604,11 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     currentFilter = btn.dataset.cat;
     renderRooms();
   });
+});
+
+document.getElementById('room-search-input').addEventListener('input', e => {
+  currentSearch = e.target.value.trim();
+  renderRooms();
 });
 
 // --- Create Room ---

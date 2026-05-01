@@ -271,8 +271,23 @@ main { padding: 24px 20px; }
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
+.room-search-wrap {
+  margin-bottom: 16px;
+}
+.room-search-wrap input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.92rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.room-search-wrap input:focus { border-color: var(--primary); }
 .filter-btn {
   padding: 6px 14px;
   border-radius: 20px;
