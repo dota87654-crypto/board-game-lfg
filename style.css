@@ -861,15 +861,53 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 4px 16px rgba(0,0,0,0.25);
 }
 .game-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 10px 12px;
-  cursor: pointer;
   border-bottom: 1px solid var(--border);
   transition: background 0.15s;
 }
 .game-dropdown-item:last-child { border-bottom: none; }
 .game-dropdown-item:hover { background: var(--surface2); }
+.game-dropdown-info { flex: 1; cursor: pointer; min-width: 0; }
 .game-dropdown-ko { font-size: 0.9rem; font-weight: 600; }
 .game-dropdown-en { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+.game-fav-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0.25;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+.game-dropdown-item:hover .game-fav-btn { opacity: 0.55; }
+.game-fav-btn:hover, .game-fav-btn.active { opacity: 1 !important; }
+
+/* Game favorites bar */
+.game-favorites-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 0;
+}
+.game-fav-chip {
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.game-fav-chip:hover { border-color: var(--primary); color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--surface2)); }
 
 /* Members panel */
 .members-panel {

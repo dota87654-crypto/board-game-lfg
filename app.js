@@ -909,7 +909,7 @@ placeSearchMoreBtn.addEventListener('click', () => fetchPlaces(false));
 closePlaceSearchBtn.addEventListener('click', () => placeSearchModal.classList.add('hidden'));
 placeSearchModal.addEventListener('click', e => { if (e.target === placeSearchModal) placeSearchModal.classList.add('hidden'); });
 
-openCreateBtn.addEventListener('click', () => createModal.classList.remove('hidden'));
+openCreateBtn.addEventListener('click', () => { createModal.classList.remove('hidden'); renderFavoriteGames(); });
 closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));
 createModal.addEventListener('click', e => { if (e.target === createModal) createModal.classList.add('hidden'); });
 
@@ -919,6 +919,42 @@ document.getElementById('room-password-create').addEventListener('input', e => {
 document.getElementById('room-password-entry').addEventListener('input', e => {
   e.target.value = e.target.value.replace(/\D/g, '');
 });
+
+// --- Game Favorites ---
+function getFavoriteGames() {
+  try { return JSON.parse(localStorage.getItem('fav_games') || '[]'); } catch { return []; }
+}
+function setFavoriteGames(list) {
+  localStorage.setItem('fav_games', JSON.stringify(list));
+}
+
+function renderFavoriteGames() {
+  const favs = getFavoriteGames();
+  const bar = document.getElementById('game-favorites-bar');
+  bar.innerHTML = favs.map(name =>
+    `<button type="button" class="game-fav-chip" data-name="${escHtml(name)}">${escHtml(name)}</button>`
+  ).join('');
+}
+
+document.getElementById('game-favorites-bar').addEventListener('click', e => {
+  const chip = e.target.closest('.game-fav-chip');
+  if (!chip) return;
+  gameNameInput.value = chip.dataset.name;
+});
+
+function toggleFavoriteGame(name, btn) {
+  let favs = getFavoriteGames();
+  if (favs.includes(name)) {
+    favs = favs.filter(f => f !== name);
+    btn.classList.remove('active');
+  } else {
+    if (favs.length >= 10) { showSnackbar('즐겨찾기는 최대 10개까지 가능해요.'); return; }
+    favs.push(name);
+    btn.classList.add('active');
+  }
+  setFavoriteGames(favs);
+  renderFavoriteGames();
+}
 
 // --- Game name autocomplete ---
 const gameNameInput = document.getElementById('game-name-input');
@@ -944,19 +980,31 @@ async function searchGames(query) {
 
   if (!data?.length) { gameNameDropdown.classList.add('hidden'); return; }
 
+  const favSet = new Set(getFavoriteGames());
   gameNameDropdown.innerHTML = '';
   data.forEach(game => {
     const ko = game.name_ko || '';
     const en = game.name_en || '';
+    const name = ko || en;
+    const isFav = favSet.has(name);
+
     const item = document.createElement('div');
     item.className = 'game-dropdown-item';
     item.innerHTML = `
-      <div class="game-dropdown-ko">${escHtml(ko || en)}</div>
-      ${ko && en ? `<div class="game-dropdown-en">${escHtml(en)}</div>` : ''}
+      <div class="game-dropdown-info">
+        <div class="game-dropdown-ko">${escHtml(ko || en)}</div>
+        ${ko && en ? `<div class="game-dropdown-en">${escHtml(en)}</div>` : ''}
+      </div>
+      <button type="button" class="game-fav-btn${isFav ? ' active' : ''}" title="즐겨찾기">⭐</button>
     `;
-    item.addEventListener('mousedown', () => {
-      gameNameInput.value = ko || en;
+    item.querySelector('.game-dropdown-info').addEventListener('mousedown', () => {
+      gameNameInput.value = name;
       gameNameDropdown.classList.add('hidden');
+    });
+    item.querySelector('.game-fav-btn').addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFavoriteGame(name, e.currentTarget);
     });
     gameNameDropdown.appendChild(item);
   });
