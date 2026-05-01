@@ -92,6 +92,12 @@ const TRANSLATIONS = {
     'invite.sent': '%s님에게 초대를 보냈어요!', 'invite.already': '이미 초대한 유저예요.',
     'invite.err': '초대 전송에 실패했어요.',
     'invite.toast': '%i님이 [%r]에 초대했어요',
+    'notice.placeholder': '공지 내용을 입력하세요...',
+    'notice.edit.title': '방 공지 수정',
+    'notice.delete.confirm': '공지를 삭제하시겠습니까?',
+    'btn.notice.write': '공지 작성',
+    'btn.notice.edit': '수정',
+    'btn.notice.delete': '삭제',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -185,6 +191,12 @@ const TRANSLATIONS = {
     'invite.sent': 'Invite sent to %s!', 'invite.already': 'Already invited this user.',
     'invite.err': 'Failed to send invite.',
     'invite.toast': '%i invited you to [%r]',
+    'notice.placeholder': 'Enter notice content...',
+    'notice.edit.title': 'Edit Room Notice',
+    'notice.delete.confirm': 'Delete this notice?',
+    'btn.notice.write': 'Post Notice',
+    'btn.notice.edit': 'Edit',
+    'btn.notice.delete': 'Delete',
   },
 };
 
@@ -960,12 +972,14 @@ async function enterRoom(room) {
   participatingRoomId = room.id;
   clearRoomUnread(room.id);
   document.getElementById('members-panel').classList.remove('open');
+  renderNotice(room);
   await loadMessages(room.id);
   await updateMemberCount(room.id);
   loadRoomMembers(room.id);
   subscribeChat(room.id);
   subscribeMembers(room.id);
   subscribeChatNotif(room.id);
+  subscribeNotice(room.id);
 }
 
 // 목록 버튼: 방 유지하고 목록으로만 이동
@@ -1362,6 +1376,77 @@ function subscribeRooms() {
   realtimeChannels.push(ch);
 }
 
+// --- Room Notice ---
+const noticeBar = document.getElementById('room-notice-bar');
+const noticeText = document.getElementById('room-notice-text');
+const noticeActions = document.getElementById('room-notice-actions');
+const noticeWriteBtn = document.getElementById('notice-write-btn');
+const noticeEditBtn = document.getElementById('notice-edit-btn');
+const noticeDeleteBtn = document.getElementById('notice-delete-btn');
+const noticeModal = document.getElementById('room-notice-modal');
+const noticeInput = document.getElementById('room-notice-input');
+const noticeSaveBtn = document.getElementById('notice-save-btn');
+const noticeCancelBtn = document.getElementById('notice-cancel-btn');
+
+function renderNotice(room) {
+  const isHost = room.host_id === currentUser?.id;
+  noticeWriteBtn.classList.toggle('hidden', !isHost || !!room.notice);
+  if (room.notice) {
+    noticeBar.classList.remove('hidden');
+    noticeText.textContent = room.notice;
+    noticeActions.classList.toggle('hidden', !isHost);
+  } else {
+    noticeBar.classList.add('hidden');
+    noticeText.textContent = '';
+    noticeActions.classList.add('hidden');
+  }
+}
+
+function openNoticeModal(existing) {
+  noticeInput.value = existing || '';
+  noticeModal.classList.remove('hidden');
+  noticeInput.focus();
+}
+
+noticeWriteBtn.addEventListener('click', () => openNoticeModal(''));
+noticeEditBtn.addEventListener('click', () => openNoticeModal(currentRoom?.notice || ''));
+noticeCancelBtn.addEventListener('click', () => noticeModal.classList.add('hidden'));
+
+noticeModal.addEventListener('click', e => { if (e.target === noticeModal) noticeModal.classList.add('hidden'); });
+
+noticeSaveBtn.addEventListener('click', async () => {
+  const text = noticeInput.value.trim();
+  if (!text || !currentRoom) return;
+  await sb.from('rooms').update({ notice: text }).eq('id', currentRoom.id);
+  noticeModal.classList.add('hidden');
+});
+
+noticeDeleteBtn.addEventListener('click', () => {
+  showConfirm(t('notice.delete.confirm'), async () => {
+    if (!currentRoom) return;
+    await sb.from('rooms').update({ notice: null }).eq('id', currentRoom.id);
+  });
+});
+
+let noticeChannel = null;
+function subscribeNotice(roomId) {
+  if (noticeChannel) sb.removeChannel(noticeChannel);
+  noticeChannel = sb.channel(`notice-${roomId}`)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'rooms',
+      filter: `id=eq.${roomId}`
+    }, payload => {
+      if (!currentRoom || currentRoom.id !== roomId) return;
+      const newNotice = payload.new?.notice ?? null;
+      currentRoom = { ...currentRoom, notice: newNotice };
+      allRooms = allRooms.map(r => r.id === roomId ? { ...r, notice: newNotice } : r);
+      renderNotice(currentRoom);
+    })
+    .subscribe();
+}
+
 function subscribeChat(roomId) {
   const ch = sb.channel(`room-${roomId}`)
     .on('postgres_changes', {
@@ -1418,6 +1503,7 @@ function subscribeMembers(roomId) {
       if (payload.new?.host_id && currentRoom) {
         currentRoom = { ...currentRoom, host_id: payload.new.host_id };
         renderMembersPanel();
+        renderNotice(currentRoom);
       }
     })
     .subscribe();
@@ -1503,6 +1589,7 @@ async function clearRoomUnread(roomId) {
 }
 
 function unsubscribeAll() {
+  if (noticeChannel) { sb.removeChannel(noticeChannel); noticeChannel = null; }
   realtimeChannels.forEach(ch => sb.removeChannel(ch));
   realtimeChannels = [];
 }

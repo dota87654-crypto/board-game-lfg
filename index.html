@@ -280,6 +280,7 @@
       </div>
       <div id="room-members-info"></div>
       <button id="members-panel-btn" class="btn btn-sm" data-i18n-title="title.members" title="참여 인원"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button id="notice-write-btn" class="btn btn-sm hidden" data-i18n="btn.notice.write">공지 작성</button>
       <button id="invite-friends-btn" class="btn btn-sm" data-i18n-title="title.invite" title="친구 초대">👥</button>
       <button id="settings-btn-room" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️</button>
       <button id="leave-btn" class="btn btn-sm btn-danger" data-i18n="btn.leave">나가기</button>
@@ -287,12 +288,32 @@
   </header>
 
   <div class="room-layout">
+    <div id="room-notice-bar" class="hidden">
+      <span id="room-notice-icon">📢</span>
+      <span id="room-notice-text"></span>
+      <div id="room-notice-actions">
+        <button id="notice-edit-btn" class="btn btn-xs" data-i18n="btn.notice.edit">수정</button>
+        <button id="notice-delete-btn" class="btn btn-xs btn-danger" data-i18n="btn.notice.delete">삭제</button>
+      </div>
+    </div>
     <div class="chat-area">
       <div id="messages-list"></div>
       <div class="chat-input-bar">
         <input type="text" id="chat-input" data-i18n-placeholder="chat.placeholder" placeholder="메시지를 입력하세요..." />
         <button id="send-btn" class="btn btn-primary" data-i18n="btn.send">전송</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 방 공지 편집 모달 -->
+<div id="room-notice-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 data-i18n="notice.edit.title">방 공지 수정</h3>
+    <textarea id="room-notice-input" rows="4" data-i18n-placeholder="notice.placeholder" placeholder="공지 내용을 입력하세요..." maxlength="500"></textarea>
+    <div class="modal-actions">
+      <button id="notice-save-btn" class="btn btn-primary" data-i18n="btn.save">저장</button>
+      <button id="notice-cancel-btn" class="btn" data-i18n="btn.cancel">취소</button>
     </div>
   </div>
 </div>
