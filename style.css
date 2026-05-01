@@ -649,7 +649,7 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
-#chat-input {
+#chat-input, #dm-input {
   flex: 1;
   padding: 10px 14px;
   background: var(--bg);
@@ -658,7 +658,7 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   color: var(--text);
   font-size: 0.95rem;
 }
-#chat-input:focus { outline: none; border-color: var(--primary); }
+#chat-input:focus, #dm-input:focus { outline: none; border-color: var(--primary); }
 
 /* Game name autocomplete */
 .game-search-wrap { position: relative; margin-top: 6px; }
