@@ -32,10 +32,12 @@ const TRANSLATIONS = {
     'confirm.block-friend': '정말로 차단하시겠습니까?\n차단하면 친구 관계도 삭제됩니다.',
     'btn.add-friend': '친구 추가', 'btn.requested': '요청됨', 'btn.friends': '친구',
     'btn.create-room': '방 만들기', 'btn.creating': '생성 중...',
-    'settings.title': '설정', 'settings.sound': '알림음',
+    'settings.title': '설정',
+    'settings.tab.audio': '🔊 오디오', 'settings.tab.general': '⚙️ 일반', 'settings.tab.block': '🚫 차단',
+    'settings.notif.vol': '전체 알림 볼륨',
+    'settings.notif.room-group': '[방]', 'settings.notif.dm-group': '[DM]', 'settings.notif.friend-group': '[친구]',
     'settings.notif.join': '🚪 방 입장 알림', 'settings.notif.leave': '🚶 방 퇴장 알림',
     'settings.notif.chat': '💬 방 채팅 알림', 'settings.notif.dm': '✉️ DM 알림',
-    'settings.detail': '세부 알림 설정',
     'settings.notif.chat-in-room': '💬 방 채팅 중 알림',
     'settings.notif.chat-in-list': '📋 방 목록 중 알림',
     'settings.notif.dm-in-dm': '✉️ DM 채팅 중 알림',
@@ -140,10 +142,12 @@ const TRANSLATIONS = {
     'confirm.block-friend': 'Are you sure you want to block this user?\nThis will also remove the friendship.',
     'btn.add-friend': 'Add Friend', 'btn.requested': 'Requested', 'btn.friends': 'Friends',
     'btn.create-room': 'Create Room', 'btn.creating': 'Creating...',
-    'settings.title': 'Settings', 'settings.sound': 'Sound Notifications',
+    'settings.title': 'Settings',
+    'settings.tab.audio': '🔊 Audio', 'settings.tab.general': '⚙️ General', 'settings.tab.block': '🚫 Block',
+    'settings.notif.vol': 'Master Volume',
+    'settings.notif.room-group': '[Room]', 'settings.notif.dm-group': '[DM]', 'settings.notif.friend-group': '[Friends]',
     'settings.notif.join': '🚪 Room Join Alert', 'settings.notif.leave': '🚶 Room Leave Alert',
     'settings.notif.chat': '💬 Room Chat Alert', 'settings.notif.dm': '✉️ DM Alert',
-    'settings.detail': 'Detailed Notifications',
     'settings.notif.chat-in-room': '💬 Alert while in room',
     'settings.notif.chat-in-list': '📋 Alert while in list',
     'settings.notif.dm-in-dm': '✉️ Alert while in DM',
@@ -2008,7 +2012,13 @@ function getNotifSettings() {
 
 function isNotifOn(key) { return getNotifSettings()[key]; }
 
+function getNotifVolume() {
+  return parseInt(localStorage.getItem('notif_volume') ?? '75') / 100;
+}
+
 function tone(ctx, freq, type, t, duration, vol = 0.25) {
+  const scaledVol = vol * getNotifVolume();
+  if (scaledVol <= 0) return;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
@@ -2016,7 +2026,7 @@ function tone(ctx, freq, type, t, duration, vol = 0.25) {
   osc.type = type;
   osc.frequency.value = freq;
   gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+  gain.gain.linearRampToValueAtTime(scaledVol, t + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
   osc.start(t);
   osc.stop(t + duration);
@@ -2075,11 +2085,26 @@ const notifToggles = {
   friend_req: document.getElementById('notif-friend-req'),
 };
 
-function openSettings() {
+function switchSettingsTab(tabName) {
+  document.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+  document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(`stab-${tabName}`).classList.remove('hidden');
+}
+
+document.querySelectorAll('.settings-tab').forEach(tab => {
+  tab.addEventListener('click', () => switchSettingsTab(tab.dataset.tab));
+});
+
+function openSettings(tab = 'audio') {
   const s = getNotifSettings();
   Object.entries(notifToggles).forEach(([k, el]) => { el.checked = s[k]; });
   document.getElementById('lang-select').value = localStorage.getItem('lang') || 'auto';
   document.getElementById('profanity-filter-toggle').checked = isProfanityFilterOn();
+  const vol = parseInt(localStorage.getItem('notif_volume') ?? '75');
+  const volSlider = document.getElementById('notif-volume');
+  volSlider.value = vol;
+  document.getElementById('notif-volume-val').textContent = vol;
+  switchSettingsTab(tab);
   settingsModal.classList.remove('hidden');
 }
 
@@ -2091,8 +2116,15 @@ Object.entries(notifToggles).forEach(([key, el]) => {
   });
 });
 
-document.getElementById('settings-btn').addEventListener('click', openSettings);
-document.getElementById('settings-btn-room').addEventListener('click', openSettings);
+const volSlider = document.getElementById('notif-volume');
+const volVal = document.getElementById('notif-volume-val');
+volSlider.addEventListener('input', () => {
+  volVal.textContent = volSlider.value;
+  localStorage.setItem('notif_volume', volSlider.value);
+});
+
+document.getElementById('settings-btn').addEventListener('click', () => openSettings());
+document.getElementById('settings-btn-room').addEventListener('click', () => openSettings());
 closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
 settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
 
