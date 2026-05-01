@@ -37,6 +37,7 @@ const TRANSLATIONS = {
     'settings.notif.chat-in-room': '💬 방 채팅 중 알림',
     'settings.notif.chat-in-list': '📋 방 목록 중 알림',
     'settings.notif.dm-in-dm': '✉️ DM 채팅 중 알림',
+    'settings.notif.friend-req': '👤 친구 요청 알림',
     'settings.theme': '테마', 'settings.theme.label': '다크 모드',
     'settings.lang': '언어', 'settings.lang.label': '표시 언어', 'lang.auto': '자동 감지',
     'title.friends': '친구', 'title.dm': '메시지', 'title.settings': '설정', 'title.theme': '테마 변경',
@@ -127,6 +128,7 @@ const TRANSLATIONS = {
     'settings.notif.chat-in-room': '💬 Alert while in room',
     'settings.notif.chat-in-list': '📋 Alert while in list',
     'settings.notif.dm-in-dm': '✉️ Alert while in DM',
+    'settings.notif.friend-req': '👤 Friend Request Alert',
     'settings.theme': 'Theme', 'settings.theme.label': 'Dark Mode',
     'settings.lang': 'Language', 'settings.lang.label': 'Display Language', 'lang.auto': 'Auto Detect',
     'title.friends': 'Friends', 'title.dm': 'Messages', 'title.settings': 'Settings', 'title.theme': 'Toggle Theme',
@@ -1487,7 +1489,7 @@ function unsubscribeAll() {
 }
 
 // --- Notifications (Web Audio API) ---
-const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, chat_in_list: true, dm_in_dm: true };
+const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, chat_in_list: true, dm_in_dm: true, friend_req: true };
 let audioCtx = null;
 
 function getAudioCtx() {
@@ -1549,6 +1551,7 @@ function playDM() {
 
 // 친구 요청: sine 3연 상승 (A5→C6→E6) 밝고 경쾌한 느낌
 function playFriendRequest() {
+  if (!isNotifOn('friend_req')) return;
   const ctx = getAudioCtx(), t = ctx.currentTime;
   tone(ctx, 880, 'sine', t, 0.12, 0.22);
   tone(ctx, 1047, 'sine', t + 0.1, 0.12, 0.22);
@@ -1566,6 +1569,7 @@ const notifToggles = {
   chat_in_room: document.getElementById('notif-chat-in-room'),
   chat_in_list: document.getElementById('notif-chat-in-list'),
   dm_in_dm: document.getElementById('notif-dm-in-dm'),
+  friend_req: document.getElementById('notif-friend-req'),
 };
 
 function openSettings() {
