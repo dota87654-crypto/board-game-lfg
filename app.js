@@ -98,6 +98,10 @@ const TRANSLATIONS = {
     'btn.notice.write': '공지 작성',
     'btn.notice.edit': '수정',
     'btn.notice.delete': '삭제',
+    'invite.link.btn': '🔗 링크 복사',
+    'invite.link.copied': '초대 링크가 클립보드에 복사됐어요!',
+    'invite.link.invalid': '유효하지 않은 초대 링크예요.',
+    'invite.link.full': '방이 가득 찼어요. 입장할 수 없어요.',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -197,6 +201,10 @@ const TRANSLATIONS = {
     'btn.notice.write': 'Post Notice',
     'btn.notice.edit': 'Edit',
     'btn.notice.delete': 'Delete',
+    'invite.link.btn': '🔗 Copy Link',
+    'invite.link.copied': 'Invite link copied to clipboard!',
+    'invite.link.invalid': 'This invite link is no longer valid.',
+    'invite.link.full': 'The room is full. You cannot join.',
   },
 };
 
@@ -364,6 +372,15 @@ document.getElementById('theme-toggle').addEventListener('change', e => {
 // 초기 언어 적용 (로그인 전)
 applyI18n();
 
+// 초대 링크 파라미터 저장 (OAuth 리다이렉트 후에도 처리되도록 localStorage 활용)
+(function () {
+  const code = new URLSearchParams(location.search).get('invite');
+  if (code) {
+    localStorage.setItem('pending_invite', code);
+    history.replaceState({}, '', location.pathname);
+  }
+})();
+
 // --- Auth ---
 googleLoginBtn.addEventListener('click', async () => {
   const { error } = await sb.auth.signInWithOAuth({
@@ -440,6 +457,7 @@ async function goToMain() {
   loadBlocks();
   subscribeInvites();
   loadPendingInvites();
+  handlePendingInvite();
 }
 
 async function resumeRoomSubscription() {
@@ -2177,6 +2195,8 @@ document.getElementById('invite-friends-btn').addEventListener('click', () => {
   loadFriends();
 });
 
+document.getElementById('copy-invite-btn').addEventListener('click', copyInviteLink);
+
 document.getElementById('invite-accept-btn').addEventListener('click', async () => {
   const toast = document.getElementById('invite-toast');
   const roomId = toast.dataset.roomId;
@@ -2447,6 +2467,64 @@ function subscribeFriendNotif() {
       loadFriends();
     })
     .subscribe();
+}
+
+// --- Invite Link ---
+function showSnackbar(msg) {
+  const el = document.getElementById('snackbar');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden', 'snackbar-hide');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => {
+    el.classList.add('snackbar-hide');
+    setTimeout(() => el.classList.add('hidden'), 400);
+  }, 2500);
+}
+
+async function copyInviteLink() {
+  if (!currentRoom) return;
+  let code = currentRoom.invite_code;
+  if (!code) {
+    code = crypto.randomUUID();
+    const { error } = await sb.from('rooms').update({ invite_code: code }).eq('id', currentRoom.id);
+    if (error) { alert(t('invite.err')); return; }
+    currentRoom = { ...currentRoom, invite_code: code };
+    allRooms = allRooms.map(r => r.id === currentRoom.id ? { ...r, invite_code: code } : r);
+  }
+  const url = `${location.origin}${location.pathname}?invite=${code}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    showSnackbar(t('invite.link.copied'));
+  } catch {
+    prompt(t('invite.link.copied'), url);
+  }
+}
+
+async function handlePendingInvite() {
+  const code = localStorage.getItem('pending_invite');
+  if (!code) return;
+  localStorage.removeItem('pending_invite');
+
+  const { data: room } = await sb.from('rooms').select('*').eq('invite_code', code).maybeSingle();
+  if (!room) { alert(t('invite.link.invalid')); return; }
+
+  // 이미 멤버인지 확인
+  const { data: membership } = await sb.from('room_members')
+    .select('room_id').eq('room_id', room.id).eq('user_id', currentUser.id).maybeSingle();
+  if (membership) { enterRoom(room); return; }
+
+  // 인원 초과 확인
+  const { count } = await sb.from('room_members')
+    .select('*', { count: 'exact', head: true }).eq('room_id', room.id);
+  if (count >= room.max_players) { alert(t('invite.link.full')); return; }
+
+  // 비밀번호 확인 후 입장
+  if (room.password_hash) {
+    showRoomPasswordModal(room);
+  } else {
+    enterRoom(room);
+  }
 }
 
 async function inviteFriend(friendId, friendName) {
