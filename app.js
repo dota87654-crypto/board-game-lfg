@@ -53,6 +53,13 @@ const TRANSLATIONS = {
     'place.searching': '검색 중...', 'place.empty': '검색 결과가 없습니다',
     'place.fail': '⚠️ 검색 실패. 다시 시도해주세요.',
     'create.title': '방 만들기', 'create.category': '카테고리', 'create.cat.select': '선택하세요',
+    'create.password': '비밀번호', 'create.password.optional': '(선택사항)',
+    'create.password.placeholder': '숫자만, 최대 8자리',
+    'create.password.invalid': '비밀번호는 숫자만 입력 가능합니다.',
+    'room.password.title': '🔒 비밀번호 입력',
+    'room.password.placeholder': '숫자를 입력하세요',
+    'room.password.wrong': '비밀번호가 틀렸습니다.',
+    'btn.enter': '입장',
     'create.cat.private': '개인소유', 'create.cat.cafe': '보드게임방',
     'create.cat.tabletop': '테이블탑 시뮬레이터', 'create.cat.bga': 'BGA', 'create.cat.steam': '스팀게임',
     'create.location': '장소', 'create.location.placeholder': '장소명으로 검색 (예: 레드버튼)',
@@ -132,6 +139,13 @@ const TRANSLATIONS = {
     'place.searching': 'Searching...', 'place.empty': 'No results found',
     'place.fail': '⚠️ Search failed. Please try again.',
     'create.title': 'Create Room', 'create.category': 'Category', 'create.cat.select': 'Select',
+    'create.password': 'Password', 'create.password.optional': '(optional)',
+    'create.password.placeholder': 'Numbers only, max 8 digits',
+    'create.password.invalid': 'Password must contain numbers only.',
+    'room.password.title': '🔒 Enter Password',
+    'room.password.placeholder': 'Enter numbers',
+    'room.password.wrong': 'Wrong password.',
+    'btn.enter': 'Enter',
     'create.cat.private': 'Private', 'create.cat.cafe': 'BG Café',
     'create.cat.tabletop': 'Tabletop Sim', 'create.cat.bga': 'BGA', 'create.cat.steam': 'Steam',
     'create.location': 'Location', 'create.location.placeholder': 'Search for a location',
@@ -518,7 +532,7 @@ function renderRooms() {
     return `
       <div class="room-card${isMine ? ' my-room' : ''}" data-id="${room.id}">
         <div class="room-card-header">
-          <div class="room-card-title">${escHtml(room.title)}</div>
+          <div class="room-card-title">${room.password_hash ? '🔒 ' : ''}${escHtml(room.title)}</div>
           <div style="display:flex;gap:6px;align-items:center">
             ${isMine ? `<span class="badge-mine">${t('room.mine')}</span>` : ''}
             ${unread > 0 ? `<span class="room-unread-badge">${unread}</span>` : ''}
@@ -544,7 +558,7 @@ function renderRooms() {
     card.addEventListener('click', () => {
       const id = card.dataset.id;
       const room = allRooms.find(r => r.id === id);
-      if (room) enterRoom(room);
+      if (room) tryEnterRoom(room);
     });
   });
 }
@@ -706,6 +720,13 @@ openCreateBtn.addEventListener('click', () => createModal.classList.remove('hidd
 closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));
 createModal.addEventListener('click', e => { if (e.target === createModal) createModal.classList.add('hidden'); });
 
+document.getElementById('room-password-create').addEventListener('input', e => {
+  e.target.value = e.target.value.replace(/\D/g, '');
+});
+document.getElementById('room-password-entry').addEventListener('input', e => {
+  e.target.value = e.target.value.replace(/\D/g, '');
+});
+
 // --- Game name autocomplete ---
 const gameNameInput = document.getElementById('game-name-input');
 const gameNameDropdown = document.getElementById('game-name-dropdown');
@@ -759,14 +780,17 @@ createRoomForm.addEventListener('submit', async e => {
   const category = fd.get('category');
   const max_players = parseInt(fd.get('max_players'));
   const scheduled_at = fd.get('scheduled_at') || null;
+  const rawPassword = document.getElementById('room-password-create').value.trim();
 
   if (!title || !game_name || !category) { alert(t('create.err.input')); return; }
+  if (rawPassword && !/^\d+$/.test(rawPassword)) { alert(t('create.password.invalid')); return; }
 
   const submitBtn = createRoomForm.querySelector('[type=submit]');
   submitBtn.disabled = true;
   submitBtn.textContent = t('btn.creating');
 
   const location = (fd.get('location') || '').trim() || null;
+  const password_hash = rawPassword ? await sha256(rawPassword) : null;
 
   const { data: room, error } = await sb.from('rooms').insert({
     title,
@@ -776,7 +800,8 @@ createRoomForm.addEventListener('submit', async e => {
     scheduled_at: scheduled_at || null,
     location,
     host_id: currentUser.id,
-    is_open: true
+    is_open: true,
+    password_hash,
   }).select().single();
 
   submitBtn.disabled = false;
@@ -792,8 +817,54 @@ createRoomForm.addEventListener('submit', async e => {
 
   createModal.classList.add('hidden');
   createRoomForm.reset();
+  document.getElementById('room-password-create').value = '';
   enterRoom(room); // enterRoom 내부에서 upsert로 참여 처리
 });
+
+// --- Room Password ---
+function tryEnterRoom(room) {
+  if (!room.password_hash) { enterRoom(room); return; }
+  showRoomPasswordModal(room);
+}
+
+function showRoomPasswordModal(room) {
+  const modal = document.getElementById('room-password-modal');
+  const input = document.getElementById('room-password-entry');
+  const error = document.getElementById('room-password-error');
+  const cancelBtn = document.getElementById('room-password-cancel-btn');
+  const closeBtn = document.getElementById('close-room-password-btn');
+
+  input.value = '';
+  error.classList.add('hidden');
+  modal.classList.remove('hidden');
+  setTimeout(() => input.focus(), 50);
+
+  const cleanup = () => modal.classList.add('hidden');
+
+  const okBtn = document.getElementById('room-password-ok-btn');
+  const newOk = okBtn.cloneNode(true);
+  okBtn.replaceWith(newOk);
+
+  const verify = async () => {
+    const pw = input.value.trim();
+    if (!pw) return;
+    const hash = await sha256(pw);
+    if (hash === room.password_hash) {
+      cleanup();
+      enterRoom(room);
+    } else {
+      error.textContent = t('room.password.wrong');
+      error.classList.remove('hidden');
+      input.select();
+    }
+  };
+
+  newOk.addEventListener('click', verify);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') verify(); });
+  cancelBtn.onclick = cleanup;
+  closeBtn.onclick = cleanup;
+  modal.onclick = e => { if (e.target === modal) cleanup(); };
+}
 
 // --- Enter Room ---
 async function enterRoom(room) {
@@ -2375,4 +2446,9 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
 }

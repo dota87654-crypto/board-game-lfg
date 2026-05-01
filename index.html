@@ -252,6 +252,10 @@
       <label><span data-i18n="create.scheduled">예정 시간</span>
         <input type="datetime-local" name="scheduled_at" />
       </label>
+      <label><span data-i18n="create.password">비밀번호 <span style="font-weight:400;color:var(--text-muted)" data-i18n="create.password.optional">(선택사항)</span></span>
+        <input type="text" id="room-password-create" inputmode="numeric" maxlength="8"
+               data-i18n-placeholder="create.password.placeholder" placeholder="숫자만, 최대 8자리" autocomplete="off" />
+      </label>
       <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;" data-i18n="btn.create-room">방 만들기</button>
     </form>
   </div>
@@ -344,6 +348,24 @@
 
 <!-- DM 목록 컨텍스트 메뉴 -->
 <div id="dm-list-context-menu" class="member-context-menu hidden"></div>
+
+<!-- 방 비밀번호 입력 모달 -->
+<div id="room-password-modal" class="modal-overlay hidden" style="z-index:600;">
+  <div class="modal confirm-modal">
+    <div class="modal-header" style="margin-bottom:16px;">
+      <h3 data-i18n="room.password.title">🔒 비밀번호 입력</h3>
+      <button class="modal-close" id="close-room-password-btn">&times;</button>
+    </div>
+    <input type="text" id="room-password-entry" inputmode="numeric" maxlength="8"
+           data-i18n-placeholder="room.password.placeholder" placeholder="숫자를 입력하세요"
+           autocomplete="off" style="width:100%;box-sizing:border-box;" />
+    <p id="room-password-error" class="hidden" style="color:var(--danger);font-size:0.85rem;margin-top:6px;"></p>
+    <div class="confirm-modal-btns" style="margin-top:16px;">
+      <button id="room-password-cancel-btn" class="btn btn-sm" data-i18n="btn.cancel">취소</button>
+      <button id="room-password-ok-btn" class="btn btn-sm btn-primary" data-i18n="btn.enter">입장</button>
+    </div>
+  </div>
+</div>
 
 <!-- DM 삭제 확인 모달 -->
 <div id="dm-delete-modal" class="modal-overlay hidden" style="z-index:600;">

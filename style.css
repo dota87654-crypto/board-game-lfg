@@ -497,6 +497,20 @@ form label input:focus { outline: none; border-color: var(--primary); }
 .confirm-modal-btns { display: flex; justify-content: center; gap: 10px; }
 .confirm-modal .btn-danger { background: var(--danger); color: #fff; }
 .confirm-modal .btn-danger:hover { opacity: 0.85; }
+.confirm-modal input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1rem;
+  text-align: center;
+  letter-spacing: 4px;
+  box-sizing: border-box;
+  outline: none;
+}
+.confirm-modal input[type="text"]:focus { border-color: var(--primary); }
 
 .dm-pin-icon { font-size: 0.78rem; margin-right: 3px; vertical-align: middle; }
 #dm-list-modal .modal {
