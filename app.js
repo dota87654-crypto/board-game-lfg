@@ -269,6 +269,7 @@ let realtimeChannels = [];
 let currentNickname = '';
 let dmUnreadMap = {};
 let globalDMChannel = null;
+let friendNotifChannel = null;
 let chatNotifChannel = null;
 let participatingRoomId = null;
 let roomUnreadMap = {};
@@ -412,6 +413,7 @@ async function goToMain() {
   loadRooms();
   subscribeRooms();
   subscribeFriends();
+  subscribeFriendNotif();
   initDMUnread();
   subscribeGlobalDM();
   resumeRoomSubscription();
@@ -443,6 +445,7 @@ function onLogout() {
   blockedSet = new Set();
   currentRoomMembers = [];
   if (globalDMChannel) { sb.removeChannel(globalDMChannel); globalDMChannel = null; }
+  if (friendNotifChannel) { sb.removeChannel(friendNotifChannel); friendNotifChannel = null; }
   if (chatNotifChannel) { sb.removeChannel(chatNotifChannel); chatNotifChannel = null; }
   unsubscribeAll();
   showScreen('login');
@@ -2282,7 +2285,12 @@ async function sendFriendRequest(addresseeId) {
     .eq('blocker_id', addresseeId).eq('blocked_id', currentUser.id).maybeSingle();
   if (blk) { alert(t('block.friend.err')); return; }
   const { error } = await sb.from('friendships').insert({ requester_id: currentUser.id, addressee_id: addresseeId });
-  if (error) alert(t('friend.req.err') + error.message);
+  if (error) { alert(t('friend.req.err') + error.message); return; }
+  sb.channel(`friend-notif-${addresseeId}`).send({
+    type: 'broadcast',
+    event: 'friend_request',
+    payload: { from: currentUser.id },
+  });
 }
 
 async function acceptRequest(id) {
@@ -2302,18 +2310,21 @@ async function removeFriend(id) {
 
 function subscribeFriends() {
   const ch = sb.channel('friendships-realtime')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, payload => {
-      if (
-        payload.eventType === 'INSERT' &&
-        payload.new?.status === 'pending' &&
-        payload.new?.addressee_id === currentUser.id
-      ) {
-        playFriendRequest();
-      }
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, () => {
       loadFriends();
     })
     .subscribe();
   realtimeChannels.push(ch);
+}
+
+function subscribeFriendNotif() {
+  if (friendNotifChannel) sb.removeChannel(friendNotifChannel);
+  friendNotifChannel = sb.channel(`friend-notif-${currentUser.id}`)
+    .on('broadcast', { event: 'friend_request' }, () => {
+      playFriendRequest();
+      loadFriends();
+    })
+    .subscribe();
 }
 
 async function inviteFriend(friendId, friendName) {
