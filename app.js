@@ -524,7 +524,9 @@ const CAT_CLASS = {
 function renderRooms() {
   let filtered = currentFilter === '전체'
     ? allRooms
-    : allRooms.filter(r => r.category === currentFilter);
+    : currentFilter === '__locked__'
+      ? allRooms.filter(r => r.password_hash)
+      : allRooms.filter(r => r.category === currentFilter);
 
   // member_count가 명확히 0인 방만 숨김 (undefined면 표시)
   filtered = filtered.filter(r => r.member_count === undefined || r.member_count > 0);
