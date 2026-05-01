@@ -294,7 +294,7 @@ const ROOM_TAGS = ['온라인', '오프라인', '초보환영', '숙련자', '�
 
 let currentUser = null;
 let currentRoom = null;
-let currentFilter = '전체';
+const currentFilters = new Set(); // 비어있으면 전체
 const currentTagFilters = new Set();
 let currentSearch = '';
 let allRooms = [];
@@ -566,11 +566,15 @@ const CAT_CLASS = {
 };
 
 function renderRooms() {
-  let filtered = currentFilter === '전체'
-    ? allRooms
-    : currentFilter === '__locked__'
-      ? allRooms.filter(r => r.password_hash)
-      : allRooms.filter(r => r.category === currentFilter);
+  let filtered = allRooms;
+  if (currentFilters.size > 0) {
+    const hasLocked = currentFilters.has('__locked__');
+    const cats = new Set([...currentFilters].filter(c => c !== '__locked__'));
+    filtered = allRooms.filter(r =>
+      (hasLocked ? r.password_hash : false) ||
+      (cats.size > 0 ? cats.has(r.category) : false)
+    );
+  }
 
   // member_count가 명확히 0인 방만 숨김 (undefined면 표시)
   filtered = filtered.filter(r => r.member_count === undefined || r.member_count > 0);
@@ -648,11 +652,23 @@ function renderRooms() {
 }
 
 // --- Filter & Search ---
+function updateFilterBtns() {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    if (b.dataset.cat === '전체') b.classList.toggle('active', currentFilters.size === 0);
+    else b.classList.toggle('active', currentFilters.has(b.dataset.cat));
+  });
+}
+
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentFilter = btn.dataset.cat;
+    const cat = btn.dataset.cat;
+    if (cat === '전체') {
+      currentFilters.clear();
+    } else {
+      if (currentFilters.has(cat)) currentFilters.delete(cat);
+      else currentFilters.add(cat);
+    }
+    updateFilterBtns();
     renderRooms();
   });
 });
