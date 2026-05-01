@@ -524,6 +524,24 @@ form label input:focus { outline: none; border-color: var(--primary); }
 .empty-friends { color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 24px 0; }
 .empty-blocked { color: var(--text-muted); font-size: 0.88rem; margin: 10px 0 4px; }
 
+.dm-list-search-wrap {
+  margin-bottom: 12px;
+}
+.dm-list-search-wrap input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.88rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.dm-list-search-wrap input:focus {
+  border-color: var(--primary);
+}
+
 .dm-list-item {
   display: flex;
   flex-direction: column;

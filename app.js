@@ -45,6 +45,8 @@ const TRANSLATIONS = {
     'friends.search.loading': '검색 중...', 'friends.search.empty': '검색 결과가 없어요.',
     'dm.list.title': '메시지',
     'dm.list.empty': '아직 대화가 없어요.<br>친구 목록에서 DM을 시작해보세요!',
+    'dm.list.search.placeholder': '닉네임 검색...',
+    'dm.list.search.empty': '일치하는 대화가 없어요.',
     'dm.list.loading': '로딩 중...', 'dm.mine.prefix': '나: ',
     'dm.input.placeholder': '메시지를 입력하세요...',
     'place.title': '장소 검색', 'place.placeholder': '장소명으로 검색',
@@ -120,6 +122,8 @@ const TRANSLATIONS = {
     'friends.search.loading': 'Searching...', 'friends.search.empty': 'No results found.',
     'dm.list.title': 'Messages',
     'dm.list.empty': 'No conversations yet.<br>Start a DM from your friends list!',
+    'dm.list.search.placeholder': 'Search nickname...',
+    'dm.list.search.empty': 'No matching conversations.',
     'dm.list.loading': 'Loading...', 'dm.mine.prefix': 'Me: ',
     'dm.input.placeholder': 'Type a message...',
     'place.title': 'Place Search', 'place.placeholder': 'Search by place name',
@@ -420,10 +424,9 @@ function onLogout() {
 
 // --- Init ---
 sb.auth.onAuthStateChange((event, session) => {
-  console.log('[auth]', event, !!session?.user);
   if (session?.user) {
     onLogin(session.user);
-  } else {
+  } else if (event === 'SIGNED_OUT') {
     onLogout();
   }
 });
@@ -1643,6 +1646,7 @@ const closeDmListBtn = document.getElementById('close-dm-list-btn');
 
 dmBtn.addEventListener('click', openDMList);
 closeDmListBtn.addEventListener('click', () => dmListModal.classList.add('hidden'));
+document.getElementById('dm-list-search').addEventListener('input', e => renderDMList(e.target.value));
 dmListModal.addEventListener('click', e => { if (e.target === dmListModal) dmListModal.classList.add('hidden'); });
 
 async function fetchDMReadMap() {
@@ -1709,9 +1713,42 @@ function subscribeGlobalDM() {
     .subscribe();
 }
 
+let dmListConvs = [];
+
+function renderDMList(query) {
+  const q = (query || '').trim().toLowerCase();
+  const filtered = q ? dmListConvs.filter(c => c.name.toLowerCase().includes(q)) : dmListConvs;
+
+  if (!filtered.length) {
+    dmListBody.innerHTML = `<div class="empty-friends">${q ? t('dm.list.search.empty') : t('dm.list.empty')}</div>`;
+    return;
+  }
+
+  dmListBody.innerHTML = '';
+  filtered.forEach(({ partnerId, name, unread, time, preview }) => {
+    const el = document.createElement('div');
+    el.className = 'dm-list-item';
+    el.innerHTML = `
+      <div class="dm-list-header">
+        <span class="dm-list-name">${escHtml(name)}${unread ? `<span class="friends-badge" style="margin-left:6px;">${unread}</span>` : ''}</span>
+        <span class="dm-list-time">${time}</span>
+      </div>
+      <div class="dm-list-preview">${escHtml(preview)}</div>
+    `;
+    el.addEventListener('click', () => {
+      dmListModal.classList.add('hidden');
+      openDM(partnerId, name);
+    });
+    dmListBody.appendChild(el);
+  });
+}
+
 async function openDMList() {
   dmListModal.classList.remove('hidden');
   dmListBody.innerHTML = `<div class="empty-friends">${t('dm.list.loading')}</div>`;
+
+  const dmSearchInput = document.getElementById('dm-list-search');
+  dmSearchInput.value = '';
 
   const { data } = await sb.from('dm_messages')
     .select('id, sender_id, receiver_id, content, created_at')
@@ -1720,6 +1757,7 @@ async function openDMList() {
     .limit(300);
 
   if (!data?.length) {
+    dmListConvs = [];
     dmListBody.innerHTML = `<div class="empty-friends">${t('dm.list.empty')}</div>`;
     return;
   }
@@ -1744,30 +1782,17 @@ async function openDMList() {
     new Date(convMap[b].created_at) - new Date(convMap[a].created_at)
   );
 
-  dmListBody.innerHTML = '';
-  sorted.forEach(partnerId => {
+  dmListConvs = sorted.map(partnerId => {
     const msg = convMap[partnerId];
     const name = profileMap[partnerId] || '알 수 없음';
     const unread = dmUnreadMap[partnerId] || 0;
     const time = formatDMTime(msg.created_at);
     const rawPreview = msg.sender_id === currentUser.id ? `${t('dm.mine.prefix')}${msg.content}` : msg.content;
     const preview = rawPreview.length > 32 ? rawPreview.slice(0, 32) + '…' : rawPreview;
-
-    const el = document.createElement('div');
-    el.className = 'dm-list-item';
-    el.innerHTML = `
-      <div class="dm-list-header">
-        <span class="dm-list-name">${escHtml(name)}${unread ? `<span class="friends-badge" style="margin-left:6px;">${unread}</span>` : ''}</span>
-        <span class="dm-list-time">${time}</span>
-      </div>
-      <div class="dm-list-preview">${escHtml(preview)}</div>
-    `;
-    el.addEventListener('click', () => {
-      dmListModal.classList.add('hidden');
-      openDM(partnerId, name);
-    });
-    dmListBody.appendChild(el);
+    return { partnerId, name, unread, time, preview };
   });
+
+  renderDMList('');
 }
 
 function formatDMTime(isoStr) {
