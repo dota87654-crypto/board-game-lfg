@@ -1379,6 +1379,7 @@ function subscribeRooms() {
 // --- Room Notice ---
 const noticeBar = document.getElementById('room-notice-bar');
 const noticeText = document.getElementById('room-notice-text');
+const noticeIcon = document.getElementById('room-notice-icon');
 const noticeActions = document.getElementById('room-notice-actions');
 const noticeWriteBtn = document.getElementById('notice-write-btn');
 const noticeEditBtn = document.getElementById('notice-edit-btn');
@@ -1390,15 +1391,24 @@ const noticeCancelBtn = document.getElementById('notice-cancel-btn');
 
 function renderNotice(room) {
   const isHost = room.host_id === currentUser?.id;
-  noticeWriteBtn.classList.toggle('hidden', !isHost || !!room.notice);
   if (room.notice) {
+    // 공지 있음: 바 표시, 아이콘+텍스트 표시, 방장이면 수정/삭제 버튼
     noticeBar.classList.remove('hidden');
+    noticeIcon.classList.remove('hidden');
     noticeText.textContent = room.notice;
+    noticeWriteBtn.classList.add('hidden');
     noticeActions.classList.toggle('hidden', !isHost);
-  } else {
-    noticeBar.classList.add('hidden');
+  } else if (isHost) {
+    // 공지 없고 방장: 바 표시, 작성 버튼만
+    noticeBar.classList.remove('hidden');
+    noticeWriteBtn.classList.remove('hidden');
+    noticeIcon.classList.add('hidden');
     noticeText.textContent = '';
     noticeActions.classList.add('hidden');
+  } else {
+    // 공지 없고 일반 유저: 바 숨김
+    noticeBar.classList.add('hidden');
+    noticeText.textContent = '';
   }
 }
 

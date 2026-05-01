@@ -639,11 +639,11 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 #room-notice-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
-  border-bottom: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  padding: 7px 14px;
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   font-size: 0.88rem;
   color: var(--text);
   max-width: 800px;
@@ -653,9 +653,13 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 #room-notice-bar.hidden { display: none; }
 #room-notice-icon { flex-shrink: 0; }
+#room-notice-icon.hidden { display: none; }
 #room-notice-text { flex: 1; white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
 #room-notice-actions { display: flex; gap: 6px; flex-shrink: 0; }
 #room-notice-actions.hidden { display: none; }
+#notice-write-btn { flex-shrink: 0; opacity: 0.75; }
+#notice-write-btn:hover { opacity: 1; }
+#notice-write-btn.hidden { display: none; }
 #room-notice-modal textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 90px;
   background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
   color: var(--text); padding: 10px; font-size: 0.95rem; margin-top: 12px; }
