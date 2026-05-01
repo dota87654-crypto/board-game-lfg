@@ -494,7 +494,11 @@ async function loadRooms() {
     }
   }
 
-  allRooms = rooms;
+  // password_hash가 DB에서 누락된 경우(스키마 캐시 지연) 기존 로컬 값으로 보완
+  allRooms = rooms.map(r => {
+    const prev = allRooms.find(p => p.id === r.id);
+    return r.password_hash == null && prev?.password_hash ? { ...r, password_hash: prev.password_hash } : r;
+  });
   renderRooms();
 }
 
@@ -555,10 +559,10 @@ function renderRooms() {
   }).join('');
 
   roomsList.querySelectorAll('.room-card').forEach(card => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', async () => {
       const id = card.dataset.id;
       const room = allRooms.find(r => r.id === id);
-      if (room) tryEnterRoom(room);
+      if (room) await tryEnterRoom(room);
     });
   });
 }
@@ -822,9 +826,11 @@ createRoomForm.addEventListener('submit', async e => {
 });
 
 // --- Room Password ---
-function tryEnterRoom(room) {
-  if (!room.password_hash) { enterRoom(room); return; }
-  showRoomPasswordModal(room);
+async function tryEnterRoom(room) {
+  const { data } = await sb.from('rooms').select('password_hash').eq('id', room.id).maybeSingle();
+  const hash = data?.password_hash;
+  if (!hash) { enterRoom(room); return; }
+  showRoomPasswordModal({ ...room, password_hash: hash });
 }
 
 function showRoomPasswordModal(room) {
