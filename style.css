@@ -272,8 +272,29 @@ main { padding: 24px 20px; }
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+/* Tag filter bar */
+.tag-filter-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
 }
+.tag-filter-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.18s;
+}
+.tag-filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+.tag-filter-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
 .room-search-wrap {
   margin-bottom: 16px;
 }
@@ -346,7 +367,17 @@ main { padding: 24px 20px; }
 .cat-bga        { background: rgba(74,  159, 212, 0.15); color: #4a9fd4; }
 .cat-steam      { background: rgba(107, 157, 200, 0.15); color: #6b9dc8; }
 .room-card-game { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 4px; }
-.room-card-location { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-card-location { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+.room-tag {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--primary) 15%, var(--surface2));
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
 .room-card-footer { display: flex; justify-content: space-between; align-items: center; }
 .room-card-count { font-size: 0.9rem; }
 .room-card-count .current { color: var(--success); font-weight: 700; }
@@ -439,6 +470,24 @@ form label select:focus,
 form label input:focus { outline: none; border-color: var(--primary); }
 
 #location-field label { margin-bottom: 6px; }
+
+/* Create room tag picker */
+.create-tags-field { margin-bottom: 16px; }
+.create-tags-label { display: block; font-weight: 500; font-size: 0.92rem; margin-bottom: 8px; }
+.create-tags-optional { font-weight: 400; color: var(--text-muted); font-size: 0.82rem; margin-left: 6px; }
+.create-tag-picker { display: flex; flex-wrap: wrap; gap: 7px; }
+.tag-chip {
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.tag-chip:hover { border-color: var(--primary); color: var(--primary); }
+.tag-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 .location-input-row {
   display: flex;

@@ -67,6 +67,18 @@
         <button class="filter-btn" data-cat="__locked__">🔒</button>
       </div>
 
+      <div id="tag-filter-bar" class="tag-filter-bar">
+        <button class="tag-filter-btn" data-tag="" data-i18n="filter.tag.all">태그 전체</button>
+        <button class="tag-filter-btn" data-tag="초보환영">초보환영</button>
+        <button class="tag-filter-btn" data-tag="숙련자">숙련자</button>
+        <button class="tag-filter-btn" data-tag="빠른게임">빠른게임</button>
+        <button class="tag-filter-btn" data-tag="긴게임">긴게임</button>
+        <button class="tag-filter-btn" data-tag="친목">친목</button>
+        <button class="tag-filter-btn" data-tag="진지하게">진지하게</button>
+        <button class="tag-filter-btn" data-tag="음성채팅">음성채팅</button>
+        <button class="tag-filter-btn" data-tag="텍스트만">텍스트만</button>
+      </div>
+
       <div class="room-search-wrap">
         <input type="text" id="room-search-input" data-i18n-placeholder="room.search.placeholder" placeholder="방 제목, 게임, 방장으로 검색..." autocomplete="off" />
       </div>
@@ -264,6 +276,22 @@
         <input type="text" id="room-password-create" inputmode="numeric" maxlength="8"
                data-i18n-placeholder="create.password.placeholder" placeholder="숫자만, 최대 8자리" autocomplete="off" />
       </label>
+      <div class="create-tags-field">
+        <span class="create-tags-label">
+          <span data-i18n="create.tags">태그</span>
+          <span class="create-tags-optional" data-i18n="create.tags.optional">(선택사항, 다중 선택 가능)</span>
+        </span>
+        <div id="create-tag-picker" class="create-tag-picker">
+          <button type="button" class="tag-chip" data-tag="초보환영">초보환영</button>
+          <button type="button" class="tag-chip" data-tag="숙련자">숙련자</button>
+          <button type="button" class="tag-chip" data-tag="빠른게임">빠른게임</button>
+          <button type="button" class="tag-chip" data-tag="긴게임">긴게임</button>
+          <button type="button" class="tag-chip" data-tag="친목">친목</button>
+          <button type="button" class="tag-chip" data-tag="진지하게">진지하게</button>
+          <button type="button" class="tag-chip" data-tag="음성채팅">음성채팅</button>
+          <button type="button" class="tag-chip" data-tag="텍스트만">텍스트만</button>
+        </div>
+      </div>
       <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;" data-i18n="btn.create-room">방 만들기</button>
     </form>
   </div>

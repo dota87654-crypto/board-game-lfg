@@ -102,6 +102,8 @@ const TRANSLATIONS = {
     'invite.link.copied': '초대 링크가 클립보드에 복사됐어요!',
     'invite.link.invalid': '유효하지 않은 초대 링크예요.',
     'invite.link.full': '방이 가득 찼어요. 입장할 수 없어요.',
+    'create.tags': '태그', 'create.tags.optional': '(선택사항, 다중 선택 가능)',
+    'filter.tag.all': '태그 전체',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -205,6 +207,8 @@ const TRANSLATIONS = {
     'invite.link.copied': 'Invite link copied to clipboard!',
     'invite.link.invalid': 'This invite link is no longer valid.',
     'invite.link.full': 'The room is full. You cannot join.',
+    'create.tags': 'Tags', 'create.tags.optional': '(optional, multi-select)',
+    'filter.tag.all': 'All Tags',
   },
 };
 
@@ -286,9 +290,12 @@ function userIconSvg(color) {
   return `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="${color}" fill-opacity="0.15"/><circle cx="16" cy="12" r="5" fill="${color}"/><path d="M7 28c0-4.97 4.03-9 9-9s9 4.03 9 9H7z" fill="${color}"/></svg>`;
 }
 
+const ROOM_TAGS = ['초보환영', '숙련자', '빠른게임', '긴게임', '친목', '진지하게', '음성채팅', '텍스트만'];
+
 let currentUser = null;
 let currentRoom = null;
 let currentFilter = '전체';
+let currentTagFilter = null;
 let currentSearch = '';
 let allRooms = [];
 let myRoomIds = new Set();
@@ -577,6 +584,10 @@ function renderRooms() {
     );
   }
 
+  if (currentTagFilter) {
+    filtered = filtered.filter(r => Array.isArray(r.tags) && r.tags.includes(currentTagFilter));
+  }
+
   // 참여 중인 방 최상단 고정
   filtered = [...filtered].sort((a, b) => {
     const am = myRoomIds.has(a.id) ? 0 : 1;
@@ -611,6 +622,7 @@ function renderRooms() {
         </div>
         <div class="room-card-game">🎮 ${escHtml(room.game_name)}</div>
         ${room.location ? `<div class="room-card-location">📍 ${escHtml(room.location)}</div>` : ''}
+        ${room.tags?.length ? `<div class="room-card-tags">${room.tags.map(tag => `<span class="room-tag">${escHtml(tag)}</span>`).join('')}</div>` : ''}
         <div class="room-card-footer">
           <div class="room-card-count">
             <span class="${countClass}">${count}</span> / ${room.max_players}${t('room.unit')}
@@ -646,6 +658,23 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 document.getElementById('room-search-input').addEventListener('input', e => {
   currentSearch = e.target.value.trim();
   renderRooms();
+});
+
+// 태그 필터
+document.getElementById('tag-filter-bar').addEventListener('click', e => {
+  const btn = e.target.closest('.tag-filter-btn');
+  if (!btn) return;
+  const tag = btn.dataset.tag || null;
+  currentTagFilter = (currentTagFilter === tag) ? null : tag;
+  document.querySelectorAll('.tag-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.tag === currentTagFilter));
+  renderRooms();
+});
+
+// 방 만들기 태그 칩 선택
+document.getElementById('create-tag-picker').addEventListener('click', e => {
+  const chip = e.target.closest('.tag-chip');
+  if (!chip) return;
+  chip.classList.toggle('selected');
 });
 
 // --- Create Room ---
@@ -866,6 +895,7 @@ createRoomForm.addEventListener('submit', async e => {
 
   const location = (fd.get('location') || '').trim() || null;
   const password_hash = rawPassword ? await sha256(rawPassword) : null;
+  const tags = [...document.querySelectorAll('#create-tag-picker .tag-chip.selected')].map(b => b.dataset.tag);
 
   const { data: room, error } = await sb.from('rooms').insert({
     title,
@@ -877,6 +907,7 @@ createRoomForm.addEventListener('submit', async e => {
     host_id: currentUser.id,
     is_open: true,
     password_hash,
+    tags,
   }).select().single();
 
   submitBtn.disabled = false;
@@ -893,6 +924,7 @@ createRoomForm.addEventListener('submit', async e => {
   createModal.classList.add('hidden');
   createRoomForm.reset();
   document.getElementById('room-password-create').value = '';
+  document.querySelectorAll('#create-tag-picker .tag-chip.selected').forEach(b => b.classList.remove('selected'));
   enterRoom(room); // enterRoom 내부에서 upsert로 참여 처리
 });
 
