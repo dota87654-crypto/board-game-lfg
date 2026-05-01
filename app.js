@@ -41,6 +41,7 @@ const TRANSLATIONS = {
     'settings.notif.dm-in-dm': '✉️ DM 채팅 중 알림',
     'settings.notif.friend-req': '👤 친구 요청 알림',
     'settings.theme': '테마', 'settings.theme.label': '다크 모드',
+    'settings.filter': '채팅 필터', 'settings.filter.profanity': '🤬 욕설 필터',
     'settings.lang': '언어', 'settings.lang.label': '표시 언어', 'lang.auto': '자동 감지',
     'title.friends': '친구', 'title.dm': '메시지', 'title.settings': '설정', 'title.theme': '테마 변경',
     'friends.title': '친구', 'friends.tab.list': '친구 목록',
@@ -148,6 +149,7 @@ const TRANSLATIONS = {
     'settings.notif.dm-in-dm': '✉️ Alert while in DM',
     'settings.notif.friend-req': '👤 Friend Request Alert',
     'settings.theme': 'Theme', 'settings.theme.label': 'Dark Mode',
+    'settings.filter': 'Chat Filter', 'settings.filter.profanity': '🤬 Profanity Filter',
     'settings.lang': 'Language', 'settings.lang.label': 'Display Language', 'lang.auto': 'Auto Detect',
     'title.friends': 'Friends', 'title.dm': 'Messages', 'title.settings': 'Settings', 'title.theme': 'Toggle Theme',
     'friends.title': 'Friends', 'friends.tab.list': 'Friends',
@@ -231,6 +233,20 @@ const PROFANITY_LIST = [
   // 영어
   'fuck','shit','bitch','asshole','bastard','cunt','dick','pussy','ass','cock','whore','slut','nigger','nigga','faggot','retard',
 ];
+function isProfanityFilterOn() {
+  return localStorage.getItem('profanity_filter') === 'true';
+}
+
+function filterProfanity(text) {
+  if (!isProfanityFilterOn()) return text;
+  let result = text;
+  for (const word of PROFANITY_LIST) {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escaped, 'gi'), '***');
+  }
+  return result;
+}
+
 function normalizeLeet(text) {
   return text.toLowerCase().replace(/\s/g, '')
     .replace(/@/g, 'a').replace(/\$/g, 's').replace(/5/g, 's')
@@ -1477,7 +1493,7 @@ function appendMessage(msg) {
   el.className = `message ${isMine ? 'mine' : 'theirs'}`;
   el.innerHTML = `
     ${!isMine ? `<div class="message-author">${escHtml(name)}</div>` : ''}
-    <div class="message-bubble">${escHtml(msg.content)}</div>
+    <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
     <div class="message-time">${time}</div>
   `;
   messagesList.appendChild(el);
@@ -2063,6 +2079,7 @@ function openSettings() {
   const s = getNotifSettings();
   Object.entries(notifToggles).forEach(([k, el]) => { el.checked = s[k]; });
   document.getElementById('lang-select').value = localStorage.getItem('lang') || 'auto';
+  document.getElementById('profanity-filter-toggle').checked = isProfanityFilterOn();
   settingsModal.classList.remove('hidden');
 }
 
@@ -2089,6 +2106,10 @@ document.getElementById('close-blocked-list-btn').addEventListener('click', () =
 blockedListModal.addEventListener('click', e => { if (e.target === blockedListModal) blockedListModal.classList.add('hidden'); });
 
 document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
+
+document.getElementById('profanity-filter-toggle').addEventListener('change', e => {
+  localStorage.setItem('profanity_filter', e.target.checked);
+});
 
 document.addEventListener('click', () => { hideContextMenu(); hideDMListContextMenu(); });
 
@@ -2989,7 +3010,7 @@ function appendDMMessage(msg, senderName) {
   el.className = `message ${isMine ? 'mine' : 'theirs'}`;
   el.innerHTML = `
     ${!isMine ? `<div class="message-author">${escHtml(senderName)}</div>` : ''}
-    <div class="message-bubble">${escHtml(msg.content)}</div>
+    <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
     <div class="message-time">${time}</div>
   `;
   dmMessages.appendChild(el);
