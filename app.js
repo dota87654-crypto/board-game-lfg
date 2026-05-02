@@ -1569,15 +1569,19 @@ async function loadRoomMembers(roomId) {
   if (!data?.length) { currentRoomMembers = []; renderMembersPanel(); return; }
   const userIds = data.map(m => m.user_id);
   const { data: profiles } = await sb.from('profiles')
-    .select('id, nickname, display_name, email')
+    .select('id, nickname, display_name, email, avatar_url')
     .in('id', userIds);
   const profileMap = {};
   (profiles || []).forEach(p => {
-    profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown');
+    profileMap[p.id] = {
+      name: p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown'),
+      avatar_url: p.avatar_url || null,
+    };
   });
   currentRoomMembers = data.map(m => ({
     user_id: m.user_id,
-    nickname: profileMap[m.user_id] || t('unknown'),
+    nickname: profileMap[m.user_id]?.name || t('unknown'),
+    avatar_url: profileMap[m.user_id]?.avatar_url || null,
   }));
   renderMembersPanel();
 }
@@ -1593,8 +1597,11 @@ function renderMembersPanel() {
     const color = isSelf ? '#9ba3bf' : isFriend ? '#4caf7d' : '#4a8fe8';
     const el = document.createElement('div');
     el.className = 'member-item';
+    const iconHtml = m.avatar_url
+      ? `<img class="member-avatar" src="${escHtml(m.avatar_url)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">${userIconSvg(color).replace('<svg', '<svg style="display:none"')}`
+      : userIconSvg(color);
     el.innerHTML = `
-      ${userIconSvg(color)}
+      ${iconHtml}
       <span class="member-name${isSelf ? '' : ' member-clickable'}">${isHost ? '👑 ' : ''}${escHtml(m.nickname)}</span>
     `;
     if (!isSelf) {
