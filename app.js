@@ -2280,7 +2280,7 @@ document.getElementById('avatar-upload').addEventListener('change', async (e) =>
     avatarEl.src = publicUrl;
   } catch (err) {
     console.error('Avatar upload error:', err);
-    alert(t('avatar.upload.error'));
+    alert(t('avatar.upload.error') + '\n\n' + (err?.message || err));
   } finally {
     wrap.classList.remove('uploading');
     overlay.textContent = '📷';
