@@ -1449,6 +1449,20 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-radius: 10px;
   background: var(--surface2);
 }
+#guild-room-field .toggle-row {
+  padding: 2px 0;
+}
+#guild-room-field .toggle-row span {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+#guild-room-field .toggle-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
 .toggle-row {
   display: flex;
   align-items: center;
