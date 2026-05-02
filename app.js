@@ -2248,6 +2248,96 @@ blockedListModal.addEventListener('click', e => { if (e.target === blockedListMo
 
 document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
 
+// 회원 탈퇴
+document.getElementById('delete-account-btn').addEventListener('click', () => {
+  document.getElementById('delete-account-progress').style.display = 'none';
+  document.getElementById('delete-account-progress').textContent = '';
+  document.getElementById('delete-account-confirm-btn').disabled = false;
+  document.getElementById('delete-account-cancel-btn').disabled = false;
+  document.getElementById('delete-account-modal').classList.remove('hidden');
+});
+
+document.getElementById('delete-account-cancel-btn').addEventListener('click', () => {
+  document.getElementById('delete-account-modal').classList.add('hidden');
+});
+
+document.getElementById('delete-account-confirm-btn').addEventListener('click', async () => {
+  document.getElementById('delete-account-confirm-btn').disabled = true;
+  document.getElementById('delete-account-cancel-btn').disabled = true;
+  await deleteAccount();
+});
+
+async function deleteAccount() {
+  const progress = document.getElementById('delete-account-progress');
+  const setProgress = msg => { progress.style.display = 'block'; progress.textContent = msg; };
+  const userId = currentUser.id;
+
+  try {
+    // 1. 방 처리
+    setProgress('방 퇴장 처리 중...');
+    const { data: memberships } = await sb.from('room_members')
+      .select('room_id').eq('user_id', userId);
+
+    if (memberships?.length) {
+      const roomIdList = memberships.map(m => m.room_id);
+      const { data: hostedRooms } = await sb.from('rooms')
+        .select('id').eq('host_id', userId).in('id', roomIdList);
+
+      for (const room of (hostedRooms || [])) {
+        const { data: others } = await sb.from('room_members')
+          .select('user_id').eq('room_id', room.id).neq('user_id', userId).limit(1);
+        if (others?.length) {
+          await sb.from('rooms').update({ host_id: others[0].user_id }).eq('id', room.id);
+        } else {
+          await sb.from('rooms').delete().eq('id', room.id);
+        }
+      }
+      await sb.from('room_members').delete().eq('user_id', userId);
+    }
+
+    // 2. 친구 관계 삭제
+    setProgress('친구 관계 삭제 중...');
+    await sb.from('friendships').delete().or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+
+    // 3. DM 메시지 삭제
+    setProgress('DM 메시지 삭제 중...');
+    await sb.from('dm_messages').delete().or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+
+    // 4. 프로필 사진 스토리지 삭제
+    setProgress('프로필 사진 삭제 중...');
+    const { data: avatarFiles } = await sb.storage.from('avatars').list(userId);
+    if (avatarFiles?.length) {
+      const paths = avatarFiles.map(f => `${userId}/${f.name}`);
+      await sb.storage.from('avatars').remove(paths);
+    }
+
+    // 5. 프로필 레코드 삭제
+    setProgress('프로필 데이터 삭제 중...');
+    await sb.from('profiles').delete().eq('id', userId);
+
+    // 6. auth 계정 삭제 (RPC)
+    setProgress('계정 삭제 중...');
+    const { error: rpcErr } = await sb.rpc('delete_user');
+    if (rpcErr) {
+      setProgress('');
+      document.getElementById('delete-account-confirm-btn').disabled = false;
+      document.getElementById('delete-account-cancel-btn').disabled = false;
+      alert('계정 삭제 실패: ' + rpcErr.message + '\n\nSupabase SQL Editor에서 delete_user 함수를 생성했는지 확인해주세요.');
+      return;
+    }
+
+    // 7. 로그아웃 후 리다이렉트
+    await sb.auth.signOut();
+    location.href = '/';
+
+  } catch (err) {
+    setProgress('');
+    document.getElementById('delete-account-confirm-btn').disabled = false;
+    document.getElementById('delete-account-cancel-btn').disabled = false;
+    alert('탈퇴 처리 중 오류가 발생했습니다: ' + (err?.message || err));
+  }
+}
+
 // 문의하기
 document.getElementById('inquiry-submit-btn').addEventListener('click', async () => {
   const type    = document.getElementById('inquiry-type').value;

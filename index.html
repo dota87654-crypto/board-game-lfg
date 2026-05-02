@@ -161,6 +161,9 @@
           <option value="en">English</option>
         </select>
       </div>
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border);">
+        <button id="delete-account-btn" class="btn btn-danger" style="width:100%;">회원 탈퇴</button>
+      </div>
     </div>
 
     <!-- 차단 탭 -->
@@ -535,6 +538,20 @@
       <button class="modal-close" id="close-announce-modal">&times;</button>
     </div>
     <div id="announce-list"></div>
+  </div>
+</div>
+
+<!-- 회원 탈퇴 확인 모달 -->
+<div id="delete-account-modal" class="modal-overlay hidden" style="z-index:700;">
+  <div class="modal confirm-modal" style="max-width:360px;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
+    <h3 style="margin-bottom:12px;color:var(--danger);">회원 탈퇴</h3>
+    <p style="color:var(--text-muted);font-size:0.9rem;line-height:1.7;margin-bottom:24px;">정말로 탈퇴하시겠습니까?<br>모든 데이터가 삭제되며 복구할 수 없습니다.</p>
+    <div id="delete-account-progress" style="display:none;color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;"></div>
+    <div class="confirm-modal-btns">
+      <button id="delete-account-cancel-btn" class="btn btn-sm">취소</button>
+      <button id="delete-account-confirm-btn" class="btn btn-sm btn-danger">탈퇴 확인</button>
+    </div>
   </div>
 </div>
 
