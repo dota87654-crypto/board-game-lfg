@@ -15,17 +15,18 @@ const PUNISHMENT_LABELS = {
   permanent_ban: '🚫 영구정지',
 };
 
-function buildPunishmentMessage(actionKey, expiresAt) {
+function buildPunishmentMessage(actionKey, expiresAt, reason) {
   const until = expiresAt ? new Date(expiresAt).toLocaleDateString('ko-KR') + '까지' : '';
+  const prefix = reason ? `${reason}(으)로 인해 ` : '관리자로부터 ';
   const msgs = {
-    warning:       '관리자로부터 경고 처분을 받았습니다.',
-    chat_ban_3d:   `관리자로부터 채팅금지 처분을 받았습니다. 기간: ${until}`,
-    chat_ban_7d:   `관리자로부터 채팅금지 처분을 받았습니다. 기간: ${until}`,
-    suspend_1d:    `관리자로부터 이용정지 처분을 받았습니다. 기간: ${until}`,
-    suspend_7d:    `관리자로부터 이용정지 처분을 받았습니다. 기간: ${until}`,
-    permanent_ban: '관리자로부터 영구정지 처분을 받았습니다.',
+    warning:       `${prefix}경고 처분을 받았습니다.`,
+    chat_ban_3d:   `${prefix}채팅금지 처분을 받았습니다. 기간: ${until}`,
+    chat_ban_7d:   `${prefix}채팅금지 처분을 받았습니다. 기간: ${until}`,
+    suspend_1d:    `${prefix}이용정지 처분을 받았습니다. 기간: ${until}`,
+    suspend_7d:    `${prefix}이용정지 처분을 받았습니다. 기간: ${until}`,
+    permanent_ban: `${prefix}영구정지 처분을 받았습니다.`,
   };
-  return msgs[actionKey] || '관리자로부터 처분을 받았습니다.';
+  return msgs[actionKey] || `${prefix}처분을 받았습니다.`;
 }
 
 const PUNISHMENT_CONFIG = {
@@ -147,6 +148,10 @@ async function applyPunishment(actionKey, userId, reportId, userName) {
 
   const expiresAt = cfg.days ? new Date(Date.now() + cfg.days * 86400000).toISOString() : null;
 
+  // 신고 사유 조회
+  const { data: reportData } = await sb.from('reports').select('reason').eq('id', reportId).maybeSingle();
+  const reason = reportData?.reason || null;
+
   // 기존 활성 처벌 비활성화
   await sb.from('punishments').update({ is_active: false })
     .eq('user_id', userId).eq('is_active', true);
@@ -168,7 +173,7 @@ async function applyPunishment(actionKey, userId, reportId, userName) {
   await sb.from('notifications').insert({
     user_id: userId,
     type: 'punishment',
-    message: buildPunishmentMessage(actionKey, expiresAt),
+    message: buildPunishmentMessage(actionKey, expiresAt, reason),
     is_read: false,
   });
 
