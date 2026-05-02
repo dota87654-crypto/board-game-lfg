@@ -108,6 +108,9 @@ const TRANSLATIONS = {
     'invite.link.full': '방이 가득 찼어요. 입장할 수 없어요.',
     'create.tags': '태그', 'create.tags.optional': '(선택사항, 다중 선택 가능)',
     'filter.tag.all': '태그 전체',
+    'avatar.type.error': '이미지 파일만 업로드 가능합니다 (jpg, png, gif, webp)',
+    'avatar.size.error': '파일 크기는 최대 2MB까지 가능합니다',
+    'avatar.upload.error': '업로드에 실패했습니다. 다시 시도해 주세요.',
   },
   en: {
     'app.name': '🎲 Board Game LFG',
@@ -217,6 +220,9 @@ const TRANSLATIONS = {
     'invite.link.full': 'The room is full. You cannot join.',
     'create.tags': 'Tags', 'create.tags.optional': '(optional, multi-select)',
     'filter.tag.all': 'All Tags',
+    'avatar.type.error': 'Only image files are allowed (jpg, png, gif, webp)',
+    'avatar.size.error': 'File size must be 2MB or less',
+    'avatar.upload.error': 'Upload failed. Please try again.',
   },
 };
 
@@ -326,6 +332,7 @@ let allRooms = [];
 let myRoomIds = new Set();
 let realtimeChannels = [];
 let currentNickname = '';
+let currentAvatarUrl = '';
 let dmUnreadMap = {};
 let globalDMChannel = null;
 let friendNotifChannel = null;
@@ -437,15 +444,17 @@ logoutBtn.addEventListener('click', async () => {
 
 async function upsertProfile(user) {
   const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
+  // avatar_url은 초기 생성 시만 소셜 이미지로 세팅 (이후 덮어쓰지 않음)
+  const { data: existing } = await sb.from('profiles').select('avatar_url').eq('id', user.id).single();
+  const avatarUrl = existing?.avatar_url || user.user_metadata?.avatar_url || null;
   const { error } = await sb.from('profiles').upsert({
     id: user.id,
     email: user.email,
     display_name: displayName,
-    avatar_url: user.user_metadata?.avatar_url || null
+    avatar_url: avatarUrl
   }, { onConflict: 'id', ignoreDuplicates: false });
   if (error) {
     console.error('Profile upsert error:', error.message);
-    // display_name 컬럼 없으면 최소 정보만 저장
     if (error.message?.includes('display_name')) {
       await sb.from('profiles').upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true });
     }
@@ -458,7 +467,8 @@ async function onLogin(user) {
   unsubscribeAll();
   await upsertProfile(user);
 
-  const { data: profile } = await sb.from('profiles').select('nickname, lang').eq('id', user.id).single();
+  const { data: profile } = await sb.from('profiles').select('nickname, lang, avatar_url').eq('id', user.id).single();
+  currentAvatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url || '';
 
   const savedLang = profile?.lang || localStorage.getItem('lang') || 'auto';
   localStorage.setItem('lang', savedLang);
@@ -2208,8 +2218,8 @@ function renderProfile() {
   const provider = u.app_metadata?.provider || '';
 
   const avatarEl = document.getElementById('profile-avatar');
-  avatarEl.src = meta.avatar_url || '';
   avatarEl.onerror = () => { avatarEl.src = ''; avatarEl.style.background = 'var(--surface2)'; };
+  avatarEl.src = currentAvatarUrl || '';
 
   document.getElementById('profile-nickname').textContent = currentNickname || '-';
   document.getElementById('profile-email').textContent = u.email || '-';
@@ -2227,6 +2237,55 @@ function renderProfile() {
   profileNicknameMsg.textContent = '';
   profileNicknameMsg.className = 'nickname-msg';
 }
+
+// 프로필 아바타 업로드
+document.getElementById('profile-avatar-wrap').addEventListener('click', () => {
+  document.getElementById('avatar-upload').click();
+});
+
+document.getElementById('avatar-upload').addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  e.target.value = '';
+
+  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowed.includes(file.type)) {
+    alert(t('avatar.type.error'));
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    alert(t('avatar.size.error'));
+    return;
+  }
+
+  const wrap = document.getElementById('profile-avatar-wrap');
+  const overlay = wrap.querySelector('.avatar-overlay');
+  wrap.classList.add('uploading');
+  overlay.textContent = '업로드 중...';
+
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const path = `${currentUser.id}/avatar.${ext}`;
+    const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+    if (upErr) throw upErr;
+
+    const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+    const publicUrl = urlData.publicUrl + '?t=' + Date.now();
+
+    const { error: dbErr } = await sb.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
+    if (dbErr) throw dbErr;
+
+    currentAvatarUrl = publicUrl;
+    const avatarEl = document.getElementById('profile-avatar');
+    avatarEl.src = publicUrl;
+  } catch (err) {
+    console.error('Avatar upload error:', err);
+    alert(t('avatar.upload.error'));
+  } finally {
+    wrap.classList.remove('uploading');
+    overlay.textContent = '📷';
+  }
+});
 
 // 프로필 닉네임 변경
 const nicknameEditBtn = document.getElementById('nickname-edit-btn');
