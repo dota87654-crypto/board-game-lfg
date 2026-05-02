@@ -978,7 +978,8 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 
 /* Room screen */
-#room-screen {
+#room-screen,
+#guild-detail-screen {
   height: 100vh;
   overflow: hidden;
   display: flex;
