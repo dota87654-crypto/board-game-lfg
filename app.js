@@ -4546,36 +4546,24 @@ document.getElementById('guild-search-input').addEventListener('input', () => {
 async function updateGuildReqBadge() {
   const badge = document.getElementById('guild-req-badge');
   if (!badge) return;
-  const officerGuilds = myGuilds.filter(g => ['owner', 'officer'].includes(g.myRole));
-  if (!officerGuilds.length) { badge.classList.add('hidden'); return; }
-  const gids = officerGuilds.map(g => g.id);
+  // DB에서 직접 조회 (myGuilds 초기화 전에도 동작)
+  const { data: memberships } = await sb.from('guild_members')
+    .select('guild_id').eq('user_id', currentUser.id).in('role', ['owner', 'officer']);
+  if (!memberships?.length) { badge.classList.add('hidden'); return; }
+  const gids = memberships.map(m => m.guild_id);
   const { count } = await sb.from('guild_join_requests')
     .select('*', { count: 'exact', head: true }).in('guild_id', gids).eq('status', 'pending');
-  const badge2 = document.getElementById('guild-req-badge');
-  if (count > 0) { badge2.textContent = count; badge2.classList.remove('hidden'); }
-  else badge2.classList.add('hidden');
+  if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
 }
 
 async function initGuildReqBadge() {
-  // 로그인 시 뱃지 초기화 + realtime 구독
-  const { data: memberships } = await sb.from('guild_members')
-    .select('guild_id, role').eq('user_id', currentUser.id).in('role', ['owner', 'officer']);
-  if (!memberships?.length) return;
-  const gids = memberships.map(m => m.guild_id);
-
-  const refreshBadge = async () => {
-    const { count } = await sb.from('guild_join_requests')
-      .select('*', { count: 'exact', head: true }).in('guild_id', gids).eq('status', 'pending');
-    const badge = document.getElementById('guild-req-badge');
-    if (!badge) return;
-    if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
-    else badge.classList.add('hidden');
-  };
-
-  await refreshBadge();
+  // 로그인 시 뱃지 초기화 + realtime 구독 (항상 구독, 동적 myGuilds 사용)
+  await updateGuildReqBadge();
 
   const ch = sb.channel(`guild-req-notif-${currentUser.id}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'guild_join_requests' }, refreshBadge)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'guild_join_requests' },
+      () => updateGuildReqBadge())
     .subscribe();
   realtimeChannels.push(ch);
 }
