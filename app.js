@@ -2144,7 +2144,7 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
   tab.addEventListener('click', () => switchSettingsTab(tab.dataset.tab));
 });
 
-function openSettings(tab = 'audio') {
+function openSettings(tab = 'general') {
   const s = getNotifSettings();
   Object.entries(notifToggles).forEach(([k, el]) => { el.checked = s[k]; });
   document.getElementById('lang-select').value = localStorage.getItem('lang') || 'auto';
