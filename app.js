@@ -4110,6 +4110,7 @@ function renderMyGuilds(guilds) {
   `).join('');
   el.querySelectorAll('.guild-enter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      document.getElementById('my-guilds-modal').classList.add('hidden');
       const guild = myGuilds.find(g => g.id === btn.dataset.guildId);
       if (guild) enterGuildDetail(guild);
     });
@@ -4479,6 +4480,14 @@ document.getElementById('guild-delete-btn').addEventListener('click', async () =
   document.getElementById('guild-settings-modal').classList.add('hidden');
   showScreen('guild-list');
   loadGuildList();
+});
+
+document.getElementById('my-guilds-btn').addEventListener('click', () => {
+  renderMyGuilds(myGuilds);
+  document.getElementById('my-guilds-modal').classList.remove('hidden');
+});
+document.getElementById('close-my-guilds-modal').addEventListener('click', () => {
+  document.getElementById('my-guilds-modal').classList.add('hidden');
 });
 
 document.getElementById('create-guild-btn').addEventListener('click', () => {

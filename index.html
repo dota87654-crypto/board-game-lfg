@@ -644,16 +644,13 @@
       <button id="guild-list-back-btn" class="btn btn-sm">← 뒤로</button>
       <h2 style="flex:1;">🏰 길드</h2>
       <div class="header-right">
+        <button id="my-guilds-btn" class="btn btn-sm">내 길드</button>
         <button id="create-guild-btn" class="btn btn-primary btn-sm">+ 길드 만들기</button>
       </div>
     </div>
   </header>
   <main>
     <div class="container">
-      <div class="guild-section">
-        <div class="guild-section-title">내 길드</div>
-        <div id="my-guilds-list" class="guild-list"></div>
-      </div>
       <div class="guild-search-bar">
         <input type="text" id="guild-search-input" class="guild-search-input" placeholder="공개 길드 검색..." autocomplete="off" />
       </div>
@@ -661,6 +658,17 @@
       <div id="public-guilds-list" class="guild-list"></div>
     </div>
   </main>
+</div>
+
+<!-- 내 길드 목록 모달 -->
+<div id="my-guilds-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>내 길드</h3>
+      <button id="close-my-guilds-modal" class="modal-close">✕</button>
+    </div>
+    <div id="my-guilds-list" class="guild-list" style="margin-top:12px;"></div>
+  </div>
 </div>
 
 <!-- 길드 상세/채팅 화면 -->
