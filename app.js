@@ -2292,16 +2292,19 @@ document.getElementById('avatar-upload').addEventListener('change', async (e) =>
 });
 
 // 기본 아바타 프리셋
-const AVATAR_SEEDS = ['Felix', 'Milo', 'Nova', 'Sage', 'Ash', 'Echo', 'Finn', 'Luna', 'Skye', 'Zara'];
+const AVATAR_PRESETS = [
+  ...['Felix', 'Milo', 'Nova', 'Sage', 'Ash', 'Echo', 'Finn', 'Luna', 'Skye', 'Zara']
+    .map(seed => `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}`),
+  ...['Felix', 'Milo', 'Nova', 'Sage', 'Ash', 'Echo', 'Finn', 'Luna', 'Skye', 'Zara']
+    .map(seed => `https://api.dicebear.com/7.x/adventurer/svg?seed=${seed}`),
+];
 const avatarPresetToggle = document.getElementById('avatar-preset-toggle');
 const avatarPresetGrid = document.getElementById('avatar-preset-grid');
 
 if (avatarPresetGrid.children.length === 0) {
-  AVATAR_SEEDS.forEach(seed => {
-    const url = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}`;
+  AVATAR_PRESETS.forEach(url => {
     const img = document.createElement('img');
     img.src = url;
-    img.alt = seed;
     img.className = 'avatar-preset-item';
     img.addEventListener('click', () => selectPresetAvatar(url));
     avatarPresetGrid.appendChild(img);

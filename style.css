@@ -299,6 +299,8 @@ header {
   border: 1px solid var(--border);
   border-radius: 12px;
   width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
 }
 .avatar-preset-item {
   width: 36px;
