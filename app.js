@@ -2188,6 +2188,44 @@ blockedListModal.addEventListener('click', e => { if (e.target === blockedListMo
 
 document.getElementById('lang-select').addEventListener('change', e => saveLang(e.target.value));
 
+// 문의하기
+document.getElementById('inquiry-submit-btn').addEventListener('click', async () => {
+  const type    = document.getElementById('inquiry-type').value;
+  const title   = document.getElementById('inquiry-title').value.trim();
+  const content = document.getElementById('inquiry-content').value.trim();
+  const msg     = document.getElementById('inquiry-msg');
+
+  if (!title) { msg.style.color = 'var(--danger)'; msg.textContent = '제목을 입력해주세요.'; return; }
+  if (!content) { msg.style.color = 'var(--danger)'; msg.textContent = '내용을 입력해주세요.'; return; }
+
+  const btn = document.getElementById('inquiry-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '제출 중...';
+
+  const { error } = await sb.from('inquiries').insert({
+    user_id: currentUser.id,
+    type,
+    title,
+    content,
+    status: 'pending',
+  });
+
+  btn.disabled = false;
+  btn.textContent = '제출';
+
+  if (error) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = '제출에 실패했어요. 다시 시도해주세요.';
+    return;
+  }
+
+  document.getElementById('inquiry-title').value = '';
+  document.getElementById('inquiry-content').value = '';
+  msg.style.color = 'var(--success)';
+  msg.textContent = '문의가 접수되었습니다. 감사합니다!';
+  setTimeout(() => { msg.textContent = ''; }, 4000);
+});
+
 document.getElementById('profanity-filter-toggle').addEventListener('change', e => {
   localStorage.setItem('profanity_filter', e.target.checked);
 });

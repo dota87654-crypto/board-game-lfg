@@ -51,6 +51,7 @@ function showTab(name) {
   if (el) el.style.display = 'block';
   if (name === 'reports') loadReports();
   if (name === 'users') loadUsers();
+  if (name === 'inquiries') loadInquiries();
 }
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -205,6 +206,72 @@ async function unbanUser(punishmentId, userName) {
   if (error) { alert('해제 실패: ' + error.message); return; }
   alert('처벌이 해제되었습니다.');
   loadUsers();
+}
+
+// 문의 목록
+document.getElementById('inquiry-status-filter').addEventListener('change', loadInquiries);
+
+async function loadInquiries() {
+  const status = document.getElementById('inquiry-status-filter').value;
+  const container = document.getElementById('inquiries-list');
+  container.innerHTML = '<div class="empty">로딩 중...</div>';
+
+  let query = sb.from('inquiries')
+    .select('id, user_id, type, title, content, created_at, status')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (status !== 'all') query = query.eq('status', status);
+
+  const { data: items, error } = await query;
+  if (error) { container.innerHTML = `<div class="empty">오류: ${error.message}</div>`; return; }
+  if (!items?.length) { container.innerHTML = '<div class="empty">문의 내역이 없습니다.</div>'; return; }
+
+  const ids = [...new Set(items.map(i => i.user_id).filter(Boolean))];
+  const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', ids);
+  const nameMap = {};
+  (profiles || []).forEach(p => { nameMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+
+  const typeLabel = { bug: '🐛 버그 신고', feature: '💡 기능 제안', account: '🔑 계정 문제', other: '💬 기타' };
+
+  container.innerHTML = '';
+  items.forEach(item => {
+    const name = nameMap[item.user_id] || '알 수 없음';
+    const time = new Date(item.created_at).toLocaleString('ko-KR');
+    const badgeClass = item.status === 'resolved' ? 'badge-resolved' : 'badge-pending';
+    const badgeLabel = item.status === 'resolved' ? '처리됨' : '대기중';
+
+    const card = document.createElement('div');
+    card.className = 'report-card';
+    card.innerHTML = `
+      <div class="report-meta">
+        <span>문의자: <b>${escHtml(name)}</b></span>
+        <span>${typeLabel[item.type] || item.type}</span>
+        <span>${time}</span>
+        <span class="badge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div style="font-weight:600;margin-bottom:6px;">${escHtml(item.title)}</div>
+      <div class="report-content" style="white-space:pre-wrap;">${escHtml(item.content)}</div>
+      <div class="report-actions">
+        ${item.status === 'pending'
+          ? `<button class="btn btn-success" data-resolve="${item.id}">✅ 처리 완료</button>`
+          : `<button class="btn btn-ghost" data-reopen="${item.id}">↩ 재개</button>`
+        }
+      </div>
+    `;
+    card.querySelector('[data-resolve]')?.addEventListener('click', () => resolveInquiry(item.id));
+    card.querySelector('[data-reopen]')?.addEventListener('click', () => reopenInquiry(item.id));
+    container.appendChild(card);
+  });
+}
+
+async function resolveInquiry(id) {
+  await sb.from('inquiries').update({ status: 'resolved' }).eq('id', id);
+  loadInquiries();
+}
+
+async function reopenInquiry(id) {
+  await sb.from('inquiries').update({ status: 'pending' }).eq('id', id);
+  loadInquiries();
 }
 
 function escHtml(str) {

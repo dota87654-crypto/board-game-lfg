@@ -68,6 +68,7 @@
 <div class="tabs">
   <div class="tab active" data-tab="reports">📋 신고 목록</div>
   <div class="tab" data-tab="users">👥 유저 관리</div>
+  <div class="tab" data-tab="inquiries">📩 문의 목록</div>
 </div>
 
 <div class="content">
@@ -91,6 +92,19 @@
   <div id="tab-users" class="tab-content" style="display:none;">
     <div class="section-title">활성 처벌 목록</div>
     <div id="users-list"></div>
+  </div>
+
+  <!-- 문의 목록 탭 -->
+  <div id="tab-inquiries" class="tab-content" style="display:none;">
+    <div class="filter-bar">
+      <label>상태 필터:</label>
+      <select id="inquiry-status-filter">
+        <option value="pending">대기 중</option>
+        <option value="all">전체</option>
+        <option value="resolved">처리됨</option>
+      </select>
+    </div>
+    <div id="inquiries-list"></div>
   </div>
 </div>
 

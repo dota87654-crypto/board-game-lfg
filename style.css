@@ -160,6 +160,10 @@ header {
   flex: 1;
   padding-bottom: 4px;
 }
+.inquiry-label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 5px; }
+.inquiry-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 12px; font-size: 0.9rem; outline: none; }
+.inquiry-input:focus { border-color: var(--primary); }
+textarea.inquiry-input { font-family: inherit; }
 .volume-row {
   display: flex;
   align-items: center;

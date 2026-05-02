@@ -94,6 +94,7 @@
       <button class="settings-tab active" data-tab="audio" data-i18n="settings.tab.audio">🔊 오디오</button>
       <button class="settings-tab" data-tab="general" data-i18n="settings.tab.general">⚙️ 일반</button>
       <button class="settings-tab" data-tab="block" data-i18n="settings.tab.block">🚫 차단</button>
+      <button class="settings-tab" data-tab="inquiry">📩 문의</button>
     </div>
 
     <!-- 오디오 탭 -->
@@ -165,6 +166,32 @@
     <div class="settings-tab-panel hidden" id="stab-block">
       <p class="settings-section-title" data-i18n="settings.blocked">차단 관리</p>
       <button id="open-blocked-list-btn" class="btn btn-sm" style="width:100%;" data-i18n="settings.blocked.view">차단 목록 보기</button>
+    </div>
+
+    <!-- 문의 탭 -->
+    <div class="settings-tab-panel hidden" id="stab-inquiry">
+      <p class="settings-section-title">문의하기</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label class="inquiry-label">문의 유형</label>
+          <select id="inquiry-type" class="inquiry-input">
+            <option value="bug">🐛 버그 신고</option>
+            <option value="feature">💡 기능 제안</option>
+            <option value="account">🔑 계정 문제</option>
+            <option value="other">💬 기타</option>
+          </select>
+        </div>
+        <div>
+          <label class="inquiry-label">제목</label>
+          <input type="text" id="inquiry-title" class="inquiry-input" placeholder="문의 제목을 입력하세요" maxlength="100" />
+        </div>
+        <div>
+          <label class="inquiry-label">내용</label>
+          <textarea id="inquiry-content" class="inquiry-input" rows="5" placeholder="문의 내용을 자세히 입력해주세요" maxlength="2000" style="resize:vertical;"></textarea>
+        </div>
+        <button id="inquiry-submit-btn" class="btn btn-primary" style="width:100%;">제출</button>
+        <p id="inquiry-msg" style="font-size:0.82rem;text-align:center;min-height:18px;"></p>
+      </div>
     </div>
   </div>
 </div>
