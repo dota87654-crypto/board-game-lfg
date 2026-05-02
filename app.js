@@ -442,6 +442,60 @@ logoutBtn.addEventListener('click', async () => {
   await sb.auth.signOut();
 });
 
+// 비로그인 계정 문의
+document.getElementById('open-guest-inquiry-btn').addEventListener('click', () => {
+  document.getElementById('guest-inquiry-email').value = '';
+  document.getElementById('guest-inquiry-content').value = '';
+  document.getElementById('guest-inquiry-msg').textContent = '';
+  document.getElementById('guest-inquiry-submit-btn').disabled = false;
+  document.getElementById('guest-inquiry-modal').classList.remove('hidden');
+});
+
+document.getElementById('close-guest-inquiry-btn').addEventListener('click', () => {
+  document.getElementById('guest-inquiry-modal').classList.add('hidden');
+});
+
+document.getElementById('guest-inquiry-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('guest-inquiry-modal'))
+    document.getElementById('guest-inquiry-modal').classList.add('hidden');
+});
+
+document.getElementById('guest-inquiry-submit-btn').addEventListener('click', async () => {
+  const email = document.getElementById('guest-inquiry-email').value.trim();
+  const content = document.getElementById('guest-inquiry-content').value.trim();
+  const msg = document.getElementById('guest-inquiry-msg');
+
+  if (!email) { msg.style.color = 'var(--danger)'; msg.textContent = '이메일을 입력해주세요.'; return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.style.color = 'var(--danger)'; msg.textContent = '올바른 이메일 형식이 아닙니다.'; return; }
+  if (!content) { msg.style.color = 'var(--danger)'; msg.textContent = '문의 내용을 입력해주세요.'; return; }
+
+  const btn = document.getElementById('guest-inquiry-submit-btn');
+  btn.disabled = true;
+  msg.style.color = 'var(--text-muted)';
+  msg.textContent = '전송 중...';
+
+  const { error } = await sb.from('inquiries').insert({
+    user_id: null,
+    contact_email: email,
+    type: 'account',
+    title: '계정 문제 문의',
+    content,
+    status: 'pending',
+  });
+
+  if (error) {
+    btn.disabled = false;
+    msg.style.color = 'var(--danger)';
+    msg.textContent = '전송 실패: ' + error.message;
+    return;
+  }
+
+  msg.style.color = 'var(--success)';
+  msg.textContent = '문의가 전송되었습니다. 확인 후 이메일로 답변드리겠습니다.';
+  document.getElementById('guest-inquiry-email').value = '';
+  document.getElementById('guest-inquiry-content').value = '';
+});
+
 async function upsertProfile(user) {
   const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
   const { error } = await sb.from('profiles').upsert({

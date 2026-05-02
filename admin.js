@@ -341,7 +341,7 @@ async function loadInquiries() {
   container.innerHTML = '<div class="empty">로딩 중...</div>';
 
   let query = sb.from('inquiries')
-    .select('id, user_id, type, title, content, created_at, status, answer, answered_at')
+    .select('id, user_id, contact_email, type, title, content, created_at, status, answer, answered_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (status !== 'all') query = query.eq('status', status);
@@ -359,7 +359,10 @@ async function loadInquiries() {
 
   container.innerHTML = '';
   items.forEach(item => {
-    const name = nameMap[item.user_id] || '알 수 없음';
+    const isGuest = !item.user_id;
+    const name = isGuest
+      ? `비회원 (${escHtml(item.contact_email || '이메일 없음')})`
+      : nameMap[item.user_id] || '알 수 없음';
     const time = new Date(item.created_at).toLocaleString('ko-KR');
     const badgeMap = { pending: 'badge-pending', answered: 'badge-answered', resolved: 'badge-resolved' };
     const labelMap = { pending: '대기중', answered: '답변완료', resolved: '처리됨' };
@@ -370,7 +373,7 @@ async function loadInquiries() {
     card.className = 'report-card';
     card.innerHTML = `
       <div class="report-meta">
-        <span>문의자: <b>${escHtml(name)}</b></span>
+        <span>문의자: <b>${isGuest ? escHtml(name) : escHtml(name)}</b>${isGuest ? ' <span class="badge badge-dismissed" style="font-size:0.7rem;">비회원</span>' : ''}</span>
         <span>${typeLabel[item.type] || item.type}</span>
         <span>${time}</span>
         <span class="badge ${badgeClass}">${badgeLabel}</span>
