@@ -2,7 +2,7 @@ const SUPABASE_URL = 'https://zjxryvtbzlbdsgqceygc.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_qD9MADOLO1AdQgTY4KUvTA_ogSu_rTl';
 // ⚠️ 아래에 본인 Supabase User ID를 입력하세요
 // Supabase Dashboard → Authentication → Users → 본인 이메일 행 클릭 → UID 복사
-const ADMIN_USER_ID = 'YOUR_USER_ID_HERE';
+const ADMIN_USER_ID = '49c6d001-2598-4f7c-af78-a1e89c7ff806';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
