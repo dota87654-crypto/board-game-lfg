@@ -51,7 +51,7 @@ function showTab(name) {
   const el = document.getElementById(`tab-${name}`);
   if (el) el.style.display = 'block';
   if (name === 'reports') loadReports();
-  if (name === 'users') loadUsers();
+  if (name === 'users') { loadUsers(); loadBannedEmails(); }
   if (name === 'inquiries') loadInquiries();
   if (name === 'announcements') loadAdminAnnouncements();
   if (name === 'activity') { document.getElementById('activity-result').innerHTML = ''; }
@@ -860,6 +860,50 @@ async function renderActivityLog(profile, container) {
       </div>
     `);
   }
+}
+
+// ---- 이메일 블랙리스트 ----
+async function loadBannedEmails() {
+  const container = document.getElementById('banned-emails-list');
+  container.innerHTML = '<div class="empty">로딩 중...</div>';
+
+  const { data, error } = await sb.from('banned_emails')
+    .select('id, email, reason, can_rejoin_at, banned_at')
+    .order('banned_at', { ascending: false });
+
+  if (error) { container.innerHTML = `<div class="empty">오류: ${error.message}</div>`; return; }
+  if (!data?.length) { container.innerHTML = '<div class="empty">블랙리스트 이메일이 없습니다.</div>'; return; }
+
+  const reasonLabel = {
+    punishment_evasion: '⚠️ 처벌 이력 (영구)',
+    cooldown: '⏳ 탈퇴 후 재가입 대기',
+  };
+
+  container.innerHTML = '';
+  data.forEach(item => {
+    const bannedDate = new Date(item.banned_at).toLocaleDateString('ko-KR');
+    const canRejoin = item.can_rejoin_at ? new Date(item.can_rejoin_at).toLocaleDateString('ko-KR') : '영구';
+    const isExpired = item.can_rejoin_at && new Date(item.can_rejoin_at) <= new Date();
+
+    const card = document.createElement('div');
+    card.className = 'user-card';
+    card.innerHTML = `
+      <div class="user-info">
+        <b>${escHtml(item.email)}</b>${isExpired ? '<span class="badge-revoked" style="margin-left:6px;">만료됨</span>' : ''}
+        <small>${reasonLabel[item.reason] || item.reason} &nbsp;|&nbsp; 등록일: ${bannedDate} &nbsp;|&nbsp; 재가입 가능: ${canRejoin}</small>
+      </div>
+      <button class="btn btn-success" style="flex-shrink:0;font-size:0.82rem;">해제</button>
+    `;
+    card.querySelector('.btn-success').addEventListener('click', () => unbanEmail(item.id, item.email));
+    container.appendChild(card);
+  });
+}
+
+async function unbanEmail(id, email) {
+  if (!confirm(`"${email}" 의 블랙리스트를 해제하시겠습니까?\n해제 시 즉시 재가입이 가능해집니다.`)) return;
+  const { error } = await sb.from('banned_emails').delete().eq('id', id);
+  if (error) { alert('해제 실패: ' + error.message); return; }
+  loadBannedEmails();
 }
 
 function escHtml(str) {

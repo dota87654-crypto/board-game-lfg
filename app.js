@@ -518,6 +518,27 @@ async function onLogin(user) {
   if (currentUser?.id === user.id) return;
   currentUser = user;
   unsubscribeAll();
+
+  // 이메일 블랙리스트 체크 (재가입 제한)
+  const { data: ban } = await sb.from('banned_emails')
+    .select('reason, can_rejoin_at')
+    .eq('email', user.email)
+    .maybeSingle();
+  if (ban) {
+    const expired = ban.can_rejoin_at && new Date(ban.can_rejoin_at) <= new Date();
+    if (!expired) {
+      currentUser = null;
+      await sb.auth.signOut();
+      if (!ban.can_rejoin_at) {
+        alert(`이 이메일은 규정 위반으로 인해 영구적으로 가입이 제한되어 있습니다.\n(${user.email})\n\n문의가 필요한 경우 관리자에게 연락해주세요.`);
+      } else {
+        const d = new Date(ban.can_rejoin_at).toLocaleDateString('ko-KR');
+        alert(`탈퇴 후 30일이 지나지 않아 재가입이 불가합니다.\n재가입 가능일: ${d}`);
+      }
+      return;
+    }
+  }
+
   await upsertProfile(user);
 
   const ok = await checkAndApplyPunishment(user.id);
@@ -2215,6 +2236,17 @@ function openSettings(tab = 'general') {
   document.getElementById('notif-volume-val').textContent = vol;
   switchSettingsTab(tab);
   settingsModal.classList.remove('hidden');
+  checkDeleteAccountEligibility();
+}
+
+async function checkDeleteAccountEligibility() {
+  if (!currentUser) return;
+  const { data: punish } = await sb.from('punishments')
+    .select('id').eq('user_id', currentUser.id).eq('is_active', true).limit(1).maybeSingle();
+  const btn = document.getElementById('delete-account-btn');
+  const hint = document.getElementById('delete-account-hint');
+  btn.disabled = !!punish;
+  hint.style.display = punish ? 'block' : 'none';
 }
 
 Object.entries(notifToggles).forEach(([key, el]) => {
@@ -2270,9 +2302,24 @@ document.getElementById('delete-account-confirm-btn').addEventListener('click', 
 async function deleteAccount() {
   const progress = document.getElementById('delete-account-progress');
   const setProgress = msg => { progress.style.display = 'block'; progress.textContent = msg; };
+  const resetBtns = () => {
+    document.getElementById('delete-account-confirm-btn').disabled = false;
+    document.getElementById('delete-account-cancel-btn').disabled = false;
+  };
   const userId = currentUser.id;
 
   try {
+    // 0. 처벌 중 탈퇴 차단 (선처리 체크)
+    const { data: activePunish } = await sb.from('punishments')
+      .select('id').eq('user_id', userId).eq('is_active', true).limit(1).maybeSingle();
+    if (activePunish) {
+      setProgress('');
+      resetBtns();
+      document.getElementById('delete-account-modal').classList.add('hidden');
+      alert('처벌 기간 중에는 탈퇴할 수 없습니다.');
+      return;
+    }
+
     // 1. 방 처리
     setProgress('방 퇴장 처리 중...');
     const { data: memberships } = await sb.from('room_members')
@@ -2315,14 +2362,20 @@ async function deleteAccount() {
     setProgress('프로필 데이터 삭제 중...');
     await sb.from('profiles').delete().eq('id', userId);
 
-    // 6. auth 계정 삭제 (RPC)
+    // 6. auth 계정 삭제 (RPC — 처벌 체크 + banned_emails 등록도 여기서 처리)
     setProgress('계정 삭제 중...');
-    const { error: rpcErr } = await sb.rpc('delete_user');
+    const { data: rpcResult, error: rpcErr } = await sb.rpc('delete_user');
     if (rpcErr) {
       setProgress('');
-      document.getElementById('delete-account-confirm-btn').disabled = false;
-      document.getElementById('delete-account-cancel-btn').disabled = false;
-      alert('계정 삭제 실패: ' + rpcErr.message + '\n\nSupabase SQL Editor에서 delete_user 함수를 생성했는지 확인해주세요.');
+      resetBtns();
+      alert('계정 삭제 실패: ' + rpcErr.message);
+      return;
+    }
+    if (rpcResult?.error === 'punishment_active') {
+      setProgress('');
+      resetBtns();
+      document.getElementById('delete-account-modal').classList.add('hidden');
+      alert('처벌 기간 중에는 탈퇴할 수 없습니다.');
       return;
     }
 
@@ -2332,8 +2385,7 @@ async function deleteAccount() {
 
   } catch (err) {
     setProgress('');
-    document.getElementById('delete-account-confirm-btn').disabled = false;
-    document.getElementById('delete-account-cancel-btn').disabled = false;
+    resetBtns();
     alert('탈퇴 처리 중 오류가 발생했습니다: ' + (err?.message || err));
   }
 }
