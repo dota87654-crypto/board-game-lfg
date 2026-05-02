@@ -2829,6 +2829,7 @@ function renderFriendsList() {
 }
 
 function showFriendContextMenu(e, f) {
+  e.stopPropagation();
   const menu = document.getElementById('member-context-menu');
   menu.innerHTML = '';
   addCtxItem(menu, t('btn.dm'), () => { openDM(f.friendId, f.name); hideContextMenu(); });
