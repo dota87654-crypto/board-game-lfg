@@ -1389,10 +1389,19 @@ async function enterRoom(room) {
     .upsert({ room_id: room.id, user_id: currentUser.id }, { onConflict: 'room_id,user_id', ignoreDuplicates: true });
 
   participatingRoomId = room.id;
+
+  // last_read_at을 clearRoomUnread 전에 미리 조회 (덮어쓰기 전 기준점 보존)
+  const { data: readRow } = await sb.from('room_reads')
+    .select('last_read_at')
+    .eq('user_id', currentUser.id)
+    .eq('room_id', room.id)
+    .maybeSingle();
+  const lastReadAt = readRow?.last_read_at || null;
+
   clearRoomUnread(room.id);
   document.getElementById('members-panel').classList.remove('open');
   renderNotice(room);
-  await loadMessages(room.id);
+  await loadMessages(room.id, lastReadAt);
   await updateMemberCount(room.id);
   loadRoomMembers(room.id);
   subscribeChat(room.id);
@@ -1481,7 +1490,7 @@ leaveBtn.addEventListener('click', async () => {
 });
 
 // --- Messages ---
-async function loadMessages(roomId) {
+async function loadMessages(roomId, lastReadAt = null) {
   const { data, error } = await sb.from('messages')
     .select('*')
     .eq('room_id', roomId)
@@ -1506,7 +1515,18 @@ async function loadMessages(roomId) {
   }
 
   messagesList.innerHTML = '';
-  msgs.forEach(msg => appendMessage(msg));
+  let dividerInserted = false;
+  msgs.forEach(msg => {
+    // 첫 번째 읽지 않은 메시지 앞에 구분선 삽입
+    if (lastReadAt && !dividerInserted && msg.created_at > lastReadAt) {
+      const divider = document.createElement('div');
+      divider.className = 'unread-divider';
+      divider.innerHTML = '<span>여기서부터 읽지 않은 메시지입니다</span>';
+      messagesList.appendChild(divider);
+      dividerInserted = true;
+    }
+    appendMessage(msg);
+  });
   scrollToBottom();
 }
 

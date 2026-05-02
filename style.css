@@ -1037,6 +1037,24 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   padding: 4px 0;
 }
 
+.unread-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  color: #e05252;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.unread-divider::before,
+.unread-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e0525266;
+}
+.unread-divider span { white-space: nowrap; }
+
 .chat-input-bar {
   display: flex;
   gap: 10px;
