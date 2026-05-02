@@ -143,16 +143,18 @@
     <div class="confirm-box" style="max-width:400px;">
       <h4 style="margin-bottom:6px;font-size:0.95rem;">처벌 변경</h4>
       <p id="change-punish-target" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;"></p>
-      <div style="margin-bottom:16px;text-align:left;">
+      <div style="margin-bottom:12px;text-align:left;">
         <label style="display:block;font-size:0.82rem;color:var(--text-muted);margin-bottom:6px;">새 처벌 종류</label>
         <select id="change-punish-select" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:0.88rem;">
           <option value="warning">⚠️ 경고</option>
-          <option value="chat_ban_3d">💬 채팅금지 3일</option>
-          <option value="chat_ban_7d">💬 채팅금지 7일</option>
-          <option value="suspend_1d">🔒 이용정지 1일</option>
-          <option value="suspend_7d">🔒 이용정지 7일</option>
+          <option value="chat_ban">💬 채팅금지</option>
+          <option value="suspend">🔒 이용정지</option>
           <option value="permanent_ban">🚫 영구정지</option>
         </select>
+      </div>
+      <div id="change-punish-days-wrap" style="display:none;margin-bottom:12px;text-align:left;align-items:center;gap:8px;">
+        <input type="number" id="change-punish-days" min="1" max="3650" placeholder="기간" style="width:100px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:0.88rem;" />
+        <span style="font-size:0.88rem;color:var(--text-muted);">일</span>
       </div>
       <div class="actions">
         <button id="change-punish-confirm-btn" class="btn btn-warn">변경 적용</button>

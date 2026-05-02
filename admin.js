@@ -6,37 +6,24 @@ const ADMIN_USER_ID = '49c6d001-2598-4f7c-af78-a1e89c7ff806';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const PUNISHMENT_LABELS = {
+const PUNISHMENT_TYPE_LABELS = {
   warning:       '⚠️ 경고',
-  chat_ban_3d:   '💬 채팅금지 3일',
-  chat_ban_7d:   '💬 채팅금지 7일',
-  suspend_1d:    '🔒 이용정지 1일',
-  suspend_7d:    '🔒 이용정지 7일',
+  chat_ban:      '💬 채팅금지',
+  suspend:       '🔒 이용정지',
   permanent_ban: '🚫 영구정지',
 };
 
-function buildPunishmentMessage(actionKey, expiresAt, reason) {
+function buildPunishmentMessage(type, expiresAt, reason) {
   const until = expiresAt ? new Date(expiresAt).toLocaleDateString('ko-KR') + '까지' : '';
   const prefix = reason ? `${reason}(으)로 인해 ` : '관리자로부터 ';
   const msgs = {
     warning:       `${prefix}경고 처분을 받았습니다.`,
-    chat_ban_3d:   `${prefix}채팅금지 처분을 받았습니다. 기간: ${until}`,
-    chat_ban_7d:   `${prefix}채팅금지 처분을 받았습니다. 기간: ${until}`,
-    suspend_1d:    `${prefix}이용정지 처분을 받았습니다. 기간: ${until}`,
-    suspend_7d:    `${prefix}이용정지 처분을 받았습니다. 기간: ${until}`,
+    chat_ban:      `${prefix}채팅금지 처분을 받았습니다. 기간: ${until}`,
+    suspend:       `${prefix}이용정지 처분을 받았습니다. 기간: ${until}`,
     permanent_ban: `${prefix}영구정지 처분을 받았습니다.`,
   };
-  return msgs[actionKey] || `${prefix}처분을 받았습니다.`;
+  return msgs[type] || `${prefix}처분을 받았습니다.`;
 }
-
-const PUNISHMENT_CONFIG = {
-  warning:       { type: 'warning',       days: 0 },
-  chat_ban_3d:   { type: 'chat_ban',      days: 3 },
-  chat_ban_7d:   { type: 'chat_ban',      days: 7 },
-  suspend_1d:    { type: 'suspend',       days: 1 },
-  suspend_7d:    { type: 'suspend',       days: 7 },
-  permanent_ban: { type: 'permanent_ban', days: null },
-};
 
 let currentAdmin = null;
 
@@ -123,43 +110,66 @@ function renderReportCard(r, nameMap, container) {
     <div class="report-reason">${escHtml(r.reason)}</div>
     ${r.detail ? `<div class="report-content" style="border-left:3px solid var(--warn);padding-left:10px;">${escHtml(r.detail)}</div>` : ''}
     ${r.message_content ? `<div class="report-content">"${escHtml(r.message_content)}"</div>` : ''}
-    <div class="report-actions">
+    <div class="report-actions" style="align-items:center;">
       ${r.status === 'pending' ? `
-        ${Object.entries(PUNISHMENT_LABELS).map(([key, label]) =>
-          `<button class="btn btn-warn" data-action="${key}" data-report="${r.id}" data-uid="${r.reported_user_id}">${label}</button>`
-        ).join('')}
-        <button class="btn btn-ghost" data-dismiss="${r.id}">기각</button>
+        <select class="punish-type-sel" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 8px;font-size:0.82rem;">
+          <option value="warning">⚠️ 경고</option>
+          <option value="chat_ban">💬 채팅금지</option>
+          <option value="suspend">🔒 이용정지</option>
+          <option value="permanent_ban">🚫 영구정지</option>
+        </select>
+        <div class="punish-days-wrap" style="display:none;align-items:center;gap:4px;">
+          <input type="number" class="punish-days-inp" min="1" max="3650" placeholder="기간" style="width:72px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:5px 8px;font-size:0.82rem;" />
+          <span style="font-size:0.82rem;color:var(--text-muted);">일</span>
+        </div>
+        <button class="btn btn-warn btn-apply-punish" style="font-size:0.78rem;padding:5px 10px;">처벌 적용</button>
+        <button class="btn btn-ghost btn-dismiss" style="font-size:0.78rem;padding:5px 10px;">기각</button>
       ` : ''}
     </div>
   `;
 
-  card.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', () => applyPunishment(btn.dataset.action, btn.dataset.uid, btn.dataset.report, reported));
-  });
-  card.querySelector('[data-dismiss]')?.addEventListener('click', () => dismissReport(r.id));
+  if (r.status === 'pending') {
+    const sel = card.querySelector('.punish-type-sel');
+    const daysWrap = card.querySelector('.punish-days-wrap');
+    const daysInp = card.querySelector('.punish-days-inp');
+
+    sel.addEventListener('change', () => {
+      const needsDays = sel.value === 'chat_ban' || sel.value === 'suspend';
+      daysWrap.style.display = needsDays ? 'flex' : 'none';
+      if (needsDays) daysInp.focus();
+    });
+
+    card.querySelector('.btn-apply-punish').addEventListener('click', () => {
+      const type = sel.value;
+      const needsDays = type === 'chat_ban' || type === 'suspend';
+      const days = needsDays ? parseInt(daysInp.value) : null;
+      if (needsDays && (!days || days < 1)) { alert('기간을 입력해주세요. (1일 이상)'); return; }
+      applyPunishment(type, days, r.reported_user_id, r.id, reported);
+    });
+
+    card.querySelector('.btn-dismiss').addEventListener('click', () => dismissReport(r.id));
+  }
 
   container.appendChild(card);
 }
 
-async function applyPunishment(actionKey, userId, reportId, userName) {
-  const cfg = PUNISHMENT_CONFIG[actionKey];
-  if (!cfg) return;
-  if (!confirm(`${userName}에게 [${PUNISHMENT_LABELS[actionKey]}] 처벌을 적용할까요?`)) return;
+async function applyPunishment(type, days, userId, reportId, userName) {
+  const daysLabel = days ? ` ${days}일` : '';
+  const label = (PUNISHMENT_TYPE_LABELS[type] || type) + daysLabel;
+  if (!confirm(`${userName}에게 [${label}] 처벌을 적용할까요?`)) return;
 
-  const expiresAt = cfg.days ? new Date(Date.now() + cfg.days * 86400000).toISOString() : null;
+  const expiresAt = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
 
-  // 신고 사유 조회
   const { data: reportData } = await sb.from('reports').select('reason').eq('id', reportId).maybeSingle();
   const reason = reportData?.reason || null;
 
-  // 기존 활성 처벌 비활성화
   await sb.from('punishments').update({ is_active: false })
     .eq('user_id', userId).eq('is_active', true);
 
-  if (cfg.type !== 'warning') {
+  if (type !== 'warning') {
     const { error } = await sb.from('punishments').insert({
       user_id: userId,
-      type: cfg.type,
+      type,
       expires_at: expiresAt,
       admin_id: currentAdmin.id,
       report_id: reportId,
@@ -169,11 +179,10 @@ async function applyPunishment(actionKey, userId, reportId, userName) {
   }
 
   await sb.from('reports').update({ status: 'resolved' }).eq('id', reportId);
-
   await sb.from('notifications').insert({
     user_id: userId,
     type: 'punishment',
-    message: buildPunishmentMessage(actionKey, expiresAt, reason),
+    message: buildPunishmentMessage(type, expiresAt, reason),
     is_read: false,
   });
 
@@ -269,38 +278,40 @@ function changePunishment(punishmentId, userId, userName, currentType) {
   document.getElementById('change-punish-target').textContent =
     `${userName} · 현재: ${typeLabel[currentType] || currentType}`;
 
-  // 현재 처벌과 같은 옵션은 비활성화
   const sel = document.getElementById('change-punish-select');
-  [...sel.options].forEach(opt => {
-    const optCfg = PUNISHMENT_CONFIG[opt.value];
-    opt.disabled = optCfg && optCfg.type === currentType;
-    opt.selected = false;
-  });
-  // 첫 번째 활성 옵션 자동 선택
+  const daysWrap = document.getElementById('change-punish-days-wrap');
+  const daysInp = document.getElementById('change-punish-days');
+
+  // 현재 처벌과 같은 타입 비활성화, 첫 번째 활성 옵션 선택
+  [...sel.options].forEach(opt => { opt.disabled = opt.value === currentType; opt.selected = false; });
   const firstEnabled = [...sel.options].find(o => !o.disabled);
   if (firstEnabled) firstEnabled.selected = true;
+
+  daysInp.value = '';
+  const updateDaysVis = () => {
+    const needsDays = sel.value === 'chat_ban' || sel.value === 'suspend';
+    daysWrap.style.display = needsDays ? 'flex' : 'none';
+  };
+  updateDaysVis();
+  sel.onchange = updateDaysVis;
 
   document.getElementById('change-punish-modal').style.display = 'flex';
 
   document.getElementById('change-punish-confirm-btn').onclick = async () => {
-    const actionKey = sel.value;
-    const cfg = PUNISHMENT_CONFIG[actionKey];
-    if (!cfg) return;
+    const type = sel.value;
+    const needsDays = type === 'chat_ban' || type === 'suspend';
+    const days = needsDays ? parseInt(daysInp.value) : null;
+    if (needsDays && (!days || days < 1)) { alert('기간을 입력해주세요. (1일 이상)'); return; }
+
     document.getElementById('change-punish-modal').style.display = 'none';
 
-    const expiresAt = cfg.days ? new Date(Date.now() + cfg.days * 86400000).toISOString() : null;
+    const expiresAt = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
 
-    // 기존 처벌 비활성화
     await sb.from('punishments').update({ is_active: false }).eq('id', punishmentId);
 
-    // 새 처벌 삽입 (경고는 punishments 레코드 없이 알림만)
-    if (cfg.type !== 'warning') {
+    if (type !== 'warning') {
       const { error } = await sb.from('punishments').insert({
-        user_id: userId,
-        type: cfg.type,
-        expires_at: expiresAt,
-        admin_id: currentAdmin.id,
-        is_active: true,
+        user_id: userId, type, expires_at: expiresAt, admin_id: currentAdmin.id, is_active: true,
       });
       if (error) { alert('처벌 변경 실패: ' + error.message); return; }
     }
@@ -308,7 +319,7 @@ function changePunishment(punishmentId, userId, userName, currentType) {
     await sb.from('notifications').insert({
       user_id: userId,
       type: 'punishment',
-      message: buildPunishmentMessage(actionKey, expiresAt, null),
+      message: buildPunishmentMessage(type, expiresAt, null),
       is_read: false,
     });
 
