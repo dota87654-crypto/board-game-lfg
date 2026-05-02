@@ -555,6 +555,7 @@ async function goToMain() {
   subscribeNotifications();
   checkPunishmentNotif();
   checkAnnounceBadge();
+  subscribeAnnouncements();
   subscribePunishments();
   initRoomUnread();
   loadBlocks();
@@ -2405,19 +2406,31 @@ function showPunishmentModal(notifs) {
 
 // ---- 공지사항 ----
 async function checkAnnounceBadge() {
-  const { data } = await sb.from('announcements')
-    .select('created_at')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
   const lastSeen = localStorage.getItem('announce_last_seen') || '';
-  const hasNew = data && data.created_at > lastSeen;
+  let query = sb.from('announcements').select('*', { count: 'exact', head: true });
+  if (lastSeen) query = query.gt('created_at', lastSeen);
+  const { count } = await query;
+  updateAnnounceBadge(count || 0);
+}
+
+function updateAnnounceBadge(count) {
   ['announce-badge', 'announce-badge-room'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (hasNew) el.classList.remove('hidden');
+    if (count > 0) { el.textContent = count; el.classList.remove('hidden'); }
     else el.classList.add('hidden');
   });
+}
+
+function subscribeAnnouncements() {
+  const ch = sb.channel('announcements-changes')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'announcements',
+    }, () => { checkAnnounceBadge(); })
+    .subscribe();
+  realtimeChannels.push(ch);
 }
 
 async function openAnnouncementModal() {
@@ -2437,7 +2450,7 @@ async function openAnnouncementModal() {
 
   // 가장 최신 공지를 seen으로 저장
   localStorage.setItem('announce_last_seen', data[0].created_at);
-  ['announce-badge', 'announce-badge-room'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+  updateAnnounceBadge(0);
 
   container.innerHTML = '';
   data.forEach((item, i) => {
