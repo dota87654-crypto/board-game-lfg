@@ -1430,7 +1430,7 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 .guild-member-item:last-child { border-bottom: none; }
 .guild-member-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.guild-member-name { font-size: 0.9rem; font-weight: 500; }
+.guild-member-name { font-size: 0.92rem; font-weight: 600; }
 .guild-member-role-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 .guild-member-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .guild-request-item {

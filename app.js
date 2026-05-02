@@ -4402,8 +4402,8 @@ async function openGuildRequestsModal() {
       <div class="guild-request-item" data-req-id="${req.id}">
         <span class="guild-member-name">${escHtml(profileMap[req.user_id] || '알 수 없음')}</span>
         <div class="guild-member-actions">
-          <button class="btn btn-xs btn-primary req-approve-btn" data-req-id="${req.id}" data-uid="${req.user_id}">승인</button>
-          <button class="btn btn-xs btn-danger req-reject-btn" data-req-id="${req.id}" data-uid="${req.user_id}">거절</button>
+          <button class="btn btn-sm btn-primary req-approve-btn" data-req-id="${req.id}" data-uid="${req.user_id}">승인</button>
+          <button class="btn btn-sm btn-danger req-reject-btn" data-req-id="${req.id}" data-uid="${req.user_id}">거절</button>
         </div>
       </div>`).join('');
     list.querySelectorAll('.req-approve-btn').forEach(btn =>
