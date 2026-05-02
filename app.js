@@ -324,6 +324,7 @@ let currentUser = null;
 let currentRoom = null;
 const currentFilters = new Set(); // 비어있으면 전체
 const currentTagFilters = new Set();
+let currentRegionFilter = { sido: '', sigungu: '' };
 let currentSearch = '';
 let currentGameChipFilter = null; // ⭐ 칩 클릭으로 설정된 게임명 필터 (소문자)
 let gameNameMatches = null; // boardgames 테이블 검색 결과 (소문자 Set), null이면 미사용
@@ -769,6 +770,14 @@ function renderRooms() {
     );
   }
 
+  if (currentRegionFilter.sido) {
+    filtered = filtered.filter(r => {
+      if (!r.region) return false;
+      if (currentRegionFilter.sigungu) return r.region === `${currentRegionFilter.sido} ${currentRegionFilter.sigungu}`;
+      return r.region === currentRegionFilter.sido || r.region.startsWith(currentRegionFilter.sido + ' ');
+    });
+  }
+
   // 참여 중인 방 최상단 고정
   filtered = [...filtered].sort((a, b) => {
     const am = myRoomIds.has(a.id) ? 0 : 1;
@@ -803,7 +812,7 @@ function renderRooms() {
         </div>
         <div class="room-card-game">🎮 ${escHtml(room.game_name)}</div>
         ${room.location ? `<div class="room-card-location">📍 ${escHtml(room.location)}</div>` : ''}
-        ${room.tags?.length ? `<div class="room-card-tags">${room.tags.map(tag => `<span class="room-tag">${escHtml(tag)}</span>`).join('')}</div>` : ''}
+        ${(room.tags?.length || room.region) ? `<div class="room-card-tags">${room.region ? `<span class="room-region-tag">📍 ${escHtml(room.region)}</span>` : ''}${(room.tags || []).map(tag => `<span class="room-tag">${escHtml(tag)}</span>`).join('')}</div>` : ''}
         <div class="room-card-footer">
           <div class="room-card-count">
             <span class="${countClass}">${count}</span> / ${room.max_players}${t('room.unit')}
@@ -1042,6 +1051,42 @@ document.addEventListener('click', () => {
   tagFilterBtn.classList.remove('open');
 });
 
+// --- Region Filter ---
+const regionSidoFilter = document.getElementById('region-sido-filter');
+const regionSigunguFilter = document.getElementById('region-sigungu-filter');
+
+// populate sido filter options
+Object.keys(REGION_DATA).forEach(sido => {
+  const opt = document.createElement('option');
+  opt.value = sido;
+  opt.textContent = sido;
+  regionSidoFilter.appendChild(opt);
+});
+
+regionSidoFilter.addEventListener('change', () => {
+  const sido = regionSidoFilter.value;
+  currentRegionFilter.sido = sido;
+  currentRegionFilter.sigungu = '';
+  regionSigunguFilter.innerHTML = '<option value="">구/군 전체</option>';
+  if (sido && REGION_DATA[sido]) {
+    REGION_DATA[sido].forEach(gu => {
+      const opt = document.createElement('option');
+      opt.value = gu;
+      opt.textContent = gu;
+      regionSigunguFilter.appendChild(opt);
+    });
+    regionSigunguFilter.style.display = '';
+  } else {
+    regionSigunguFilter.style.display = 'none';
+  }
+  renderRooms();
+});
+
+regionSigunguFilter.addEventListener('change', () => {
+  currentRegionFilter.sigungu = regionSigunguFilter.value;
+  renderRooms();
+});
+
 // 방 만들기 태그 토글
 const createTagToggle = document.getElementById('create-tag-toggle');
 const createTagPanel = document.getElementById('create-tag-panel');
@@ -1064,6 +1109,27 @@ createTagPanel.addEventListener('click', e => {
   }
 });
 
+// --- Region Data ---
+const REGION_DATA = {
+  '서울': ['강남구','강동구','강북구','강서구','관악구','광진구','구로구','금천구','노원구','도봉구','동대문구','동작구','마포구','서대문구','서초구','성동구','성북구','송파구','양천구','영등포구','용산구','은평구','종로구','중구','중랑구'],
+  '경기': ['가평군','고양시','과천시','광명시','광주시','구리시','군포시','김포시','남양주시','동두천시','부천시','성남시','수원시','시흥시','안산시','안성시','안양시','양주시','양평군','여주시','연천군','오산시','용인시','의왕시','의정부시','이천시','파주시','평택시','포천시','하남시','화성시'],
+  '인천': ['강화군','계양구','남동구','동구','미추홀구','부평구','서구','연수구','옹진군','중구'],
+  '부산': ['강서구','금정구','기장군','남구','동구','동래구','부산진구','북구','사상구','사하구','서구','수영구','연제구','영도구','중구','해운대구'],
+  '대구': ['군위군','남구','달서구','달성군','동구','북구','서구','수성구','중구'],
+  '광주': ['광산구','남구','동구','북구','서구'],
+  '대전': ['대덕구','동구','서구','유성구','중구'],
+  '울산': ['남구','동구','북구','울주군','중구'],
+  '세종': ['세종시'],
+  '강원': ['강릉시','고성군','동해시','삼척시','속초시','양구군','양양군','영월군','원주시','인제군','정선군','철원군','춘천시','태백시','평창군','홍천군','화천군','횡성군'],
+  '충북': ['괴산군','단양군','보은군','영동군','옥천군','음성군','제천시','증평군','진천군','청주시','충주시'],
+  '충남': ['계룡시','공주시','금산군','논산시','당진시','보령시','부여군','서산시','서천군','아산시','예산군','천안시','청양군','태안군','홍성군'],
+  '전북': ['고창군','군산시','김제시','남원시','무주군','부안군','순창군','완주군','익산시','임실군','장수군','전주시','정읍시','진안군'],
+  '전남': ['강진군','고흥군','곡성군','광양시','구례군','나주시','담양군','목포시','무안군','보성군','순천시','신안군','여수시','영광군','영암군','완도군','장성군','장흥군','진도군','함평군','해남군','화순군'],
+  '경북': ['경산시','경주시','고령군','구미시','군위군','김천시','문경시','봉화군','상주시','성주군','안동시','영덕군','영양군','영주시','영천시','예천군','울릉군','울진군','의성군','청도군','청송군','칠곡군','포항시'],
+  '경남': ['거제시','거창군','고성군','김해시','남해군','밀양시','사천시','산청군','양산시','의령군','진주시','창녕군','창원시','통영시','하동군','함안군','함양군','합천군'],
+  '제주': ['서귀포시','제주시'],
+};
+
 // --- Create Room ---
 const OFFLINE_CATEGORIES = new Set(['보드게임방', '개인소유']);
 const categorySelect = document.getElementById('category-select');
@@ -1074,6 +1140,9 @@ const locationSearchBtn = document.getElementById('location-search-btn');
 const locationSelected = document.getElementById('location-selected');
 const locationSelectedText = document.getElementById('location-selected-text');
 const locationClearBtn = document.getElementById('location-clear-btn');
+const regionField = document.getElementById('region-field');
+const regionSidoSelect = document.getElementById('region-sido-select');
+const regionSigunguSelect = document.getElementById('region-sigungu-select');
 const placeSearchModal = document.getElementById('place-search-modal');
 const closePlaceSearchBtn = document.getElementById('close-place-search-btn');
 const placeSearchInput = document.getElementById('place-search-input');
@@ -1086,11 +1155,42 @@ let placeCurrentQuery = '';
 let placeCurrentPage = 1;
 let placeIsEnd = false;
 
+// populate sido options once
+Object.keys(REGION_DATA).forEach(sido => {
+  const opt = document.createElement('option');
+  opt.value = sido;
+  opt.textContent = sido;
+  regionSidoSelect.appendChild(opt);
+});
+
 categorySelect.addEventListener('change', () => {
   const isOffline = OFFLINE_CATEGORIES.has(categorySelect.value);
   locationField.classList.toggle('hidden', !isOffline);
-  if (!isOffline) clearLocation();
+  regionField.classList.toggle('hidden', !isOffline);
+  if (!isOffline) { clearLocation(); clearRegion(); }
 });
+
+regionSidoSelect.addEventListener('change', () => {
+  const sido = regionSidoSelect.value;
+  regionSigunguSelect.innerHTML = '<option value="">구/군 선택</option>';
+  if (sido && REGION_DATA[sido]) {
+    REGION_DATA[sido].forEach(gu => {
+      const opt = document.createElement('option');
+      opt.value = gu;
+      opt.textContent = gu;
+      regionSigunguSelect.appendChild(opt);
+    });
+    regionSigunguSelect.style.display = '';
+  } else {
+    regionSigunguSelect.style.display = 'none';
+  }
+});
+
+function clearRegion() {
+  regionSidoSelect.value = '';
+  regionSigunguSelect.innerHTML = '<option value="">구/군 선택</option>';
+  regionSigunguSelect.style.display = 'none';
+}
 
 function clearLocation() {
   locationInput.value = '';
@@ -1331,6 +1431,11 @@ createRoomForm.addEventListener('submit', async e => {
   const location = (fd.get('location') || '').trim() || null;
   const password_hash = rawPassword ? await sha256(rawPassword) : null;
   const tags = [...document.querySelectorAll('#create-tag-panel .tag-chip.selected')].map(b => b.dataset.tag);
+  const regionSido = regionSidoSelect.value;
+  const regionSigungu = regionSigunguSelect.value;
+  const region = OFFLINE_CATEGORIES.has(category) && regionSido
+    ? (regionSigungu ? `${regionSido} ${regionSigungu}` : regionSido)
+    : null;
 
   const { data: room, error } = await sb.from('rooms').insert({
     title,
@@ -1339,6 +1444,7 @@ createRoomForm.addEventListener('submit', async e => {
     max_players,
     scheduled_at: scheduled_at || null,
     location,
+    region,
     host_id: currentUser.id,
     is_open: true,
     password_hash,
@@ -1363,6 +1469,9 @@ createRoomForm.addEventListener('submit', async e => {
   createTagPanel.classList.add('hidden');
   createTagToggle.classList.remove('open');
   updateCreateTagToggle();
+  clearRegion();
+  regionField.classList.add('hidden');
+  locationField.classList.add('hidden');
   enterRoom(room); // enterRoom 내부에서 upsert로 참여 처리
 });
 

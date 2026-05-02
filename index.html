@@ -74,6 +74,15 @@
         <div id="tag-filter-dropdown" class="tag-filter-dropdown hidden"></div>
       </div>
 
+      <div class="region-filter-wrap">
+        <select id="region-sido-filter" class="region-select">
+          <option value="">📍 지역 전체</option>
+        </select>
+        <select id="region-sigungu-filter" class="region-select" style="display:none;">
+          <option value="">구/군 전체</option>
+        </select>
+      </div>
+
       <div class="room-search-wrap">
         <input type="text" id="room-search-input" data-i18n-placeholder="room.search.placeholder" placeholder="방 제목, 게임, 방장으로 검색..." autocomplete="off" />
         <div id="room-search-dropdown" class="room-search-dropdown hidden"></div>
@@ -311,6 +320,18 @@
           <button type="button" id="location-clear-btn">✕</button>
         </div>
         <input type="hidden" name="location" id="location-input" />
+      </div>
+      <div id="region-field" class="hidden">
+        <label><span>지역</span>
+          <div class="location-input-row">
+            <select id="region-sido-select" class="region-select" style="flex:1;">
+              <option value="">시/도 선택</option>
+            </select>
+            <select id="region-sigungu-select" class="region-select" style="flex:1;display:none;">
+              <option value="">구/군 선택</option>
+            </select>
+          </div>
+        </label>
       </div>
       <label><span data-i18n="create.game">게임 이름</span>
         <div class="game-search-wrap">

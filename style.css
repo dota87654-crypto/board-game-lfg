@@ -434,6 +434,29 @@ main { padding: 24px 20px; }
 }
 .tag-reset-btn:hover { border-color: var(--danger); color: var(--danger); }
 
+.region-filter-wrap { display: flex; gap: 8px; margin-bottom: 12px; }
+.region-select {
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.region-select:focus { border-color: var(--primary); }
+.room-region-tag {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  background: color-mix(in srgb, #2bb5a0 15%, var(--surface2));
+  color: #2bb5a0;
+  border: 1px solid color-mix(in srgb, #2bb5a0 35%, transparent);
+}
+
 .room-search-wrap {
   position: relative;
   margin-bottom: 6px;
@@ -678,6 +701,8 @@ form label select:focus,
 form label input:focus { outline: none; border-color: var(--primary); }
 
 #location-field label { margin-bottom: 6px; }
+#region-field label { margin-bottom: 6px; }
+#region-field .location-input-row { gap: 8px; }
 
 /* Create room tag toggle */
 .create-tags-field { margin-bottom: 16px; }
