@@ -1260,6 +1260,46 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .snackbar.hidden { display: none; }
 .snackbar.snackbar-hide { opacity: 0; }
 
+/* 공지사항 */
+.announce-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.announce-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: var(--surface2);
+  gap: 12px;
+  user-select: none;
+}
+.announce-item-header:hover { background: #2a2f45; }
+.announce-item-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.announce-pin { font-size: 0.9rem; }
+.announce-item-date { font-size: 0.78rem; color: var(--text-muted); }
+.announce-toggle { font-size: 0.75rem; color: var(--text-muted); }
+.announce-item-body {
+  padding: 14px 16px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
+}
+.announce-item-body.hidden { display: none; }
+#announce-list { max-height: 60vh; overflow-y: auto; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

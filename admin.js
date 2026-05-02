@@ -61,6 +61,7 @@ function showTab(name) {
   if (name === 'reports') loadReports();
   if (name === 'users') loadUsers();
   if (name === 'inquiries') loadInquiries();
+  if (name === 'announcements') loadAdminAnnouncements();
 }
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -321,6 +322,98 @@ async function sendAnswer(itemId, userId, answer) {
 async function reopenInquiry(id) {
   await sb.from('inquiries').update({ status: 'pending' }).eq('id', id);
   loadInquiries();
+}
+
+// ---- 공지사항 관리 ----
+async function loadAdminAnnouncements() {
+  const container = document.getElementById('announcements-list');
+  container.innerHTML = '<div class="empty">로딩 중...</div>';
+
+  const { data, error } = await sb.from('announcements')
+    .select('*')
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) { container.innerHTML = `<div class="empty">오류: ${error.message}</div>`; return; }
+  if (!data?.length) { container.innerHTML = '<div class="empty">공지사항이 없습니다.</div>'; return; }
+
+  container.innerHTML = '';
+  data.forEach(item => {
+    const date = new Date(item.created_at).toLocaleDateString('ko-KR');
+    const card = document.createElement('div');
+    card.className = 'announce-card';
+    card.innerHTML = `
+      <div class="announce-card-header">
+        <div>
+          <div class="announce-card-title">${item.is_pinned ? '📌 ' : ''}${escHtml(item.title)}</div>
+          <div class="announce-card-meta">${date}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-edit" data-id="${item.id}">✏️ 수정</button>
+          <button class="btn btn-danger btn-del" data-id="${item.id}">🗑️ 삭제</button>
+        </div>
+      </div>
+      <div class="announce-card-body">${escHtml(item.content)}</div>
+    `;
+    card.querySelector('.btn-edit').addEventListener('click', () => startEditAnnouncement(item));
+    card.querySelector('.btn-del').addEventListener('click', () => deleteAnnouncement(item.id, item.title));
+    container.appendChild(card);
+  });
+}
+
+function startEditAnnouncement(item) {
+  document.getElementById('announce-edit-id').value = item.id;
+  document.getElementById('announce-title-input').value = item.title;
+  document.getElementById('announce-content-input').value = item.content;
+  document.getElementById('announce-pinned-input').checked = item.is_pinned || false;
+  document.getElementById('announce-form-title').textContent = '공지 수정';
+  document.getElementById('announce-cancel-btn').style.display = '';
+  document.getElementById('announce-title-input').focus();
+  document.getElementById('tab-announcements').scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetAnnounceForm() {
+  document.getElementById('announce-edit-id').value = '';
+  document.getElementById('announce-title-input').value = '';
+  document.getElementById('announce-content-input').value = '';
+  document.getElementById('announce-pinned-input').checked = false;
+  document.getElementById('announce-form-title').textContent = '새 공지 작성';
+  document.getElementById('announce-cancel-btn').style.display = 'none';
+}
+
+document.getElementById('announce-cancel-btn').addEventListener('click', resetAnnounceForm);
+
+document.getElementById('announce-save-btn').addEventListener('click', async () => {
+  const id = document.getElementById('announce-edit-id').value;
+  const title = document.getElementById('announce-title-input').value.trim();
+  const content = document.getElementById('announce-content-input').value.trim();
+  const is_pinned = document.getElementById('announce-pinned-input').checked;
+
+  if (!title || !content) { alert('제목과 내용을 입력해주세요.'); return; }
+
+  const btn = document.getElementById('announce-save-btn');
+  btn.disabled = true;
+
+  let error;
+  if (id) {
+    ({ error } = await sb.from('announcements').update({ title, content, is_pinned, updated_at: new Date().toISOString() }).eq('id', id));
+  } else {
+    ({ error } = await sb.from('announcements').insert({ title, content, is_pinned }));
+  }
+
+  btn.disabled = false;
+  if (error) { alert('저장 실패: ' + error.message); return; }
+
+  resetAnnounceForm();
+  loadAdminAnnouncements();
+});
+
+async function deleteAnnouncement(id, title) {
+  if (!confirm(`"${title}" 공지를 삭제하시겠습니까?`)) return;
+  const { error } = await sb.from('announcements').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  loadAdminAnnouncements();
 }
 
 function escHtml(str) {

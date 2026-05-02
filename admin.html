@@ -43,6 +43,13 @@
     .badge-pending { background: #f0a50033; color: var(--warn); }
     .badge-resolved { background: #4caf7d33; color: var(--success); }
     .badge-dismissed { background: var(--surface2); color: var(--text-muted); }
+    .badge-answered { background: #5865f233; color: var(--primary); }
+    .answer-box { background: #1e2d1e; border: 1px solid #4caf7d55; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+    .answer-label { font-size: 0.78rem; color: var(--success); font-weight: 600; margin-bottom: 4px; }
+    .answer-text { font-size: 0.85rem; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+    .answer-form { margin-top: 8px; }
+    .answer-textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 12px; font-size: 0.85rem; resize: vertical; min-height: 80px; font-family: inherit; }
+    .answer-textarea:focus { outline: none; border-color: var(--primary); }
     .user-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
     .user-info { font-size: 0.9rem; }
     .user-info b { color: var(--text); }
@@ -52,6 +59,18 @@
     select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; }
     .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
     .filter-bar label { font-size: 0.85rem; color: var(--text-muted); }
+    .announce-form { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .announce-form h4 { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-row { margin-bottom: 12px; }
+    .form-row label { display: block; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 4px; }
+    .form-input { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; box-sizing: border-box; font-family: inherit; }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+    textarea.form-input { resize: vertical; min-height: 100px; }
+    .announce-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; }
+    .announce-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+    .announce-card-title { font-weight: 600; font-size: 0.95rem; }
+    .announce-card-meta { font-size: 0.78rem; color: var(--text-muted); }
+    .announce-card-body { font-size: 0.85rem; color: var(--text-muted); white-space: pre-wrap; word-break: break-word; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
   </style>
 </head>
 <body>
@@ -69,6 +88,7 @@
   <div class="tab active" data-tab="reports">📋 신고 목록</div>
   <div class="tab" data-tab="users">👥 유저 관리</div>
   <div class="tab" data-tab="inquiries">📩 문의 목록</div>
+  <div class="tab" data-tab="announcements">📢 공지사항</div>
 </div>
 
 <div class="content">
@@ -101,10 +121,37 @@
       <select id="inquiry-status-filter">
         <option value="pending">대기 중</option>
         <option value="all">전체</option>
+        <option value="answered">답변완료</option>
         <option value="resolved">처리됨</option>
       </select>
     </div>
     <div id="inquiries-list"></div>
+  </div>
+
+  <!-- 공지사항 탭 -->
+  <div id="tab-announcements" class="tab-content" style="display:none;">
+    <div class="announce-form">
+      <h4 id="announce-form-title">새 공지 작성</h4>
+      <input type="hidden" id="announce-edit-id" value="" />
+      <div class="form-row">
+        <label>제목</label>
+        <input type="text" id="announce-title-input" class="form-input" placeholder="공지 제목" />
+      </div>
+      <div class="form-row">
+        <label>내용</label>
+        <textarea id="announce-content-input" class="form-input" placeholder="공지 내용"></textarea>
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="announce-pinned-input" />
+        <label style="margin:0;cursor:pointer;" for="announce-pinned-input">📌 상단 고정</label>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn btn-primary" id="announce-save-btn">저장</button>
+        <button class="btn btn-ghost" id="announce-cancel-btn" style="display:none;">취소</button>
+      </div>
+    </div>
+    <div class="section-title">공지 목록</div>
+    <div id="announcements-list"></div>
   </div>
 </div>
 

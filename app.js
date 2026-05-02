@@ -516,6 +516,7 @@ async function goToMain() {
   subscribeGlobalDM();
   resumeRoomSubscription();
   subscribeNotifications();
+  checkAnnounceBadge();
   initRoomUnread();
   loadBlocks();
   subscribeInvites();
@@ -2336,6 +2337,77 @@ async function subscribeNotifications() {
     .subscribe();
   realtimeChannels.push(ch);
 }
+
+// ---- 공지사항 ----
+async function checkAnnounceBadge() {
+  const { data } = await sb.from('announcements')
+    .select('created_at')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const lastSeen = localStorage.getItem('announce_last_seen') || '';
+  const hasNew = data && data.created_at > lastSeen;
+  ['announce-badge', 'announce-badge-room'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (hasNew) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  });
+}
+
+async function openAnnouncementModal() {
+  document.getElementById('announce-modal').classList.remove('hidden');
+  const container = document.getElementById('announce-list');
+  container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">로딩 중...</div>';
+
+  const { data, error } = await sb.from('announcements')
+    .select('*')
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error || !data?.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">공지사항이 없습니다.</div>';
+    return;
+  }
+
+  // 가장 최신 공지를 seen으로 저장
+  localStorage.setItem('announce_last_seen', data[0].created_at);
+  ['announce-badge', 'announce-badge-room'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+
+  container.innerHTML = '';
+  data.forEach((item, i) => {
+    const date = new Date(item.created_at).toLocaleDateString('ko-KR');
+    const el = document.createElement('div');
+    el.className = 'announce-item';
+    el.innerHTML = `
+      <div class="announce-item-header">
+        <div class="announce-item-title">
+          ${item.is_pinned ? '<span class="announce-pin">📌</span>' : ''}
+          ${escHtml(item.title)}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span class="announce-item-date">${date}</span>
+          <span class="announce-toggle">▼</span>
+        </div>
+      </div>
+      <div class="announce-item-body${i === 0 ? '' : ' hidden'}">${escHtml(item.content)}</div>
+    `;
+    el.querySelector('.announce-item-header').addEventListener('click', () => {
+      const body = el.querySelector('.announce-item-body');
+      const toggle = el.querySelector('.announce-toggle');
+      body.classList.toggle('hidden');
+      toggle.textContent = body.classList.contains('hidden') ? '▼' : '▲';
+    });
+    if (i === 0) el.querySelector('.announce-toggle').textContent = '▲';
+    container.appendChild(el);
+  });
+}
+
+document.getElementById('close-announce-modal').addEventListener('click', () => {
+  document.getElementById('announce-modal').classList.add('hidden');
+});
+document.getElementById('announcement-btn').addEventListener('click', openAnnouncementModal);
+document.getElementById('announcement-btn-room').addEventListener('click', openAnnouncementModal);
 
 document.getElementById('profanity-filter-toggle').addEventListener('change', e => {
   localStorage.setItem('profanity_filter', e.target.checked);

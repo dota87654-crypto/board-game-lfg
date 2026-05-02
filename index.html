@@ -44,6 +44,7 @@
         <button id="user-name" class="btn-username"></button>
         <button id="friends-btn" class="btn btn-sm" data-i18n-title="title.friends" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
         <button id="dm-btn" class="btn btn-sm" data-i18n-title="title.dm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
+        <button id="announcement-btn" class="btn btn-sm" title="공지사항">📢<span id="announce-badge" class="friends-badge hidden"></span></button>
         <button id="settings-btn" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️<span id="notif-badge" class="friends-badge hidden"></span></button>
 <button id="logout-btn" class="btn btn-sm" data-i18n="btn.logout">로그아웃</button>
       </div>
@@ -348,6 +349,7 @@
       <button id="members-panel-btn" class="btn btn-sm" data-i18n-title="title.members" title="참여 인원"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       <button id="copy-invite-btn" class="btn btn-sm" data-i18n="invite.link.btn">🔗 링크 복사</button>
       <button id="invite-friends-btn" class="btn btn-sm" data-i18n-title="title.invite" title="친구 초대">👥</button>
+      <button id="announcement-btn-room" class="btn btn-sm" title="공지사항">📢<span id="announce-badge-room" class="friends-badge hidden"></span></button>
       <button id="settings-btn-room" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️<span id="notif-badge-room" class="friends-badge hidden"></span></button>
       <button id="leave-btn" class="btn btn-sm btn-danger" data-i18n="btn.leave">나가기</button>
     </div>
@@ -513,6 +515,17 @@
     <button id="close-members-btn" class="modal-close">&times;</button>
   </div>
   <div id="members-panel-body" class="members-panel-body"></div>
+</div>
+
+<!-- 공지사항 모달 -->
+<div id="announce-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3>📢 공지사항</h3>
+      <button class="modal-close" id="close-announce-modal">&times;</button>
+    </div>
+    <div id="announce-list"></div>
+  </div>
 </div>
 
 <!-- 신고 모달 -->
