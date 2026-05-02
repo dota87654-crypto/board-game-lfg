@@ -642,6 +642,7 @@ async function goToMain() {
   subscribeInvites();
   loadPendingInvites();
   handlePendingInvite();
+  initGuildReqBadge();
 }
 
 async function resumeRoomSubscription() {
@@ -4044,9 +4045,13 @@ let guildChatChannel = null;
 document.getElementById('guild-btn').addEventListener('click', () => {
   showScreen('guild-list');
   loadGuildList();
+  subscribeGuildList();
 });
 
-document.getElementById('guild-list-back-btn').addEventListener('click', () => showScreen('main'));
+document.getElementById('guild-list-back-btn').addEventListener('click', () => {
+  if (guildListChannel) { sb.removeChannel(guildListChannel); guildListChannel = null; }
+  showScreen('main');
+});
 
 document.getElementById('guild-detail-back-btn').addEventListener('click', () => {
   if (guildChatChannel) { sb.removeChannel(guildChatChannel); guildChatChannel = null; }
@@ -4339,22 +4344,24 @@ async function loadGuildRequestsBadge(guildId) {
 
 async function openGuildRequestsModal() {
   const { data } = await sb.from('guild_join_requests')
-    .select('id, user_id, created_at, profiles(nickname, display_name, email)')
+    .select('id, user_id, created_at')
     .eq('guild_id', currentGuild.id).eq('status', 'pending').order('created_at', { ascending: true });
   const list = document.getElementById('guild-requests-list');
   if (!data?.length) {
     list.innerHTML = '<div class="guild-empty" style="padding:16px;">대기 중인 신청이 없습니다.</div>';
   } else {
-    list.innerHTML = data.map(req => {
-      const name = req.profiles?.nickname || req.profiles?.display_name || req.profiles?.email?.split('@')[0] || '알 수 없음';
-      return `<div class="guild-request-item" data-req-id="${req.id}">
-        <span class="guild-member-name">${escHtml(name)}</span>
+    const userIds = data.map(r => r.user_id);
+    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+    list.innerHTML = data.map(req => `
+      <div class="guild-request-item" data-req-id="${req.id}">
+        <span class="guild-member-name">${escHtml(profileMap[req.user_id] || '알 수 없음')}</span>
         <div class="guild-member-actions">
           <button class="btn btn-xs btn-primary req-approve-btn" data-req-id="${req.id}" data-uid="${req.user_id}">승인</button>
           <button class="btn btn-xs btn-danger req-reject-btn" data-req-id="${req.id}" data-uid="${req.user_id}">거절</button>
         </div>
-      </div>`;
-    }).join('');
+      </div>`).join('');
     list.querySelectorAll('.req-approve-btn').forEach(btn =>
       btn.addEventListener('click', () => handleGuildRequest(btn.dataset.reqId, btn.dataset.uid, true)));
     list.querySelectorAll('.req-reject-btn').forEach(btn =>
@@ -4492,6 +4499,41 @@ async function updateGuildReqBadge() {
   const gids = officerGuilds.map(g => g.id);
   const { count } = await sb.from('guild_join_requests')
     .select('*', { count: 'exact', head: true }).in('guild_id', gids).eq('status', 'pending');
-  if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
-  else badge.classList.add('hidden');
+  const badge2 = document.getElementById('guild-req-badge');
+  if (count > 0) { badge2.textContent = count; badge2.classList.remove('hidden'); }
+  else badge2.classList.add('hidden');
+}
+
+async function initGuildReqBadge() {
+  // 로그인 시 뱃지 초기화 + realtime 구독
+  const { data: memberships } = await sb.from('guild_members')
+    .select('guild_id, role').eq('user_id', currentUser.id).in('role', ['owner', 'officer']);
+  if (!memberships?.length) return;
+  const gids = memberships.map(m => m.guild_id);
+
+  const refreshBadge = async () => {
+    const { count } = await sb.from('guild_join_requests')
+      .select('*', { count: 'exact', head: true }).in('guild_id', gids).eq('status', 'pending');
+    const badge = document.getElementById('guild-req-badge');
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+  };
+
+  await refreshBadge();
+
+  const ch = sb.channel(`guild-req-notif-${currentUser.id}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'guild_join_requests' }, refreshBadge)
+    .subscribe();
+  realtimeChannels.push(ch);
+}
+
+let guildListChannel = null;
+
+function subscribeGuildList() {
+  if (guildListChannel) sb.removeChannel(guildListChannel);
+  guildListChannel = sb.channel('guilds-list-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'guilds' }, () => loadGuildList())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'guild_members', filter: `user_id=eq.${currentUser.id}` }, () => loadGuildList())
+    .subscribe();
 }
