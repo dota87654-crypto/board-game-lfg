@@ -1317,7 +1317,7 @@ placeSearchMoreBtn.addEventListener('click', () => fetchPlaces(false));
 closePlaceSearchBtn.addEventListener('click', () => placeSearchModal.classList.add('hidden'));
 placeSearchModal.addEventListener('click', e => { if (e.target === placeSearchModal) placeSearchModal.classList.add('hidden'); });
 
-openCreateBtn.addEventListener('click', () => { createModal.classList.remove('hidden'); renderFavoriteGames(); });
+openCreateBtn.addEventListener('click', () => { createModal.classList.remove('hidden'); renderFavoriteGames(); updateGuildRoomField(); });
 closeCreateBtn.addEventListener('click', () => createModal.classList.add('hidden'));
 createModal.addEventListener('click', e => { if (e.target === createModal) createModal.classList.add('hidden'); });
 
@@ -4523,11 +4523,19 @@ document.getElementById('create-guild-form').addEventListener('submit', async e 
 async function updateGuildRoomField() {
   const field = document.getElementById('guild-room-field');
   if (!field) return;
-  if (!myGuilds.length) { field.classList.add('hidden'); return; }
+  // myGuilds가 아직 로드 안됐으면 DB에서 직접 조회
+  let guilds = myGuilds;
+  if (!guilds.length) {
+    const { data: memberships } = await sb.from('guild_members')
+      .select('guild_id, role, guilds(id, name)')
+      .eq('user_id', currentUser.id);
+    guilds = (memberships || []).filter(m => m.guilds).map(m => ({ ...m.guilds, myRole: m.role }));
+  }
+  if (!guilds.length) { field.classList.add('hidden'); return; }
   field.classList.remove('hidden');
   const select = document.getElementById('guild-room-select');
   select.innerHTML = '<option value="">길드 선택</option>';
-  myGuilds.forEach(g => {
+  guilds.forEach(g => {
     const opt = document.createElement('option');
     opt.value = g.id; opt.textContent = g.name;
     select.appendChild(opt);
