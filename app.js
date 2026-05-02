@@ -2291,6 +2291,43 @@ document.getElementById('avatar-upload').addEventListener('change', async (e) =>
   }
 });
 
+// 기본 아바타 프리셋
+const AVATAR_SEEDS = ['Felix', 'Milo', 'Nova', 'Sage', 'Ash', 'Echo', 'Finn', 'Luna', 'Skye', 'Zara'];
+const avatarPresetToggle = document.getElementById('avatar-preset-toggle');
+const avatarPresetGrid = document.getElementById('avatar-preset-grid');
+
+if (avatarPresetGrid.children.length === 0) {
+  AVATAR_SEEDS.forEach(seed => {
+    const url = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${seed}`;
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = seed;
+    img.className = 'avatar-preset-item';
+    img.addEventListener('click', () => selectPresetAvatar(url));
+    avatarPresetGrid.appendChild(img);
+  });
+}
+
+avatarPresetToggle.addEventListener('click', () => {
+  avatarPresetGrid.classList.toggle('hidden');
+});
+
+async function selectPresetAvatar(url) {
+  if (!currentUser) return;
+  const { error } = await sb.from('profiles').update({ avatar_url: url }).eq('id', currentUser.id);
+  if (error) {
+    alert(t('avatar.upload.error'));
+    return;
+  }
+  currentAvatarUrl = url;
+  document.getElementById('profile-avatar').src = url;
+  avatarPresetGrid.classList.add('hidden');
+
+  avatarPresetGrid.querySelectorAll('.avatar-preset-item').forEach(el => {
+    el.classList.toggle('selected', el.src === url);
+  });
+}
+
 // 프로필 닉네임 변경
 const nicknameEditBtn = document.getElementById('nickname-edit-btn');
 const nicknameEditRow = document.getElementById('profile-nickname-edit-row');

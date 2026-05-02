@@ -247,16 +247,16 @@ header {
 
 /* Profile */
 .profile-card {
-  max-width: 480px;
+  max-width: 560px;
   margin: 40px auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 32px 28px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 28px;
 }
 .profile-avatar-wrap {
   position: relative;
@@ -289,6 +289,28 @@ header {
 }
 .profile-avatar-wrap:hover .avatar-overlay { opacity: 1; }
 .profile-avatar-wrap.uploading .avatar-overlay { opacity: 1; font-size: 14px; color: #fff; }
+.profile-avatar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0; }
+.avatar-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 220px;
+}
+.avatar-preset-item {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: var(--surface);
+  transition: border-color 0.15s, transform 0.1s;
+}
+.avatar-preset-item:hover { border-color: var(--primary); transform: scale(1.1); }
+.avatar-preset-item.selected { border-color: var(--primary); }
 .profile-info { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 .profile-row {
   display: flex;
