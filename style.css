@@ -629,7 +629,7 @@ main { padding: 24px 20px; }
   margin-bottom: 24px;
 }
 .modal-actions { display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end; }
-.modal-header h3 { font-size: 1.2rem; }
+.modal-header h3 { font-size: 1.2rem; display: flex; align-items: center; }
 .modal-close {
   background: none;
   border: none;
@@ -981,9 +981,28 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .message.theirs { align-self: flex-start; align-items: flex-start; }
 
 .message-author {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-bottom: 4px;
+}
+.message-author-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.dm-title-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+  margin-right: 8px;
+  flex-shrink: 0;
 }
 .message-bubble {
   padding: 10px 14px;

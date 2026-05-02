@@ -2677,6 +2677,7 @@ function formatDMTime(isoStr) {
 let friendsList = [];
 let pendingList = [];
 let dmFriendId = null;
+let dmFriendAvatarUrl = null;
 let dmChannel = null;
 const sentDmIds = new Set();
 
@@ -3106,10 +3107,14 @@ function subscribeInvites() {
 // --- DM ---
 async function openDM(friendId, friendName) {
   dmFriendId = friendId;
-  dmTitle.textContent = `💬 ${friendName}`;
   dmMessages.innerHTML = '';
   friendsModal.classList.add('hidden');
   dmModal.classList.remove('hidden');
+
+  const { data: fp } = await sb.from('profiles').select('avatar_url').eq('id', friendId).maybeSingle();
+  dmFriendAvatarUrl = fp?.avatar_url || null;
+  const avatarSrc = dmFriendAvatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(friendId)}`;
+  dmTitle.innerHTML = `<img class="dm-title-avatar" src="${escHtml(avatarSrc)}" alt="" />${escHtml(friendName)}`;
   // 상대방이 나를 차단했는지 확인
   const { data: blk } = await sb.from('blocks').select('blocker_id')
     .eq('blocker_id', friendId).eq('blocked_id', currentUser.id).maybeSingle();
@@ -3143,22 +3148,35 @@ async function loadDMMessages() {
   const userIds = [...new Set(messages.map(m => m.sender_id))];
   const profileMap = {};
   if (userIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
-    (profiles || []).forEach(p => { profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds);
+    (profiles || []).forEach(p => {
+      profileMap[p.id] = {
+        name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음',
+        avatar_url: p.avatar_url || null,
+      };
+    });
   }
 
   dmMessages.innerHTML = '';
-  messages.forEach(msg => appendDMMessage(msg, profileMap[msg.sender_id] || '알 수 없음'));
+  messages.forEach(msg => {
+    const p = profileMap[msg.sender_id];
+    appendDMMessage(msg, p?.name || '알 수 없음', p?.avatar_url || null);
+  });
   dmMessages.scrollTop = dmMessages.scrollHeight;
 }
 
-function appendDMMessage(msg, senderName) {
+function appendDMMessage(msg, senderName, senderAvatarUrl) {
   const isMine = msg.sender_id === currentUser.id;
   const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   const el = document.createElement('div');
   el.className = `message ${isMine ? 'mine' : 'theirs'}`;
+  let authorHtml = '';
+  if (!isMine) {
+    const avatarSrc = senderAvatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(msg.sender_id)}`;
+    authorHtml = `<div class="message-author"><img class="message-author-avatar" src="${escHtml(avatarSrc)}" alt="" />${escHtml(senderName)}</div>`;
+  }
   el.innerHTML = `
-    ${!isMine ? `<div class="message-author">${escHtml(senderName)}</div>` : ''}
+    ${authorHtml}
     <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
     <div class="message-time">${time}</div>
   `;
@@ -3208,9 +3226,9 @@ function subscribeDM() {
       if (sentDmIds.has(msg.id)) { sentDmIds.delete(msg.id); return; }
       if (msg.sender_id !== dmFriendId) return;
       if (isNotifOn('dm_in_dm')) playDM();
-      const { data: profile } = await sb.from('profiles').select('nickname, display_name, email').eq('id', msg.sender_id).single();
+      const { data: profile } = await sb.from('profiles').select('nickname, display_name, email, avatar_url').eq('id', msg.sender_id).single();
       const name = profile?.nickname || profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음';
-      appendDMMessage(msg, name);
+      appendDMMessage(msg, name, profile?.avatar_url || null);
       dmMessages.scrollTop = dmMessages.scrollHeight;
     })
     .subscribe();
