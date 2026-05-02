@@ -2266,10 +2266,10 @@ document.getElementById('avatar-upload').addEventListener('change', async (e) =>
   try {
     const ext = file.name.split('.').pop().toLowerCase();
     const path = `${currentUser.id}/avatar.${ext}`;
-    const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+    const { error: upErr } = await sb.storage.from('avastars').upload(path, file, { upsert: true });
     if (upErr) throw upErr;
 
-    const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+    const { data: urlData } = sb.storage.from('avastars').getPublicUrl(path);
     const publicUrl = urlData.publicUrl + '?t=' + Date.now();
 
     const { error: dbErr } = await sb.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
