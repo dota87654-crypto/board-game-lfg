@@ -4563,13 +4563,14 @@ document.getElementById('guild-search-input').addEventListener('input', () => {
 async function updateGuildReqBadge() {
   const badge = document.getElementById('guild-req-badge');
   if (!badge) return;
-  // DB에서 직접 조회 (myGuilds 초기화 전에도 동작)
-  const { data: memberships } = await sb.from('guild_members')
+  const { data: memberships, error: mErr } = await sb.from('guild_members')
     .select('guild_id').eq('user_id', currentUser.id).in('role', ['owner', 'officer']);
+  console.log('[updateGuildReqBadge] memberships:', memberships, 'error:', mErr);
   if (!memberships?.length) { badge.classList.add('hidden'); return; }
   const gids = memberships.map(m => m.guild_id);
-  const { count } = await sb.from('guild_join_requests')
+  const { count, error: cErr } = await sb.from('guild_join_requests')
     .select('*', { count: 'exact', head: true }).in('guild_id', gids).eq('status', 'pending');
+  console.log('[updateGuildReqBadge] pending count:', count, 'error:', cErr);
   if (count > 0) { badge.textContent = count; badge.classList.remove('hidden'); }
   else badge.classList.add('hidden');
 }
