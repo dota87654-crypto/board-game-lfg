@@ -228,10 +228,15 @@ async function loadUsers() {
         <b>${escHtml(name)}</b>${isActive ? '' : '<span class="badge-revoked">해지됨</span>'}
         <small>처벌: ${label} &nbsp;|&nbsp; 만료: ${until} &nbsp;|&nbsp; 적용일: ${since}</small>
       </div>
-      ${isActive ? `<button class="btn btn-success btn-revoke">처벌 해지</button>` : ''}
+      ${isActive ? `
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-warn btn-change">처벌 변경</button>
+          <button class="btn btn-success btn-revoke">처벌 해지</button>
+        </div>` : ''}
     `;
     if (isActive) {
       card.querySelector('.btn-revoke').addEventListener('click', () => revokePunishment(p.id, p.user_id, name));
+      card.querySelector('.btn-change').addEventListener('click', () => changePunishment(p.id, p.user_id, name, p.type));
     }
     container.appendChild(card);
   });
@@ -257,6 +262,62 @@ function revokePunishment(punishmentId, userId, userName) {
 
 document.getElementById('revoke-cancel-btn').addEventListener('click', () => {
   document.getElementById('revoke-modal').style.display = 'none';
+});
+
+function changePunishment(punishmentId, userId, userName, currentType) {
+  const typeLabel = { warning: '경고', chat_ban: '채팅금지', suspend: '이용정지', permanent_ban: '영구정지' };
+  document.getElementById('change-punish-target').textContent =
+    `${userName} · 현재: ${typeLabel[currentType] || currentType}`;
+
+  // 현재 처벌과 같은 옵션은 비활성화
+  const sel = document.getElementById('change-punish-select');
+  [...sel.options].forEach(opt => {
+    const optCfg = PUNISHMENT_CONFIG[opt.value];
+    opt.disabled = optCfg && optCfg.type === currentType;
+    opt.selected = false;
+  });
+  // 첫 번째 활성 옵션 자동 선택
+  const firstEnabled = [...sel.options].find(o => !o.disabled);
+  if (firstEnabled) firstEnabled.selected = true;
+
+  document.getElementById('change-punish-modal').style.display = 'flex';
+
+  document.getElementById('change-punish-confirm-btn').onclick = async () => {
+    const actionKey = sel.value;
+    const cfg = PUNISHMENT_CONFIG[actionKey];
+    if (!cfg) return;
+    document.getElementById('change-punish-modal').style.display = 'none';
+
+    const expiresAt = cfg.days ? new Date(Date.now() + cfg.days * 86400000).toISOString() : null;
+
+    // 기존 처벌 비활성화
+    await sb.from('punishments').update({ is_active: false }).eq('id', punishmentId);
+
+    // 새 처벌 삽입 (경고는 punishments 레코드 없이 알림만)
+    if (cfg.type !== 'warning') {
+      const { error } = await sb.from('punishments').insert({
+        user_id: userId,
+        type: cfg.type,
+        expires_at: expiresAt,
+        admin_id: currentAdmin.id,
+        is_active: true,
+      });
+      if (error) { alert('처벌 변경 실패: ' + error.message); return; }
+    }
+
+    await sb.from('notifications').insert({
+      user_id: userId,
+      type: 'punishment',
+      message: buildPunishmentMessage(actionKey, expiresAt, null),
+      is_read: false,
+    });
+
+    loadUsers();
+  };
+}
+
+document.getElementById('change-punish-cancel-btn').addEventListener('click', () => {
+  document.getElementById('change-punish-modal').style.display = 'none';
 });
 
 // 문의 목록
