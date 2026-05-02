@@ -188,53 +188,76 @@ async function dismissReport(reportId) {
 }
 
 // 유저 관리 탭
+document.getElementById('users-filter').addEventListener('change', loadUsers);
+
 async function loadUsers() {
+  const filter = document.getElementById('users-filter').value;
   const container = document.getElementById('users-list');
   container.innerHTML = '<div class="empty">로딩 중...</div>';
 
-  const now = new Date().toISOString();
-  const { data: punishments, error } = await sb.from('punishments')
-    .select('id, user_id, type, expires_at, created_at')
-    .eq('is_active', true)
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .order('created_at', { ascending: false });
+  let query = sb.from('punishments')
+    .select('id, user_id, type, expires_at, created_at, is_active')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (filter === 'active') query = query.eq('is_active', true);
+
+  const { data: punishments, error } = await query;
 
   if (error) { container.innerHTML = `<div class="empty">오류: ${error.message}</div>`; return; }
-  if (!punishments?.length) { container.innerHTML = '<div class="empty">활성 처벌이 없습니다.</div>'; return; }
+  if (!punishments?.length) { container.innerHTML = '<div class="empty">처벌 내역이 없습니다.</div>'; return; }
 
   const ids = [...new Set(punishments.map(p => p.user_id))];
   const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', ids);
   const nameMap = {};
   (profiles || []).forEach(p => { nameMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
 
+  const typeLabel = { warning: '경고', chat_ban: '채팅금지', suspend: '이용정지', permanent_ban: '영구정지' };
+
   container.innerHTML = '';
   punishments.forEach(p => {
     const name = nameMap[p.user_id] || '알 수 없음';
-    const typeLabel = { warning: '경고', chat_ban: '채팅금지', suspend: '이용정지', permanent_ban: '영구정지' }[p.type] || p.type;
+    const label = typeLabel[p.type] || p.type;
     const until = p.expires_at ? new Date(p.expires_at).toLocaleString('ko-KR') : '영구';
     const since = new Date(p.created_at).toLocaleString('ko-KR');
+    const isActive = p.is_active;
 
     const card = document.createElement('div');
-    card.className = 'user-card';
+    card.className = `user-card${isActive ? '' : ' revoked'}`;
     card.innerHTML = `
       <div class="user-info">
-        <b>${escHtml(name)}</b>
-        <small>처벌: ${typeLabel} &nbsp;|&nbsp; 만료: ${until} &nbsp;|&nbsp; 적용일: ${since}</small>
+        <b>${escHtml(name)}</b>${isActive ? '' : '<span class="badge-revoked">해지됨</span>'}
+        <small>처벌: ${label} &nbsp;|&nbsp; 만료: ${until} &nbsp;|&nbsp; 적용일: ${since}</small>
       </div>
-      <button class="btn btn-success" data-unban="${p.id}">정지 해제</button>
+      ${isActive ? `<button class="btn btn-success btn-revoke">처벌 해지</button>` : ''}
     `;
-    card.querySelector('[data-unban]').addEventListener('click', () => unbanUser(p.id, name));
+    if (isActive) {
+      card.querySelector('.btn-revoke').addEventListener('click', () => revokePunishment(p.id, p.user_id, name));
+    }
     container.appendChild(card);
   });
 }
 
-async function unbanUser(punishmentId, userName) {
-  if (!confirm(`${userName}의 처벌을 해제하시겠습니까?`)) return;
-  const { error } = await sb.from('punishments').update({ is_active: false }).eq('id', punishmentId);
-  if (error) { alert('해제 실패: ' + error.message); return; }
-  alert('처벌이 해제되었습니다.');
-  loadUsers();
+function revokePunishment(punishmentId, userId, userName) {
+  document.getElementById('revoke-modal-msg').textContent = `${userName}의 처벌을 정말로 해지하시겠습니까?`;
+  document.getElementById('revoke-modal').style.display = 'flex';
+
+  document.getElementById('revoke-confirm-btn').onclick = async () => {
+    document.getElementById('revoke-modal').style.display = 'none';
+    const { error } = await sb.from('punishments').update({ is_active: false }).eq('id', punishmentId);
+    if (error) { alert('해지 실패: ' + error.message); return; }
+    await sb.from('notifications').insert({
+      user_id: userId,
+      type: 'punishment',
+      message: '처벌이 해지되었습니다.',
+      is_read: false,
+    });
+    loadUsers();
+  };
 }
+
+document.getElementById('revoke-cancel-btn').addEventListener('click', () => {
+  document.getElementById('revoke-modal').style.display = 'none';
+});
 
 // 문의 목록
 document.getElementById('inquiry-status-filter').addEventListener('change', loadInquiries);

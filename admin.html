@@ -71,6 +71,13 @@
     .announce-card-title { font-weight: 600; font-size: 0.95rem; }
     .announce-card-meta { font-size: 0.78rem; color: var(--text-muted); }
     .announce-card-body { font-size: 0.85rem; color: var(--text-muted); white-space: pre-wrap; word-break: break-word; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .user-card.revoked { opacity: 0.5; }
+    .user-card.revoked .user-info b { text-decoration: line-through; }
+    .badge-revoked { background: var(--surface2); color: var(--text-muted); display:inline-block; padding:2px 8px; border-radius:12px; font-size:0.72rem; font-weight:700; margin-left:6px; }
+    .confirm-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:999; }
+    .confirm-box { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:28px; max-width:340px; width:100%; text-align:center; }
+    .confirm-box p { font-size:0.95rem; margin-bottom:20px; line-height:1.6; }
+    .confirm-box .actions { display:flex; gap:10px; justify-content:center; }
   </style>
 </head>
 <body>
@@ -110,8 +117,25 @@
 
   <!-- 유저 관리 탭 -->
   <div id="tab-users" class="tab-content" style="display:none;">
-    <div class="section-title">활성 처벌 목록</div>
+    <div class="filter-bar">
+      <label>표시 필터:</label>
+      <select id="users-filter">
+        <option value="active">활성 처벌만</option>
+        <option value="all">전체</option>
+      </select>
+    </div>
     <div id="users-list"></div>
+  </div>
+
+  <!-- 처벌 해지 확인 모달 -->
+  <div id="revoke-modal" class="confirm-overlay" style="display:none;">
+    <div class="confirm-box">
+      <p id="revoke-modal-msg">정말로 처벌을 해지하시겠습니까?</p>
+      <div class="actions">
+        <button id="revoke-confirm-btn" class="btn btn-success">확인</button>
+        <button id="revoke-cancel-btn" class="btn btn-ghost">취소</button>
+      </div>
+    </div>
   </div>
 
   <!-- 문의 목록 탭 -->
