@@ -2718,13 +2718,15 @@ function updateNotifBadge(count) {
   });
 }
 
-// 알림 구독 (onLogin 후 호출) — punishment 타입은 뱃지 제외, 팝업으로 별도 처리
+// 알림 구독 (onLogin 후 호출) — punishment/guild 타입은 뱃지 제외 (별도 처리)
 async function subscribeNotifications() {
   const { count } = await sb.from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', currentUser.id)
     .eq('is_read', false)
-    .neq('type', 'punishment');
+    .neq('type', 'punishment')
+    .neq('type', 'guild_request')
+    .neq('type', 'guild_approved');
   updateNotifBadge(count || 0);
 
   const ch = sb.channel(`notif-${currentUser.id}`)
@@ -2739,9 +2741,10 @@ async function subscribeNotifications() {
         // 모달 표시 후 즉시 처벌 적용 (이용정지면 signOut)
         showPunishmentModal([payload.new]);
         await checkAndApplyPunishment(currentUser.id, false);
-      } else {
+      } else if (payload.new.type !== 'guild_request' && payload.new.type !== 'guild_approved') {
         sb.from('notifications').select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser.id).eq('is_read', false).neq('type', 'punishment')
+          .eq('user_id', currentUser.id).eq('is_read', false)
+          .neq('type', 'punishment').neq('type', 'guild_request').neq('type', 'guild_approved')
           .then(({ count: c }) => updateNotifBadge(c || 0));
       }
     })
@@ -4172,6 +4175,10 @@ async function enterGuildDetail(guild) {
     .select('role').eq('guild_id', guild.id).eq('user_id', currentUser.id).maybeSingle();
   if (!myMembership) { alert('길드 멤버가 아닙니다.'); return; }
 
+  // 길드 입장 시 guild_approved 알림 읽음 처리
+  sb.from('notifications').update({ is_read: true })
+    .eq('user_id', currentUser.id).eq('type', 'guild_approved').eq('is_read', false);
+
   currentGuild = { ...guild, myRole: myMembership.role };
   const isOfficer = ['owner', 'officer'].includes(currentGuild.myRole);
   const isOwner = currentGuild.myRole === 'owner';
@@ -4375,6 +4382,10 @@ async function loadGuildRequestsBadge(guildId) {
 }
 
 async function openGuildRequestsModal() {
+  // 가입신청 모달 열 때 guild_request 알림 읽음 처리
+  sb.from('notifications').update({ is_read: true })
+    .eq('user_id', currentUser.id).eq('type', 'guild_request').eq('is_read', false);
+
   const { data } = await sb.from('guild_join_requests')
     .select('id, user_id, created_at')
     .eq('guild_id', currentGuild.id).eq('status', 'pending').order('created_at', { ascending: true });
