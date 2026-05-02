@@ -2741,7 +2741,10 @@ async function subscribeNotifications() {
         // 모달 표시 후 즉시 처벌 적용 (이용정지면 signOut)
         showPunishmentModal([payload.new]);
         await checkAndApplyPunishment(currentUser.id, false);
-      } else if (payload.new.type !== 'guild_request' && payload.new.type !== 'guild_approved') {
+      } else if (payload.new.type === 'guild_request') {
+        // 가입신청 알림 → 길드 아이콘 뱃지 즉시 갱신
+        updateGuildReqBadge();
+      } else if (payload.new.type !== 'guild_approved') {
         sb.from('notifications').select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser.id).eq('is_read', false)
           .neq('type', 'punishment').neq('type', 'guild_request').neq('type', 'guild_approved')
