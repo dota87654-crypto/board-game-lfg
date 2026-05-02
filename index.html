@@ -46,6 +46,7 @@
         <button id="friends-btn" class="btn btn-sm" data-i18n-title="title.friends" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
         <button id="dm-btn" class="btn btn-sm" data-i18n-title="title.dm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
         <button id="announcement-btn" class="btn btn-sm" title="공지사항">📢<span id="announce-badge" class="friends-badge hidden"></span></button>
+        <button id="guild-btn" class="btn btn-sm" title="길드">🏰<span id="guild-req-badge" class="friends-badge hidden"></span></button>
         <button id="settings-btn" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️<span id="notif-badge" class="friends-badge hidden"></span></button>
 <button id="logout-btn" class="btn btn-sm" data-i18n="btn.logout">로그아웃</button>
       </div>
@@ -359,6 +360,15 @@
         <button type="button" id="create-tag-toggle" class="create-tag-toggle">🏷️ 태그 선택</button>
         <div id="create-tag-panel" class="create-tag-panel hidden"></div>
       </div>
+      <div id="guild-room-field" class="guild-room-field hidden">
+        <label class="toggle-row">
+          <span>🏰 길드 전용 방</span>
+          <input type="checkbox" id="guild-room-check" />
+        </label>
+        <select id="guild-room-select" class="region-select" style="width:100%;display:none;margin-top:8px;">
+          <option value="">길드 선택</option>
+        </select>
+      </div>
       <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px;" data-i18n="btn.create-room">방 만들기</button>
     </form>
   </div>
@@ -624,6 +634,128 @@
       <button id="report-submit-btn" class="btn btn-primary btn-sm">신고</button>
       <button id="report-cancel-btn" class="btn btn-sm">취소</button>
     </div>
+  </div>
+</div>
+
+<!-- 길드 목록 화면 -->
+<div id="guild-list-screen" class="screen hidden">
+  <header>
+    <div class="header-inner">
+      <button id="guild-list-back-btn" class="btn btn-sm">← 뒤로</button>
+      <h2 style="flex:1;">🏰 길드</h2>
+      <div class="header-right">
+        <button id="create-guild-btn" class="btn btn-primary btn-sm">+ 길드 만들기</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="container">
+      <div class="guild-section">
+        <div class="guild-section-title">내 길드</div>
+        <div id="my-guilds-list" class="guild-list"></div>
+      </div>
+      <div class="guild-search-bar">
+        <input type="text" id="guild-search-input" class="guild-search-input" placeholder="공개 길드 검색..." autocomplete="off" />
+      </div>
+      <div class="guild-section-title">공개 길드</div>
+      <div id="public-guilds-list" class="guild-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- 길드 상세/채팅 화면 -->
+<div id="guild-detail-screen" class="screen hidden">
+  <header>
+    <div class="header-inner">
+      <button id="guild-detail-back-btn" class="btn btn-sm">← 길드</button>
+      <div id="guild-title-area" style="flex:1;min-width:0;">
+        <h2 id="guild-title-el" style="margin:0;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></h2>
+        <span id="guild-meta-el" style="font-size:0.78rem;color:var(--text-muted);"></span>
+      </div>
+      <div class="header-right">
+        <button id="guild-requests-btn" class="btn btn-sm hidden">📋<span id="guild-requests-badge" class="friends-badge hidden"></span></button>
+        <button id="guild-members-panel-btn" class="btn btn-sm" title="멤버">👥</button>
+        <button id="guild-settings-btn" class="btn btn-sm hidden" title="길드 설정">⚙️</button>
+        <button id="leave-guild-btn" class="btn btn-sm btn-danger">나가기</button>
+      </div>
+    </div>
+  </header>
+  <div class="room-layout">
+    <div class="chat-area">
+      <div id="guild-messages-list" class="messages-list"></div>
+      <div class="chat-input-bar">
+        <input type="text" id="guild-chat-input" placeholder="길드 채팅..." />
+        <button id="guild-send-btn" class="btn btn-primary">전송</button>
+      </div>
+    </div>
+    <div id="guild-members-panel" class="members-panel">
+      <div class="members-panel-header">
+        <span>멤버</span>
+        <button id="guild-members-panel-close" class="btn btn-xs">✕</button>
+      </div>
+      <div id="guild-members-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 길드 만들기 모달 -->
+<div id="create-guild-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>길드 만들기</h3>
+      <button id="close-create-guild-btn" class="modal-close">✕</button>
+    </div>
+    <form id="create-guild-form">
+      <label><span>길드 이름 (2~24자)</span>
+        <input type="text" id="guild-name-input" maxlength="24" placeholder="길드 이름" required />
+      </label>
+      <label><span>소개 (선택)</span>
+        <textarea id="guild-desc-input" rows="3" maxlength="200" placeholder="길드 소개를 입력하세요..."></textarea>
+      </label>
+      <label class="toggle-row">
+        <span>공개 길드 <small style="color:var(--text-muted)">(비공개: 초대로만 가입)</small></span>
+        <input type="checkbox" id="guild-public-check" checked />
+      </label>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">만들기</button>
+        <button type="button" id="cancel-create-guild-btn" class="btn">취소</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 길드 설정 모달 -->
+<div id="guild-settings-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>길드 설정</h3>
+      <button id="close-guild-settings-btn" class="modal-close">✕</button>
+    </div>
+    <label><span>길드 이름</span>
+      <input type="text" id="guild-edit-name" maxlength="24" />
+    </label>
+    <label><span>소개</span>
+      <textarea id="guild-edit-desc" rows="3" maxlength="200"></textarea>
+    </label>
+    <label class="toggle-row">
+      <span>공개 길드</span>
+      <input type="checkbox" id="guild-edit-public" />
+    </label>
+    <div class="modal-actions">
+      <button id="guild-save-settings-btn" class="btn btn-primary">저장</button>
+      <button id="guild-delete-btn" class="btn btn-danger">길드 삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 길드 가입 신청 모달 -->
+<div id="guild-requests-modal" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>가입 신청 목록</h3>
+      <button id="close-guild-requests-btn" class="modal-close">✕</button>
+    </div>
+    <div id="guild-requests-list"></div>
   </div>
 </div>
 
