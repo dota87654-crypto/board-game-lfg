@@ -457,34 +457,69 @@ async function upsertProfile(user) {
   }
 }
 
+async function checkAndApplyPunishment(userId) {
+  const now = new Date().toISOString();
+  const { data: punish } = await sb.from('punishments')
+    .select('type, expires_at')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (punish?.type === 'suspend' || punish?.type === 'permanent_ban') {
+    const until = punish.expires_at ? `(${new Date(punish.expires_at).toLocaleDateString('ko-KR')}까지)` : '(영구)';
+    alert(`이용이 정지된 계정입니다 ${until}.\n사유가 없다고 생각하시면 문의해주세요.`);
+    await sb.auth.signOut();
+    return false;
+  }
+
+  if (punish?.type === 'chat_ban') {
+    window._chatBanned = true;
+    window._chatBanUntil = punish.expires_at;
+  } else {
+    window._chatBanned = false;
+    window._chatBanUntil = null;
+  }
+  applyChatBanUI();
+  return true;
+}
+
+function applyChatBanUI() {
+  if (!chatInput || !sendBtn) return;
+  if (window._chatBanned) {
+    const until = window._chatBanUntil ? ` (${new Date(window._chatBanUntil).toLocaleDateString('ko-KR')}까지)` : '';
+    chatInput.disabled = true;
+    chatInput.placeholder = `채팅금지 상태입니다${until}`;
+    sendBtn.disabled = true;
+  } else {
+    chatInput.disabled = false;
+    chatInput.placeholder = t('chat.placeholder');
+    sendBtn.disabled = false;
+  }
+}
+
+function subscribePunishments() {
+  const ch = sb.channel(`punish-${currentUser.id}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'punishments',
+      filter: `user_id=eq.${currentUser.id}`,
+    }, () => { checkAndApplyPunishment(currentUser.id); })
+    .subscribe();
+  realtimeChannels.push(ch);
+}
+
 async function onLogin(user) {
   if (currentUser?.id === user.id) return;
   currentUser = user;
   unsubscribeAll();
   await upsertProfile(user);
 
-  // 처벌 확인
-  const now = new Date().toISOString();
-  const { data: punish } = await sb.from('punishments')
-    .select('type, expires_at')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (punish) {
-    if (punish.type === 'suspend' || punish.type === 'permanent_ban') {
-      const until = punish.expires_at ? `(${new Date(punish.expires_at).toLocaleDateString('ko-KR')}까지)` : '(영구)';
-      alert(`이용이 정지된 계정입니다 ${until}.\n사유가 없다고 생각하시면 문의해주세요.`);
-      await sb.auth.signOut();
-      return;
-    }
-    if (punish.type === 'chat_ban') {
-      window._chatBanned = true;
-      window._chatBanUntil = punish.expires_at;
-    }
-  }
+  const ok = await checkAndApplyPunishment(user.id);
+  if (!ok) return;
 
   const { data: profile } = await sb.from('profiles').select('nickname, lang, avatar_url').eq('id', user.id).single();
   currentAvatarUrl = profile?.avatar_url || '';
@@ -518,6 +553,7 @@ async function goToMain() {
   subscribeNotifications();
   checkPunishmentNotif();
   checkAnnounceBadge();
+  subscribePunishments();
   initRoomUnread();
   loadBlocks();
   subscribeInvites();
@@ -1356,6 +1392,7 @@ async function enterRoom(room) {
   roomMetaEl.textContent = `🎮 ${room.game_name} · ${room.category}${timeStr}`;
 
   showScreen('room');
+  applyChatBanUI();
   messagesList.innerHTML = '';
 
   // 이전 참여 방 기록 (위임 처리용)
@@ -1572,11 +1609,7 @@ function scrollToBottom() {
 const sentMessageIds = new Set();
 
 async function sendMessage() {
-  if (window._chatBanned) {
-    const until = window._chatBanUntil ? new Date(window._chatBanUntil).toLocaleDateString('ko-KR') : '';
-    alert(`채팅이 금지된 계정입니다${until ? ` (${until}까지)` : ''}.`);
-    return;
-  }
+  if (window._chatBanned) return; // 입력창이 disabled지만 방어 코드 유지
   const content = chatInput.value.trim();
   if (!content || !currentRoom) return;
   chatInput.value = '';
