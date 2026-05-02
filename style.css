@@ -1445,4 +1445,47 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   user-select: none;
 }
 .toggle-row span { font-size: 0.9rem; }
+
+/* 길드 만들기/설정 모달 textarea */
+#create-guild-form textarea,
+#guild-settings-modal textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 100px;
+  outline: none;
+  line-height: 1.5;
+}
+#create-guild-form textarea:focus,
+#guild-settings-modal textarea:focus { border-color: var(--primary); }
+
+/* 공개길드 토글 한 줄 레이아웃 */
+.guild-public-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.guild-public-row span { font-size: 0.9rem; flex: 1; }
+.guild-public-row small { color: var(--text-muted); font-size: 0.82rem; }
+.guild-public-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
 .room-guild-badge { font-size: 0.78rem; color: #b45309; margin-bottom: 4px; }

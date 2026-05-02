@@ -710,10 +710,10 @@
         <input type="text" id="guild-name-input" maxlength="24" placeholder="길드 이름" required />
       </label>
       <label><span>소개 (선택)</span>
-        <textarea id="guild-desc-input" rows="3" maxlength="200" placeholder="길드 소개를 입력하세요..."></textarea>
+        <textarea id="guild-desc-input" maxlength="200" placeholder="길드 소개를 입력하세요..."></textarea>
       </label>
-      <label class="toggle-row">
-        <span>공개 길드 <small style="color:var(--text-muted)">(비공개: 초대로만 가입)</small></span>
+      <label class="guild-public-row">
+        <span>공개 길드 <small>(비공개: 초대로만 가입)</small></span>
         <input type="checkbox" id="guild-public-check" checked />
       </label>
       <div class="modal-actions">
@@ -735,9 +735,9 @@
       <input type="text" id="guild-edit-name" maxlength="24" />
     </label>
     <label><span>소개</span>
-      <textarea id="guild-edit-desc" rows="3" maxlength="200"></textarea>
+      <textarea id="guild-edit-desc" maxlength="200"></textarea>
     </label>
-    <label class="toggle-row">
+    <label class="guild-public-row">
       <span>공개 길드</span>
       <input type="checkbox" id="guild-edit-public" />
     </label>
