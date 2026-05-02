@@ -132,6 +132,7 @@ header {
 /* Settings */
 .settings-body { padding: 4px 0; }
 .settings-modal { max-height: 90vh; display: flex; flex-direction: column; }
+.settings-modal .settings-tab-panel { min-height: 480px; }
 .settings-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);

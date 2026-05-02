@@ -91,14 +91,14 @@
       <button class="modal-close" id="close-settings-btn">&times;</button>
     </div>
     <div class="settings-tabs">
-      <button class="settings-tab active" data-tab="audio" data-i18n="settings.tab.audio">🔊 오디오</button>
-      <button class="settings-tab" data-tab="general" data-i18n="settings.tab.general">⚙️ 일반</button>
+      <button class="settings-tab active" data-tab="general" data-i18n="settings.tab.general">⚙️ 일반</button>
+      <button class="settings-tab" data-tab="audio" data-i18n="settings.tab.audio">🔊 오디오</button>
       <button class="settings-tab" data-tab="block" data-i18n="settings.tab.block">🚫 차단</button>
       <button class="settings-tab" data-tab="inquiry">📩 문의</button>
     </div>
 
     <!-- 오디오 탭 -->
-    <div class="settings-tab-panel" id="stab-audio">
+    <div class="settings-tab-panel hidden" id="stab-audio">
       <p class="settings-section-title" data-i18n="settings.notif.vol">전체 알림 볼륨</p>
       <div class="volume-row">
         <span class="volume-icon">🔈</span>
@@ -140,7 +140,7 @@
     </div>
 
     <!-- 일반 탭 -->
-    <div class="settings-tab-panel hidden" id="stab-general">
+    <div class="settings-tab-panel" id="stab-general">
       <p class="settings-section-title" data-i18n="settings.filter">채팅 필터</p>
       <div class="toggle-row">
         <span class="toggle-label" data-i18n="settings.filter.profanity">🤬 욕설 필터</span>
