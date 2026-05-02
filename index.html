@@ -739,19 +739,23 @@
       <h3>길드 설정</h3>
       <button id="close-guild-settings-btn" class="modal-close">✕</button>
     </div>
-    <label><span>길드 이름</span>
-      <input type="text" id="guild-edit-name" maxlength="24" />
-    </label>
-    <label><span>소개</span>
-      <textarea id="guild-edit-desc" maxlength="200"></textarea>
-    </label>
-    <label class="guild-public-row">
-      <span>공개 길드</span>
-      <input type="checkbox" id="guild-edit-public" />
-    </label>
-    <div class="modal-actions">
-      <button id="guild-save-settings-btn" class="btn btn-primary">저장</button>
-      <button id="guild-delete-btn" class="btn btn-danger">길드 삭제</button>
+    <div class="guild-settings-form">
+      <div class="guild-settings-field">
+        <label class="guild-settings-label" for="guild-edit-name">길드 이름</label>
+        <input type="text" id="guild-edit-name" class="guild-settings-input" maxlength="24" />
+      </div>
+      <div class="guild-settings-field">
+        <label class="guild-settings-label" for="guild-edit-desc">소개</label>
+        <textarea id="guild-edit-desc" maxlength="200"></textarea>
+      </div>
+      <label class="guild-public-row">
+        <span>공개 길드</span>
+        <input type="checkbox" id="guild-edit-public" />
+      </label>
+      <div class="guild-settings-footer">
+        <button id="guild-save-settings-btn" class="btn btn-primary">저장</button>
+        <button id="guild-delete-btn" class="btn btn-danger">길드 삭제</button>
+      </div>
     </div>
   </div>
 </div>

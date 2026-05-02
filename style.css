@@ -1480,6 +1480,29 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 #create-guild-form textarea:focus,
 #guild-settings-modal textarea:focus { border-color: var(--primary); }
 
+/* 길드 설정 폼 레이아웃 */
+.guild-settings-form { display: flex; flex-direction: column; gap: 16px; margin-top: 4px; }
+.guild-settings-field { display: flex; flex-direction: column; gap: 6px; }
+.guild-settings-label { font-size: 0.9rem; color: var(--text-muted); }
+.guild-settings-input {
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+.guild-settings-input:focus { border-color: var(--primary); }
+.guild-settings-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 /* 공개길드 토글 한 줄 레이아웃 */
 .guild-public-row {
   display: flex;
