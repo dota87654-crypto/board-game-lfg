@@ -15,6 +15,15 @@ const PUNISHMENT_LABELS = {
   permanent_ban: '🚫 영구정지',
 };
 
+const PUNISHMENT_NOTIFY = {
+  warning:       '관리자로부터 경고 처분을 받았습니다.',
+  chat_ban_3d:   '관리자로부터 채팅금지 3일 처분을 받았습니다.',
+  chat_ban_7d:   '관리자로부터 채팅금지 7일 처분을 받았습니다.',
+  suspend_1d:    '관리자로부터 이용정지 1일 처분을 받았습니다.',
+  suspend_7d:    '관리자로부터 이용정지 7일 처분을 받았습니다.',
+  permanent_ban: '관리자로부터 영구정지 처분을 받았습니다.',
+};
+
 const PUNISHMENT_CONFIG = {
   warning:       { type: 'warning',       days: 0 },
   chat_ban_3d:   { type: 'chat_ban',      days: 3 },
@@ -68,7 +77,7 @@ async function loadReports() {
   container.innerHTML = '<div class="empty">로딩 중...</div>';
 
   let query = sb.from('reports')
-    .select('id, reporter_id, reported_user_id, reason, message_content, room_id, created_at, status')
+    .select('id, reporter_id, reported_user_id, reason, detail, message_content, room_id, created_at, status')
     .order('created_at', { ascending: false })
     .limit(100);
 
@@ -106,6 +115,7 @@ function renderReportCard(r, nameMap, container) {
       <span class="badge ${badgeClass}">${badgeLabel}</span>
     </div>
     <div class="report-reason">${escHtml(r.reason)}</div>
+    ${r.detail ? `<div class="report-content" style="border-left:3px solid var(--warn);padding-left:10px;">${escHtml(r.detail)}</div>` : ''}
     ${r.message_content ? `<div class="report-content">"${escHtml(r.message_content)}"</div>` : ''}
     <div class="report-actions">
       ${r.status === 'pending' ? `
@@ -149,6 +159,14 @@ async function applyPunishment(actionKey, userId, reportId, userName) {
   }
 
   await sb.from('reports').update({ status: 'resolved' }).eq('id', reportId);
+
+  await sb.from('notifications').insert({
+    user_id: userId,
+    type: 'punishment',
+    message: PUNISHMENT_NOTIFY[actionKey],
+    is_read: false,
+  });
+
   alert('처벌이 적용되었습니다.');
   loadReports();
 }
@@ -217,7 +235,7 @@ async function loadInquiries() {
   container.innerHTML = '<div class="empty">로딩 중...</div>';
 
   let query = sb.from('inquiries')
-    .select('id, user_id, type, title, content, created_at, status')
+    .select('id, user_id, type, title, content, created_at, status, answer, answered_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (status !== 'all') query = query.eq('status', status);
@@ -237,8 +255,10 @@ async function loadInquiries() {
   items.forEach(item => {
     const name = nameMap[item.user_id] || '알 수 없음';
     const time = new Date(item.created_at).toLocaleString('ko-KR');
-    const badgeClass = item.status === 'resolved' ? 'badge-resolved' : 'badge-pending';
-    const badgeLabel = item.status === 'resolved' ? '처리됨' : '대기중';
+    const badgeMap = { pending: 'badge-pending', answered: 'badge-answered', resolved: 'badge-resolved' };
+    const labelMap = { pending: '대기중', answered: '답변완료', resolved: '처리됨' };
+    const badgeClass = badgeMap[item.status] || 'badge-pending';
+    const badgeLabel = labelMap[item.status] || item.status;
 
     const card = document.createElement('div');
     card.className = 'report-card';
@@ -251,21 +271,50 @@ async function loadInquiries() {
       </div>
       <div style="font-weight:600;margin-bottom:6px;">${escHtml(item.title)}</div>
       <div class="report-content" style="white-space:pre-wrap;">${escHtml(item.content)}</div>
-      <div class="report-actions">
-        ${item.status === 'pending'
-          ? `<button class="btn btn-success" data-resolve="${item.id}">✅ 처리 완료</button>`
-          : `<button class="btn btn-ghost" data-reopen="${item.id}">↩ 재개</button>`
-        }
+      ${item.answer ? `
+        <div class="answer-box">
+          <div class="answer-label">📨 답변 (${new Date(item.answered_at).toLocaleString('ko-KR')})</div>
+          <div class="answer-text">${escHtml(item.answer)}</div>
+        </div>
+      ` : ''}
+      <div class="answer-form">
+        <textarea class="answer-textarea" placeholder="답변을 입력하세요...">${escHtml(item.answer || '')}</textarea>
+        <div class="report-actions" style="margin-top:8px;">
+          <button class="btn btn-primary btn-send-answer">📨 답변 전송</button>
+          ${item.status !== 'pending'
+            ? `<button class="btn btn-ghost" data-reopen="${item.id}">↩ 재개</button>`
+            : ''
+          }
+        </div>
       </div>
     `;
-    card.querySelector('[data-resolve]')?.addEventListener('click', () => resolveInquiry(item.id));
+
+    card.querySelector('.btn-send-answer').addEventListener('click', () => {
+      const answer = card.querySelector('.answer-textarea').value.trim();
+      if (!answer) { alert('답변 내용을 입력해주세요.'); return; }
+      sendAnswer(item.id, item.user_id, answer);
+    });
     card.querySelector('[data-reopen]')?.addEventListener('click', () => reopenInquiry(item.id));
     container.appendChild(card);
   });
 }
 
-async function resolveInquiry(id) {
-  await sb.from('inquiries').update({ status: 'resolved' }).eq('id', id);
+async function sendAnswer(itemId, userId, answer) {
+  const { error } = await sb.from('inquiries').update({
+    answer,
+    answered_at: new Date().toISOString(),
+    status: 'answered',
+  }).eq('id', itemId);
+  if (error) { alert('답변 전송 실패: ' + error.message); return; }
+
+  await sb.from('notifications').insert({
+    user_id: userId,
+    type: 'inquiry_answer',
+    message: '문의하신 내용에 대한 답변이 등록되었습니다.',
+    is_read: false,
+  });
+
+  alert('답변이 전송되었습니다.');
   loadInquiries();
 }
 
