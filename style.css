@@ -132,7 +132,7 @@ header {
 /* Settings */
 .settings-body { padding: 4px 0; }
 .settings-modal { display: flex; flex-direction: column; }
-.settings-modal .settings-tab-panel { height: 520px; overflow-y: auto; flex: none; }
+.settings-modal .settings-tab-panel { height: 520px; overflow-y: auto; flex: none; margin-right: -28px; padding-right: 28px; }
 .settings-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
