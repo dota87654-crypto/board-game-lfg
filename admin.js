@@ -54,6 +54,7 @@ function showTab(name) {
   if (name === 'users') loadUsers();
   if (name === 'inquiries') loadInquiries();
   if (name === 'announcements') loadAdminAnnouncements();
+  if (name === 'activity') { document.getElementById('activity-result').innerHTML = ''; }
 }
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -518,6 +519,247 @@ async function deleteAnnouncement(id, title) {
   const { error } = await sb.from('announcements').delete().eq('id', id);
   if (error) { alert('삭제 실패: ' + error.message); return; }
   loadAdminAnnouncements();
+}
+
+// ---- 활동 로그 ----
+document.getElementById('activity-search-btn').addEventListener('click', loadActivityLog);
+document.getElementById('activity-search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loadActivityLog();
+});
+
+async function loadActivityLog() {
+  const query = document.getElementById('activity-search-input').value.trim();
+  const container = document.getElementById('activity-result');
+  if (!query) { container.innerHTML = '<div class="empty">닉네임을 입력하세요.</div>'; return; }
+
+  container.innerHTML = '<div class="empty">검색 중...</div>';
+
+  const { data: profiles, error } = await sb.from('profiles')
+    .select('id, nickname, display_name, email, created_at')
+    .ilike('nickname', `%${query}%`)
+    .limit(20);
+
+  if (error) { container.innerHTML = `<div class="empty">오류: ${error.message}</div>`; return; }
+  if (!profiles?.length) { container.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>'; return; }
+
+  if (profiles.length === 1) {
+    container.innerHTML = '';
+    await renderActivityLog(profiles[0], container);
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="activity-section">
+      <div class="activity-section-title">검색 결과 <span class="activity-count">${profiles.length}명</span></div>
+      <table class="activity-table">
+        <thead><tr><th>닉네임</th><th>이메일</th><th>가입일</th></tr></thead>
+        <tbody>
+          ${profiles.map(p => `
+            <tr class="activity-user-pick" data-id="${p.id}">
+              <td>${escHtml(p.nickname || p.display_name || '알 수 없음')}</td>
+              <td>${escHtml(p.email || '-')}</td>
+              <td>${new Date(p.created_at).toLocaleDateString('ko-KR')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.querySelectorAll('.activity-user-pick').forEach(row => {
+    row.addEventListener('click', async () => {
+      const profile = profiles.find(p => p.id === row.dataset.id);
+      if (profile) { container.innerHTML = ''; await renderActivityLog(profile, container); }
+    });
+  });
+}
+
+async function renderActivityLog(profile, container) {
+  const name = escHtml(profile.nickname || profile.display_name || '알 수 없음');
+  const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
+
+  container.innerHTML = `
+    <div class="activity-section">
+      <div class="activity-section-title">👤 유저 정보</div>
+      <div class="activity-info-grid">
+        <div class="activity-info-item">
+          <span class="activity-info-label">닉네임</span>
+          <span>${name}</span>
+        </div>
+        <div class="activity-info-item">
+          <span class="activity-info-label">이메일</span>
+          <span>${escHtml(profile.email || '-')}</span>
+        </div>
+        <div class="activity-info-item">
+          <span class="activity-info-label">가입일</span>
+          <span>${new Date(profile.created_at).toLocaleDateString('ko-KR')}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // 방 입장 로그
+  const { data: entryLogs } = await sb.from('room_entry_logs')
+    .select('room_id, entered_at')
+    .eq('user_id', profile.id)
+    .gte('entered_at', since90)
+    .order('entered_at', { ascending: false })
+    .limit(100);
+
+  if (entryLogs?.length) {
+    const roomIds = [...new Set(entryLogs.map(e => e.room_id).filter(Boolean))];
+    const { data: rooms } = await sb.from('rooms')
+      .select('id, title, game_name, category, location').in('id', roomIds);
+    const roomMap = {};
+    (rooms || []).forEach(r => { roomMap[r.id] = r; });
+
+    const rows = entryLogs.map(e => {
+      const room = roomMap[e.room_id] || {};
+      const showLoc = room.category === '개인소유' || room.category === '보드게임방';
+      return `<tr>
+        <td>${escHtml(room.title || '(삭제된 방)')}</td>
+        <td>${escHtml(room.game_name || '-')}</td>
+        <td>${escHtml(room.category || '-')}</td>
+        <td>${showLoc ? escHtml(room.location || '-') : '-'}</td>
+        <td>${new Date(e.entered_at).toLocaleString('ko-KR')}</td>
+      </tr>`;
+    }).join('');
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🚪 방 입장 로그 <span class="activity-count">${entryLogs.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th>방 제목</th><th>게임</th><th>카테고리</th><th>장소</th><th>입장 시간</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🚪 방 입장 로그 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">최근 90일 입장 기록이 없습니다.</div>
+      </div>
+    `);
+  }
+
+  // 만든 방 목록
+  const { data: createdRooms } = await sb.from('rooms')
+    .select('id, title, game_name, category, location, created_at')
+    .eq('host_id', profile.id)
+    .gte('created_at', since90)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (createdRooms?.length) {
+    const rows = createdRooms.map(r => {
+      const showLoc = r.category === '개인소유' || r.category === '보드게임방';
+      return `<tr>
+        <td>${escHtml(r.title)}</td>
+        <td>${escHtml(r.game_name || '-')}</td>
+        <td>${escHtml(r.category || '-')}</td>
+        <td>${showLoc ? escHtml(r.location || '-') : '-'}</td>
+        <td>${new Date(r.created_at).toLocaleString('ko-KR')}</td>
+      </tr>`;
+    }).join('');
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🏠 만든 방 목록 <span class="activity-count">${createdRooms.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th>방 제목</th><th>게임</th><th>카테고리</th><th>장소</th><th>생성 시간</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🏠 만든 방 목록 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">최근 90일 생성한 방이 없습니다.</div>
+      </div>
+    `);
+  }
+
+  // 신고 당한 내역
+  const { data: reportedList } = await sb.from('reports')
+    .select('id, reporter_id, reason, detail, status, created_at')
+    .eq('reported_user_id', profile.id)
+    .gte('created_at', since90)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (reportedList?.length) {
+    const rIds = [...new Set(reportedList.map(r => r.reporter_id).filter(Boolean))];
+    const { data: rp } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', rIds);
+    const rMap = {};
+    (rp || []).forEach(p => { rMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+    const sLabel = { pending: '대기중', resolved: '처리됨', dismissed: '기각됨' };
+    const rows = reportedList.map(r => `<tr>
+      <td>${escHtml(rMap[r.reporter_id] || '알 수 없음')}</td>
+      <td>${escHtml(r.reason)}</td>
+      <td>${r.detail ? escHtml(r.detail) : '-'}</td>
+      <td>${escHtml(sLabel[r.status] || r.status)}</td>
+      <td>${new Date(r.created_at).toLocaleDateString('ko-KR')}</td>
+    </tr>`).join('');
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🚨 신고 당한 내역 <span class="activity-count">${reportedList.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th>신고자</th><th>사유</th><th>상세</th><th>상태</th><th>날짜</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🚨 신고 당한 내역 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">최근 90일 신고 당한 내역이 없습니다.</div>
+      </div>
+    `);
+  }
+
+  // 신고 한 내역
+  const { data: reporterList } = await sb.from('reports')
+    .select('id, reported_user_id, reason, detail, status, created_at')
+    .eq('reporter_id', profile.id)
+    .gte('created_at', since90)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (reporterList?.length) {
+    const rdIds = [...new Set(reporterList.map(r => r.reported_user_id).filter(Boolean))];
+    const { data: rdp } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', rdIds);
+    const rdMap = {};
+    (rdp || []).forEach(p => { rdMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+    const sLabel = { pending: '대기중', resolved: '처리됨', dismissed: '기각됨' };
+    const rows = reporterList.map(r => `<tr>
+      <td>${escHtml(rdMap[r.reported_user_id] || '알 수 없음')}</td>
+      <td>${escHtml(r.reason)}</td>
+      <td>${r.detail ? escHtml(r.detail) : '-'}</td>
+      <td>${escHtml(sLabel[r.status] || r.status)}</td>
+      <td>${new Date(r.created_at).toLocaleDateString('ko-KR')}</td>
+    </tr>`).join('');
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">📢 신고 한 내역 <span class="activity-count">${reporterList.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th>피신고자</th><th>사유</th><th>상세</th><th>상태</th><th>날짜</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">📢 신고 한 내역 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">최근 90일 신고한 내역이 없습니다.</div>
+      </div>
+    `);
+  }
 }
 
 function escHtml(str) {
