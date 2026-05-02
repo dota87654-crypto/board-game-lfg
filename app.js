@@ -1470,12 +1470,15 @@ async function loadMessages(roomId) {
   // 메시지 작성자 프로필 별도 조회
   const userIds = [...new Set(msgs.map(m => m.user_id).filter(Boolean))];
   if (userIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
+    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds);
     const profileMap = {};
     (profiles || []).forEach(p => {
-      profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown');
+      profileMap[p.id] = {
+        name: p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown'),
+        avatar_url: p.avatar_url || null,
+      };
     });
-    msgs.forEach(m => { m.profiles = { display_name: profileMap[m.user_id] || '알 수 없음' }; });
+    msgs.forEach(m => { m.profiles = { display_name: profileMap[m.user_id]?.name || '알 수 없음', avatar_url: profileMap[m.user_id]?.avatar_url || null }; });
   }
 
   messagesList.innerHTML = '';
@@ -1499,8 +1502,13 @@ function appendMessage(msg) {
 
   const el = document.createElement('div');
   el.className = `message ${isMine ? 'mine' : 'theirs'}`;
+  let authorHtml = '';
+  if (!isMine) {
+    const avatarSrc = msg.profiles?.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(msg.user_id || name)}`;
+    authorHtml = `<div class="message-author"><img class="message-author-avatar" src="${escHtml(avatarSrc)}" alt="" />${escHtml(name)}</div>`;
+  }
   el.innerHTML = `
-    ${!isMine ? `<div class="message-author">${escHtml(name)}</div>` : ''}
+    ${authorHtml}
     <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
     <div class="message-time">${time}</div>
   `;
@@ -1876,8 +1884,8 @@ function subscribeChat(roomId) {
         return;
       }
       if (isNotifOn('chat_in_room')) playChat();
-      const { data: profile } = await sb.from('profiles').select('nickname, display_name, email').eq('id', msg.user_id).single();
-      msg.profiles = { display_name: profile?.nickname || profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음' };
+      const { data: profile } = await sb.from('profiles').select('nickname, display_name, email, avatar_url').eq('id', msg.user_id).single();
+      msg.profiles = { display_name: profile?.nickname || profile?.display_name || profile?.email?.split('@')[0] || '알 수 없음', avatar_url: profile?.avatar_url || null };
       appendMessage(msg);
       scrollToBottom();
     })
@@ -3170,11 +3178,7 @@ function appendDMMessage(msg, senderName, senderAvatarUrl) {
   const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   const el = document.createElement('div');
   el.className = `message ${isMine ? 'mine' : 'theirs'}`;
-  let authorHtml = '';
-  if (!isMine) {
-    const avatarSrc = senderAvatarUrl || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(msg.sender_id)}`;
-    authorHtml = `<div class="message-author"><img class="message-author-avatar" src="${escHtml(avatarSrc)}" alt="" />${escHtml(senderName)}</div>`;
-  }
+  const authorHtml = !isMine ? `<div class="message-author">${escHtml(senderName)}</div>` : '';
   el.innerHTML = `
     ${authorHtml}
     <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
