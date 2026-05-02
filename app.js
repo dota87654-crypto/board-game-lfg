@@ -4427,6 +4427,7 @@ async function handleGuildRequest(reqId, userId, approve) {
   await sb.from('guild_join_requests').update({ status: approve ? 'approved' : 'rejected' }).eq('id', reqId);
   document.querySelector(`[data-req-id="${reqId}"]`)?.remove();
   loadGuildRequestsBadge(currentGuild.id);
+  if (approve) loadGuildMembers(currentGuild.id);
 }
 
 document.getElementById('close-guild-requests-btn').addEventListener('click', () => {
