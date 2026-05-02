@@ -15,14 +15,18 @@ const PUNISHMENT_LABELS = {
   permanent_ban: '🚫 영구정지',
 };
 
-const PUNISHMENT_NOTIFY = {
-  warning:       '관리자로부터 경고 처분을 받았습니다.',
-  chat_ban_3d:   '관리자로부터 채팅금지 3일 처분을 받았습니다.',
-  chat_ban_7d:   '관리자로부터 채팅금지 7일 처분을 받았습니다.',
-  suspend_1d:    '관리자로부터 이용정지 1일 처분을 받았습니다.',
-  suspend_7d:    '관리자로부터 이용정지 7일 처분을 받았습니다.',
-  permanent_ban: '관리자로부터 영구정지 처분을 받았습니다.',
-};
+function buildPunishmentMessage(actionKey, expiresAt) {
+  const until = expiresAt ? new Date(expiresAt).toLocaleDateString('ko-KR') + '까지' : '';
+  const msgs = {
+    warning:       '관리자로부터 경고 처분을 받았습니다.',
+    chat_ban_3d:   `관리자로부터 채팅금지 처분을 받았습니다. 기간: ${until}`,
+    chat_ban_7d:   `관리자로부터 채팅금지 처분을 받았습니다. 기간: ${until}`,
+    suspend_1d:    `관리자로부터 이용정지 처분을 받았습니다. 기간: ${until}`,
+    suspend_7d:    `관리자로부터 이용정지 처분을 받았습니다. 기간: ${until}`,
+    permanent_ban: '관리자로부터 영구정지 처분을 받았습니다.',
+  };
+  return msgs[actionKey] || '관리자로부터 처분을 받았습니다.';
+}
 
 const PUNISHMENT_CONFIG = {
   warning:       { type: 'warning',       days: 0 },
@@ -164,7 +168,7 @@ async function applyPunishment(actionKey, userId, reportId, userName) {
   await sb.from('notifications').insert({
     user_id: userId,
     type: 'punishment',
-    message: PUNISHMENT_NOTIFY[actionKey],
+    message: buildPunishmentMessage(actionKey, expiresAt),
     is_read: false,
   });
 

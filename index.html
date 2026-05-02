@@ -517,6 +517,16 @@
   <div id="members-panel-body" class="members-panel-body"></div>
 </div>
 
+<!-- 처벌 알림 팝업 -->
+<div id="punishment-modal" class="modal-overlay hidden" style="z-index:500;">
+  <div class="modal" style="max-width:380px;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
+    <h3 style="margin-bottom:16px;color:#e05252;">관리자 알림</h3>
+    <p id="punishment-modal-msg" style="font-size:0.95rem;line-height:1.7;color:var(--text);margin-bottom:24px;"></p>
+    <button id="punishment-confirm-btn" class="btn btn-primary" style="width:100%;">확인</button>
+  </div>
+</div>
+
 <!-- 공지사항 모달 -->
 <div id="announce-modal" class="modal-overlay hidden">
   <div class="modal" style="max-width:520px;">

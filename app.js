@@ -516,6 +516,7 @@ async function goToMain() {
   subscribeGlobalDM();
   resumeRoomSubscription();
   subscribeNotifications();
+  checkPunishmentNotif();
   checkAnnounceBadge();
   initRoomUnread();
   loadBlocks();
@@ -2310,16 +2311,15 @@ function updateNotifBadge(count) {
   });
 }
 
-// 알림 구독 (onLogin 후 호출)
+// 알림 구독 (onLogin 후 호출) — punishment 타입은 뱃지 제외, 팝업으로 별도 처리
 async function subscribeNotifications() {
-  // 미읽음 알림 카운트 초기화
   const { count } = await sb.from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', currentUser.id)
-    .eq('is_read', false);
+    .eq('is_read', false)
+    .neq('type', 'punishment');
   updateNotifBadge(count || 0);
 
-  // 실시간 구독
   const ch = sb.channel(`notif-${currentUser.id}`)
     .on('postgres_changes', {
       event: 'INSERT',
@@ -2327,15 +2327,41 @@ async function subscribeNotifications() {
       table: 'notifications',
       filter: `user_id=eq.${currentUser.id}`,
     }, payload => {
-      if (!payload.new.is_read) {
-        const { count: cnt } = 0;
+      if (payload.new.is_read) return;
+      if (payload.new.type === 'punishment') {
+        showPunishmentModal([payload.new]);
+      } else {
         sb.from('notifications').select('*', { count: 'exact', head: true })
-          .eq('user_id', currentUser.id).eq('is_read', false)
+          .eq('user_id', currentUser.id).eq('is_read', false).neq('type', 'punishment')
           .then(({ count: c }) => updateNotifBadge(c || 0));
       }
     })
     .subscribe();
   realtimeChannels.push(ch);
+}
+
+// 로그인 시 읽지 않은 처벌 알림 확인
+async function checkPunishmentNotif() {
+  const { data } = await sb.from('notifications')
+    .select('id, message')
+    .eq('user_id', currentUser.id)
+    .eq('type', 'punishment')
+    .eq('is_read', false)
+    .order('created_at', { ascending: false });
+  if (data?.length) showPunishmentModal(data);
+}
+
+function showPunishmentModal(notifs) {
+  const latest = notifs[0];
+  document.getElementById('punishment-modal-msg').textContent = latest.message;
+  document.getElementById('punishment-modal').classList.remove('hidden');
+  document.getElementById('punishment-confirm-btn').onclick = async () => {
+    const ids = notifs.map(n => n.id);
+    await sb.from('notifications').update({ is_read: true })
+      .eq('user_id', currentUser.id)
+      .in('id', ids);
+    document.getElementById('punishment-modal').classList.add('hidden');
+  };
 }
 
 // ---- 공지사항 ----
