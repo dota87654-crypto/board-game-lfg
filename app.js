@@ -2884,6 +2884,7 @@ function showFriendContextMenu(e, f) {
   addCtxItem(menu, t('btn.dm'), () => { openDM(f.friendId, f.name); hideContextMenu(); });
   addCtxItem(menu, t('btn.remove'), () => { showFriendConfirm(t('confirm.remove-friend'), () => removeFriend(f.id)); hideContextMenu(); }, true);
   addCtxItem(menu, t('btn.block'), () => { showFriendConfirm(t('confirm.block-friend'), () => blockUser(f.friendId)); hideContextMenu(); }, true);
+  addCtxItem(menu, '🚨 신고', () => { showReportModal(f.friendId, f.name); hideContextMenu(); }, true);
   menu.classList.remove('hidden');
   const x = Math.min(e.clientX, window.innerWidth - 160);
   const y = Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8);
