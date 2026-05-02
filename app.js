@@ -2483,16 +2483,20 @@ function renderDMList(query) {
   }
 
   dmListBody.innerHTML = '';
-  sorted.forEach(({ partnerId, name, unread, time, preview }) => {
+  sorted.forEach(({ partnerId, name, avatar_url, unread, time, preview }) => {
     const isPinned = pinned.includes(partnerId);
     const el = document.createElement('div');
     el.className = 'dm-list-item';
+    const avatarSrc = avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(partnerId)}`;
     el.innerHTML = `
-      <div class="dm-list-header">
-        <span class="dm-list-name">${isPinned ? '<span class="dm-pin-icon">📌</span>' : ''}${escHtml(name)}${unread ? `<span class="friends-badge" style="margin-left:6px;">${unread}</span>` : ''}</span>
-        <span class="dm-list-time">${time}</span>
+      <img class="dm-list-avatar" src="${escHtml(avatarSrc)}" alt="" onerror="this.src='https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(partnerId)}'" />
+      <div class="dm-list-content">
+        <div class="dm-list-header">
+          <span class="dm-list-name">${isPinned ? '<span class="dm-pin-icon">📌</span>' : ''}${escHtml(name)}${unread ? `<span class="friends-badge" style="margin-left:6px;">${unread}</span>` : ''}</span>
+          <span class="dm-list-time">${time}</span>
+        </div>
+        <div class="dm-list-preview">${escHtml(preview)}</div>
       </div>
-      <div class="dm-list-preview">${escHtml(preview)}</div>
     `;
     el.addEventListener('click', () => {
       dmListModal.classList.add('hidden');
@@ -2535,12 +2539,15 @@ async function openDMList() {
 
   const partnerIds = Object.keys(convMap);
   const { data: profiles } = await sb.from('profiles')
-    .select('id, nickname, display_name, email')
+    .select('id, nickname, display_name, email, avatar_url')
     .in('id', partnerIds);
 
   const profileMap = {};
   (profiles || []).forEach(p => {
-    profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음';
+    profileMap[p.id] = {
+      name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음',
+      avatar_url: p.avatar_url || null,
+    };
   });
 
   const sorted = partnerIds.sort((a, b) =>
@@ -2549,12 +2556,13 @@ async function openDMList() {
 
   dmListConvs = sorted.map(partnerId => {
     const msg = convMap[partnerId];
-    const name = profileMap[partnerId] || '알 수 없음';
+    const name = profileMap[partnerId]?.name || '알 수 없음';
+    const avatar_url = profileMap[partnerId]?.avatar_url || null;
     const unread = dmUnreadMap[partnerId] || 0;
     const time = formatDMTime(msg.created_at);
     const rawPreview = msg.sender_id === currentUser.id ? `${t('dm.mine.prefix')}${msg.content}` : msg.content;
     const preview = rawPreview.length > 32 ? rawPreview.slice(0, 32) + '…' : rawPreview;
-    return { partnerId, name, unread, time, preview };
+    return { partnerId, name, avatar_url, unread, time, preview };
   });
 
   renderDMList('');

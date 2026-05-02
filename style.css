@@ -869,9 +869,10 @@ form label input:focus { outline: none; border-color: var(--primary); }
 
 .dm-list-item {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background 0.15s;
@@ -879,10 +880,12 @@ form label input:focus { outline: none; border-color: var(--primary); }
 }
 .dm-list-item:last-child { border-bottom: none; }
 .dm-list-item:hover { background: var(--surface2); }
+.dm-list-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--surface2); }
+.dm-list-content { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .dm-list-header { display: flex; justify-content: space-between; align-items: center; }
 .dm-list-name { font-size: 0.92rem; font-weight: 600; }
-.dm-list-time { font-size: 0.75rem; color: var(--text-muted); }
-.dm-list-preview { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.dm-list-time { font-size: 0.75rem; color: var(--text-muted); flex-shrink: 0; }
+.dm-list-preview { font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .dm-modal { display: flex; flex-direction: column; height: 70vh; max-height: 560px; }
 .dm-messages {
