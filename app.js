@@ -444,14 +444,10 @@ logoutBtn.addEventListener('click', async () => {
 
 async function upsertProfile(user) {
   const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
-  // avatar_url은 초기 생성 시만 소셜 이미지로 세팅 (이후 덮어쓰지 않음)
-  const { data: existing } = await sb.from('profiles').select('avatar_url').eq('id', user.id).single();
-  const avatarUrl = existing?.avatar_url || user.user_metadata?.avatar_url || null;
   const { error } = await sb.from('profiles').upsert({
     id: user.id,
     email: user.email,
     display_name: displayName,
-    avatar_url: avatarUrl
   }, { onConflict: 'id', ignoreDuplicates: false });
   if (error) {
     console.error('Profile upsert error:', error.message);
@@ -468,7 +464,7 @@ async function onLogin(user) {
   await upsertProfile(user);
 
   const { data: profile } = await sb.from('profiles').select('nickname, lang, avatar_url').eq('id', user.id).single();
-  currentAvatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url || '';
+  currentAvatarUrl = profile?.avatar_url || '';
 
   const savedLang = profile?.lang || localStorage.getItem('lang') || 'auto';
   localStorage.setItem('lang', savedLang);
