@@ -2289,14 +2289,23 @@ function openSettings(tab = 'general') {
   volSlider.value = vol;
   document.getElementById('notif-volume-val').textContent = vol;
   switchSettingsTab(tab);
+  // 체크 완료 전까지 버튼 비활성화 (안전한 기본값)
+  document.getElementById('delete-account-btn').disabled = true;
+  document.getElementById('delete-account-hint').style.display = 'none';
   settingsModal.classList.remove('hidden');
   checkDeleteAccountEligibility();
 }
 
 async function checkDeleteAccountEligibility() {
   if (!currentUser) return;
+  const now = new Date().toISOString();
   const { data: punish } = await sb.from('punishments')
-    .select('id').eq('user_id', currentUser.id).eq('is_active', true).limit(1).maybeSingle();
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .eq('is_active', true)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .limit(1)
+    .maybeSingle();
   const btn = document.getElementById('delete-account-btn');
   const hint = document.getElementById('delete-account-hint');
   btn.disabled = !!punish;
