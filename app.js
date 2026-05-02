@@ -4580,8 +4580,8 @@ async function initGuildReqBadge() {
 
   const ch = sb.channel(`guild-req-notif-${currentUser.id}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'guild_join_requests' },
-      () => updateGuildReqBadge())
-    .subscribe();
+      (payload) => { console.log('[guild_join_requests realtime]', payload); updateGuildReqBadge(); })
+    .subscribe((status) => console.log('[guild_join_requests subscribe status]', status));
   realtimeChannels.push(ch);
 }
 
