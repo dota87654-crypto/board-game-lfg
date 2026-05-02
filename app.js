@@ -742,9 +742,11 @@ function renderRooms() {
   let filtered = allRooms;
   if (currentFilters.size > 0) {
     const hasLocked = currentFilters.has('__locked__');
-    const cats = new Set([...currentFilters].filter(c => c !== '__locked__'));
+    const hasClosed = currentFilters.has('__closed__');
+    const cats = new Set([...currentFilters].filter(c => c !== '__locked__' && c !== '__closed__'));
     filtered = allRooms.filter(r =>
       (hasLocked ? r.password_hash : false) ||
+      (hasClosed ? (!r.is_open && (r.member_count ?? 0) < r.max_players) : false) ||
       (cats.size > 0 ? cats.has(r.category) : false)
     );
   }
@@ -793,6 +795,7 @@ function renderRooms() {
   roomsList.innerHTML = filtered.map(room => {
     const count = room.member_count ?? 0;
     const isFull = count >= room.max_players;
+    const isClosed = !room.is_open;
     const countClass = isFull ? 'full' : 'current';
     const host = room.host_name || t('unknown');
     const isMine = myRoomIds.has(room.id);
@@ -807,6 +810,7 @@ function renderRooms() {
           <div style="display:flex;gap:6px;align-items:center">
             ${isMine ? `<span class="badge-mine">${t('room.mine')}</span>` : ''}
             ${unread > 0 ? `<span class="room-unread-badge">${unread}</span>` : ''}
+            ${isClosed ? `<span class="badge-closed">모집마감</span>` : (isFull ? `<span class="badge-full">꽉참</span>` : '')}
             <div class="room-card-cat ${CAT_CLASS[room.category] || ''}">${escHtml(tCat(room.category))}</div>
           </div>
         </div>
@@ -1513,6 +1517,8 @@ async function tryEnterRoom(room) {
 
   if (myRoomIds.has(room.id)) { enterRoom(room); return; }
 
+  if (!room.is_open) { alert('모집이 마감된 방입니다.'); return; }
+
   const { data } = await sb.from('rooms').select('password_hash').eq('id', room.id).maybeSingle();
   const hash = data?.password_hash;
   if (!hash) { enterRoom(room); return; }
@@ -1627,6 +1633,7 @@ async function enterRoom(room) {
   clearRoomUnread(room.id);
   document.getElementById('members-panel').classList.remove('open');
   renderNotice(room);
+  renderToggleOpenBtn(room);
   await loadMessages(room.id, lastReadAt);
   await updateMemberCount(room.id);
   loadRoomMembers(room.id);
@@ -2062,6 +2069,33 @@ function subscribeRooms() {
   realtimeChannels.push(ch);
 }
 
+// --- Toggle Open ---
+const toggleOpenBtn = document.getElementById('toggle-open-btn');
+
+function renderToggleOpenBtn(room) {
+  const isHost = room.host_id === currentUser?.id;
+  if (!isHost) { toggleOpenBtn.classList.add('hidden'); return; }
+  toggleOpenBtn.classList.remove('hidden');
+  if (room.is_open) {
+    toggleOpenBtn.textContent = '모집 마감';
+    toggleOpenBtn.className = 'btn btn-sm btn-warn';
+  } else {
+    toggleOpenBtn.textContent = '모집 재개';
+    toggleOpenBtn.className = 'btn btn-sm btn-success-outline';
+  }
+}
+
+toggleOpenBtn.addEventListener('click', async () => {
+  if (!currentRoom) return;
+  const newOpen = !currentRoom.is_open;
+  const { error } = await sb.from('rooms').update({ is_open: newOpen }).eq('id', currentRoom.id);
+  if (error) { alert('변경 실패: ' + error.message); return; }
+  currentRoom = { ...currentRoom, is_open: newOpen };
+  allRooms = allRooms.map(r => r.id === currentRoom.id ? { ...r, is_open: newOpen } : r);
+  renderToggleOpenBtn(currentRoom);
+  renderRooms();
+});
+
 // --- Room Notice ---
 const noticeBar = document.getElementById('room-notice-bar');
 const noticeText = document.getElementById('room-notice-text');
@@ -2196,10 +2230,17 @@ function subscribeMembers(roomId) {
       table: 'rooms',
       filter: `id=eq.${roomId}`
     }, payload => {
-      if (payload.new?.host_id && currentRoom) {
-        currentRoom = { ...currentRoom, host_id: payload.new.host_id };
+      if (!currentRoom) return;
+      const updated = payload.new;
+      if (updated?.host_id) {
+        currentRoom = { ...currentRoom, host_id: updated.host_id };
         renderMembersPanel();
         renderNotice(currentRoom);
+        renderToggleOpenBtn(currentRoom);
+      }
+      if (updated && 'is_open' in updated) {
+        currentRoom = { ...currentRoom, is_open: updated.is_open };
+        renderToggleOpenBtn(currentRoom);
       }
     })
     .subscribe();

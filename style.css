@@ -632,6 +632,27 @@ main { padding: 24px 20px; }
   white-space: nowrap;
 }
 
+.badge-closed {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #b45309;
+  color: #fff;
+  white-space: nowrap;
+}
+.badge-full {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--danger);
+  color: #fff;
+  white-space: nowrap;
+}
+.btn-warn { background: transparent; border-color: #b45309; color: #b45309; }
+.btn-warn:hover { background: #b45309; color: #fff; }
+.btn-success-outline { background: transparent; border-color: var(--success); color: var(--success); }
+.btn-success-outline:hover { background: var(--success); color: #fff; }
+
 .empty-state { text-align: center; color: var(--text-muted); padding: 60px 0; grid-column: 1/-1; }
 .empty-state p { font-size: 1rem; }
 
