@@ -4232,6 +4232,10 @@ function subscribeGuildChat(guildId) {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guild_messages', filter: `guild_id=eq.${guildId}` },
       async payload => {
         const msg = payload.new;
+        if (guildSentMessageIds.has(msg.id)) {
+          guildSentMessageIds.delete(msg.id);
+          return;
+        }
         const { data: p } = await sb.from('profiles').select('nickname, display_name, email, avatar_url').eq('id', msg.user_id).maybeSingle();
         msg.profiles = p ? { display_name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null } : null;
         appendGuildMessage(msg);
@@ -4246,12 +4250,40 @@ document.getElementById('guild-chat-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGuildMessage(); }
 });
 
+const guildSentMessageIds = new Set();
+
 async function sendGuildMessage() {
   const input = document.getElementById('guild-chat-input');
   const content = input.value.trim();
   if (!content || !currentGuild) return;
   input.value = '';
-  await sb.from('guild_messages').insert({ guild_id: currentGuild.id, user_id: currentUser.id, content });
+
+  // Optimistic: render immediately like room chat
+  const myProfile = guildMembers.find(m => m.userId === currentUser.id);
+  const tempMsg = {
+    id: `temp-${Date.now()}`,
+    user_id: currentUser.id,
+    content,
+    created_at: new Date().toISOString(),
+    profiles: {
+      display_name: myProfile?.name || currentUser.user_metadata?.full_name || currentUser.email,
+      avatar_url: myProfile?.avatar_url || null
+    }
+  };
+  appendGuildMessage(tempMsg);
+  const list = document.getElementById('guild-messages-list');
+  list.scrollTop = list.scrollHeight;
+
+  const { data, error } = await sb.from('guild_messages')
+    .insert({ guild_id: currentGuild.id, user_id: currentUser.id, content })
+    .select('id').single();
+
+  if (error) {
+    console.error('sendGuildMessage error:', error);
+    input.value = content;
+  } else if (data?.id) {
+    guildSentMessageIds.add(data.id);
+  }
 }
 
 async function loadGuildMembers(guildId) {

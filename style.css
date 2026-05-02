@@ -1118,7 +1118,7 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   background: var(--surface);
   flex-shrink: 0;
 }
-#chat-input, #dm-input {
+#chat-input, #dm-input, #guild-chat-input {
   flex: 1;
   padding: 10px 14px;
   background: var(--bg);
@@ -1127,7 +1127,7 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   color: var(--text);
   font-size: 0.95rem;
 }
-#chat-input:focus, #dm-input:focus { outline: none; border-color: var(--primary); }
+#chat-input:focus, #dm-input:focus, #guild-chat-input:focus { outline: none; border-color: var(--primary); }
 
 /* Game name autocomplete */
 .game-search-wrap { position: relative; margin-top: 6px; }
