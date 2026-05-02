@@ -4191,23 +4191,33 @@ async function enterGuildDetail(guild) {
 }
 
 async function loadGuildMessages(guildId) {
-  const { data } = await sb.from('guild_messages')
-    .select('id, content, created_at, user_id, profiles(nickname, display_name, email)')
+  const { data: msgs } = await sb.from('guild_messages')
+    .select('id, content, created_at, user_id')
     .eq('guild_id', guildId).order('created_at', { ascending: true }).limit(100);
+  if (!msgs?.length) return;
+  const userIds = [...new Set(msgs.map(m => m.user_id))];
+  const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds);
+  const profileMap = {};
+  (profiles || []).forEach(p => { profileMap[p.id] = { display_name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null }; });
+  msgs.forEach(m => { m.profiles = profileMap[m.user_id] || null; });
   const list = document.getElementById('guild-messages-list');
   list.innerHTML = '';
-  (data || []).forEach(msg => appendGuildMessage(msg));
+  msgs.forEach(msg => appendGuildMessage(msg));
   list.scrollTop = list.scrollHeight;
 }
 
 function appendGuildMessage(msg) {
-  const p = msg.profiles;
-  const name = p?.nickname || p?.display_name || p?.email?.split('@')[0] || '알 수 없음';
-  const isMe = msg.user_id === currentUser.id;
-  const time = new Date(msg.created_at).toLocaleTimeString('ko', { hour: '2-digit', minute: '2-digit' });
+  const isMine = msg.user_id === currentUser.id;
+  const name = msg.profiles?.display_name || '알 수 없음';
+  const time = new Date(msg.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   const el = document.createElement('div');
-  el.className = `message${isMe ? ' me' : ''}`;
-  el.innerHTML = `<div class="message-header"><span class="message-name">${escHtml(name)}</span><span class="message-time">${time}</span></div><div class="message-content">${escHtml(msg.content)}</div>`;
+  el.className = `message ${isMine ? 'mine' : 'theirs'}`;
+  let authorHtml = '';
+  if (!isMine) {
+    const avatarSrc = msg.profiles?.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(msg.user_id || name)}`;
+    authorHtml = `<div class="message-author"><img class="message-author-avatar" src="${escHtml(avatarSrc)}" alt="" />${escHtml(name)}</div>`;
+  }
+  el.innerHTML = `${authorHtml}<div class="message-bubble">${escHtml(msg.content)}</div><div class="message-time">${time}</div>`;
   document.getElementById('guild-messages-list').appendChild(el);
 }
 
@@ -4217,8 +4227,9 @@ function subscribeGuildChat(guildId) {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guild_messages', filter: `guild_id=eq.${guildId}` },
       async payload => {
         const msg = payload.new;
-        const { data: p } = await sb.from('profiles').select('nickname, display_name, email').eq('id', msg.user_id).maybeSingle();
-        appendGuildMessage({ ...msg, profiles: p });
+        const { data: p } = await sb.from('profiles').select('nickname, display_name, email, avatar_url').eq('id', msg.user_id).maybeSingle();
+        msg.profiles = p ? { display_name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null } : null;
+        appendGuildMessage(msg);
         const list = document.getElementById('guild-messages-list');
         list.scrollTop = list.scrollHeight;
       })
@@ -4239,12 +4250,18 @@ async function sendGuildMessage() {
 }
 
 async function loadGuildMembers(guildId) {
-  const { data } = await sb.from('guild_members')
-    .select('user_id, role, joined_at, profiles(nickname, display_name, email)')
+  const { data: members } = await sb.from('guild_members')
+    .select('user_id, role, joined_at')
     .eq('guild_id', guildId).order('joined_at', { ascending: true });
-  guildMembers = (data || []).map(m => ({
+  if (!members?.length) { guildMembers = []; renderGuildMembersPanel(); return; }
+  const userIds = members.map(m => m.user_id);
+  const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds);
+  const profileMap = {};
+  (profiles || []).forEach(p => { profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null }; });
+  guildMembers = members.map(m => ({
     userId: m.user_id, role: m.role,
-    name: m.profiles?.nickname || m.profiles?.display_name || m.profiles?.email?.split('@')[0] || '알 수 없음',
+    name: profileMap[m.user_id]?.name || '알 수 없음',
+    avatar_url: profileMap[m.user_id]?.avatar_url || null,
   }));
   document.getElementById('guild-meta-el').textContent =
     `${currentGuild?.description || ''} · 👥 ${guildMembers.length}명`;
@@ -4262,10 +4279,14 @@ function renderGuildMembersPanel() {
     const canKick = !isMe && (isOwner || (isOfficer && m.role === 'member'));
     const canPromote = isOwner && m.role === 'member';
     const canDemote = isOwner && m.role === 'officer';
+    const avatarSrc = m.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(m.userId)}`;
     return `<div class="guild-member-item">
-      <div>
-        <div class="guild-member-name">${escHtml(m.name)}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
-        <div class="guild-member-role-label">${GUILD_ROLE_LABELS[m.role]}</div>
+      <div class="guild-member-info">
+        <img class="member-avatar" src="${escHtml(avatarSrc)}" alt="" />
+        <div>
+          <div class="guild-member-name">${escHtml(m.name)}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
+          <div class="guild-member-role-label">${GUILD_ROLE_LABELS[m.role]}</div>
+        </div>
       </div>
       <div class="guild-member-actions">
         ${canPromote ? `<button class="btn btn-xs guild-promote-btn" data-uid="${m.userId}">부길드장</button>` : ''}
