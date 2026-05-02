@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>관리자 페이지</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+      --border: #2e3352; --text: #e2e8f0; --text-muted: #8892b0;
+      --primary: #5865f2; --danger: #e05252; --success: #4caf7d;
+      --warn: #f0a500;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+    a { color: var(--primary); }
+    .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .header h1 { font-size: 1.1rem; }
+    .btn { padding: 7px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-warn    { background: var(--warn); color: #000; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-ghost   { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn:hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--surface); }
+    .tab { padding: 12px 20px; cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent; color: var(--text-muted); }
+    .tab.active { border-bottom-color: var(--primary); color: var(--text); font-weight: 600; }
+    .content { padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .section-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .report-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px 20px; margin-bottom: 12px;
+    }
+    .report-meta { display: flex; gap: 16px; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; flex-wrap: wrap; }
+    .report-meta span b { color: var(--text); }
+    .report-reason { display: inline-block; background: var(--surface2); border-radius: 6px; padding: 2px 10px; font-size: 0.82rem; margin-bottom: 8px; }
+    .report-content { background: var(--surface2); border-radius: 8px; padding: 8px 12px; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; word-break: break-word; }
+    .report-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .report-actions .btn { font-size: 0.78rem; padding: 5px 10px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+    .badge-pending { background: #f0a50033; color: var(--warn); }
+    .badge-resolved { background: #4caf7d33; color: var(--success); }
+    .badge-dismissed { background: var(--surface2); color: var(--text-muted); }
+    .user-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .user-info { font-size: 0.9rem; }
+    .user-info b { color: var(--text); }
+    .user-info small { color: var(--text-muted); display: block; margin-top: 2px; font-size: 0.78rem; }
+    .empty { color: var(--text-muted); text-align: center; padding: 40px 0; }
+    #loading { color: var(--text-muted); text-align: center; padding: 60px 0; }
+    select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 10px; font-size: 0.85rem; }
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+    .filter-bar label { font-size: 0.85rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛡️ 관리자 페이지</h1>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span id="admin-name" style="font-size:0.85rem;color:var(--text-muted);"></span>
+    <button class="btn btn-ghost" id="logout-btn">로그아웃</button>
+    <a href="/" style="text-decoration:none;"><button class="btn btn-ghost">← 메인</button></a>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="reports">📋 신고 목록</div>
+  <div class="tab" data-tab="users">👥 유저 관리</div>
+</div>
+
+<div class="content">
+  <div id="loading">로딩 중...</div>
+
+  <!-- 신고 목록 탭 -->
+  <div id="tab-reports" class="tab-content" style="display:none;">
+    <div class="filter-bar">
+      <label>상태 필터:</label>
+      <select id="status-filter">
+        <option value="pending">대기 중</option>
+        <option value="all">전체</option>
+        <option value="resolved">처리됨</option>
+        <option value="dismissed">기각됨</option>
+      </select>
+    </div>
+    <div id="reports-list"></div>
+  </div>
+
+  <!-- 유저 관리 탭 -->
+  <div id="tab-users" class="tab-content" style="display:none;">
+    <div class="section-title">활성 처벌 목록</div>
+    <div id="users-list"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

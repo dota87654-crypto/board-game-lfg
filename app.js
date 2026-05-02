@@ -463,6 +463,29 @@ async function onLogin(user) {
   unsubscribeAll();
   await upsertProfile(user);
 
+  // 처벌 확인
+  const now = new Date().toISOString();
+  const { data: punish } = await sb.from('punishments')
+    .select('type, expires_at')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (punish) {
+    if (punish.type === 'suspend' || punish.type === 'permanent_ban') {
+      const until = punish.expires_at ? `(${new Date(punish.expires_at).toLocaleDateString('ko-KR')}까지)` : '(영구)';
+      alert(`이용이 정지된 계정입니다 ${until}.\n사유가 없다고 생각하시면 문의해주세요.`);
+      await sb.auth.signOut();
+      return;
+    }
+    if (punish.type === 'chat_ban') {
+      window._chatBanned = true;
+      window._chatBanUntil = punish.expires_at;
+    }
+  }
+
   const { data: profile } = await sb.from('profiles').select('nickname, lang, avatar_url').eq('id', user.id).single();
   currentAvatarUrl = profile?.avatar_url || '';
 
@@ -1512,6 +1535,9 @@ function appendMessage(msg) {
     <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
     <div class="message-time">${time}</div>
   `;
+  if (!isMine && msg.user_id) {
+    attachMessageReportHandler(el.querySelector('.message-bubble'), msg.user_id, name, msg.content);
+  }
   messagesList.appendChild(el);
 }
 
@@ -1523,6 +1549,11 @@ function scrollToBottom() {
 const sentMessageIds = new Set();
 
 async function sendMessage() {
+  if (window._chatBanned) {
+    const until = window._chatBanUntil ? new Date(window._chatBanUntil).toLocaleDateString('ko-KR') : '';
+    alert(`채팅이 금지된 계정입니다${until ? ` (${until}까지)` : ''}.`);
+    return;
+  }
   const content = chatInput.value.trim();
   if (!content || !currentRoom) return;
   chatInput.value = '';
@@ -1634,6 +1665,7 @@ function showMemberContextMenu(event, member) {
     if (isBlocked) unblockUser(member.user_id); else blockUser(member.user_id);
     hideContextMenu();
   }, !isBlocked);
+  addCtxItem(menu, '🚨 신고', () => { showReportModal(member.user_id, member.nickname); hideContextMenu(); }, true);
 
   menu.classList.remove('hidden');
   const x = Math.min(event.clientX, window.innerWidth - 160);
@@ -3236,6 +3268,78 @@ function subscribeDM() {
       dmMessages.scrollTop = dmMessages.scrollHeight;
     })
     .subscribe();
+}
+
+// --- 신고 ---
+const REPORT_REASONS = ['욕설/혐오 발언', '도배/스팸', '사기/허위정보', '부적절한 행동', '기타'];
+
+let reportTarget = { userId: null, userName: null, content: null };
+
+function showReportModal(userId, userName, content = null) {
+  if (userId === currentUser?.id) return;
+  reportTarget = { userId, userName, content };
+
+  document.getElementById('report-target-info').textContent = `신고 대상: ${userName}`;
+
+  const list = document.getElementById('report-reason-list');
+  list.innerHTML = '';
+  REPORT_REASONS.forEach((r, i) => {
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;';
+    label.innerHTML = `<input type="radio" name="report-reason" value="${escHtml(r)}" ${i === 0 ? 'checked' : ''} />${escHtml(r)}`;
+    list.appendChild(label);
+  });
+
+  const preview = document.getElementById('report-msg-preview');
+  if (content) {
+    preview.textContent = content;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+
+  document.getElementById('report-modal').classList.remove('hidden');
+}
+
+document.getElementById('close-report-modal').addEventListener('click', () => {
+  document.getElementById('report-modal').classList.add('hidden');
+});
+document.getElementById('report-cancel-btn').addEventListener('click', () => {
+  document.getElementById('report-modal').classList.add('hidden');
+});
+
+document.getElementById('report-submit-btn').addEventListener('click', async () => {
+  const selected = document.querySelector('input[name="report-reason"]:checked');
+  if (!selected) return;
+  const reason = selected.value;
+
+  const { error } = await sb.from('reports').insert({
+    reporter_id: currentUser.id,
+    reported_user_id: reportTarget.userId,
+    reason,
+    message_content: reportTarget.content || null,
+    room_id: currentRoom?.id || null,
+    status: 'pending',
+  });
+
+  document.getElementById('report-modal').classList.add('hidden');
+  if (error) { alert('신고 접수에 실패했어요.'); return; }
+  alert('신고가 접수되었습니다.');
+});
+
+// 채팅 메시지 우클릭/길게누르기 신고
+function attachMessageReportHandler(el, userId, userName, content) {
+  let longPressTimer = null;
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    showReportModal(userId, userName, content);
+  });
+  el.addEventListener('pointerdown', () => {
+    longPressTimer = setTimeout(() => showReportModal(userId, userName, content), 600);
+  });
+  el.addEventListener('pointerup', () => clearTimeout(longPressTimer));
+  el.addEventListener('pointermove', () => clearTimeout(longPressTimer));
 }
 
 // --- Util ---

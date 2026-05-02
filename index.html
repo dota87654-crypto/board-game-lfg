@@ -486,6 +486,23 @@
   <div id="members-panel-body" class="members-panel-body"></div>
 </div>
 
+<!-- 신고 모달 -->
+<div id="report-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <h3>🚨 신고하기</h3>
+      <button class="modal-close" id="close-report-modal">&times;</button>
+    </div>
+    <p id="report-target-info" style="font-size:0.9rem;color:var(--text-muted);margin-bottom:12px;"></p>
+    <div id="report-reason-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+    <div id="report-msg-preview" style="display:none;background:var(--surface2);border-radius:8px;padding:8px 12px;font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;word-break:break-word;"></div>
+    <div style="display:flex;gap:8px;">
+      <button id="report-submit-btn" class="btn btn-primary btn-sm">신고</button>
+      <button id="report-cancel-btn" class="btn btn-sm">취소</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 </body>
