@@ -4164,13 +4164,17 @@ async function requestJoinGuild(guildId, btn) {
   }
   btn.textContent = '신청됨';
   btn.disabled = true;
-  const { data: officers } = await sb.from('guild_members')
+  const { data: officers, error: offErr } = await sb.from('guild_members')
     .select('user_id').eq('guild_id', guildId).in('role', ['owner', 'officer']);
+  console.log('[guild] officers found:', officers, offErr);
   const { data: guild } = await sb.from('guilds').select('name').eq('id', guildId).single();
   if (officers?.length) {
-    await sb.from('notifications').insert(
+    const { error: notifErr } = await sb.from('notifications').insert(
       officers.map(o => ({ user_id: o.user_id, type: 'guild_request', message: `${currentNickname}님이 [${guild?.name}] 길드 가입을 신청했습니다.`, is_read: false }))
     );
+    console.log('[guild] notification insert error:', notifErr);
+  } else {
+    console.warn('[guild] no officers found — notification not sent');
   }
 }
 
