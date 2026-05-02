@@ -626,6 +626,7 @@ main { padding: 24px 20px; }
 }
 .modal-overlay > .modal { margin: auto; }
 #place-search-modal { z-index: 300; }
+#report-modal { z-index: 400; }
 
 .modal {
   background: var(--surface);
