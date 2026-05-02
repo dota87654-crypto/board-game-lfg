@@ -457,7 +457,7 @@ async function upsertProfile(user) {
   }
 }
 
-async function checkAndApplyPunishment(userId) {
+async function checkAndApplyPunishment(userId, showAlert = true) {
   const now = new Date().toISOString();
   const { data: punish } = await sb.from('punishments')
     .select('type, expires_at')
@@ -469,8 +469,10 @@ async function checkAndApplyPunishment(userId) {
     .maybeSingle();
 
   if (punish?.type === 'suspend' || punish?.type === 'permanent_ban') {
-    const until = punish.expires_at ? `(${new Date(punish.expires_at).toLocaleDateString('ko-KR')}까지)` : '(영구)';
-    alert(`이용이 정지된 계정입니다 ${until}.\n사유가 없다고 생각하시면 문의해주세요.`);
+    if (showAlert) {
+      const until = punish.expires_at ? `(${new Date(punish.expires_at).toLocaleDateString('ko-KR')}까지)` : '(영구)';
+      alert(`이용이 정지된 계정입니다 ${until}.\n사유가 없다고 생각하시면 문의해주세요.`);
+    }
     await sb.auth.signOut();
     return false;
   }
@@ -2359,10 +2361,12 @@ async function subscribeNotifications() {
       schema: 'public',
       table: 'notifications',
       filter: `user_id=eq.${currentUser.id}`,
-    }, payload => {
+    }, async payload => {
       if (payload.new.is_read) return;
       if (payload.new.type === 'punishment') {
+        // 모달 표시 후 즉시 처벌 적용 (이용정지면 signOut)
         showPunishmentModal([payload.new]);
+        await checkAndApplyPunishment(currentUser.id, false);
       } else {
         sb.from('notifications').select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser.id).eq('is_read', false).neq('type', 'punishment')
@@ -2394,6 +2398,8 @@ function showPunishmentModal(notifs) {
       .eq('user_id', currentUser.id)
       .in('id', ids);
     document.getElementById('punishment-modal').classList.add('hidden');
+    // 확인 후 처벌 적용 (이용정지/영구정지면 signOut)
+    await checkAndApplyPunishment(currentUser.id, false);
   };
 }
 
