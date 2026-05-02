@@ -679,6 +679,27 @@ main { padding: 24px 20px; }
 #place-search-modal { z-index: 300; }
 #report-modal { z-index: 400; }
 
+/* 방 만들기 모달 고정 높이 + 내부 스크롤 */
+#create-modal .modal {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+#create-modal .modal-header {
+  padding: 24px 28px 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+#create-modal #create-room-form {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px 28px;
+  overscroll-behavior: contain;
+}
+
 .modal {
   background: var(--surface);
   border: 1px solid var(--border);
