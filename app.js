@@ -2963,6 +2963,7 @@ async function searchFriendUsers() {
         ${isFriend ? `<button class="btn btn-sm btn-primary" data-dm>${t('btn.dm')}</button>` : ''}
         ${currentRoom ? `<button class="btn btn-sm" data-invite>${t('btn.invite')}</button>` : ''}
         <button class="btn btn-sm btn-danger" data-block>${isBlocked ? t('ctx.unblock') : t('ctx.block')}</button>
+        <button class="btn btn-sm btn-danger" data-report>🚨 신고</button>
       </div>
     `;
     if (!isFriend && !isPending) {
@@ -2983,6 +2984,7 @@ async function searchFriendUsers() {
         el.querySelector('[data-block]').textContent = t('ctx.unblock');
       }
     });
+    el.querySelector('[data-report]').addEventListener('click', () => showReportModal(user.id, name));
     friendSearchBody.appendChild(el);
   });
 }
