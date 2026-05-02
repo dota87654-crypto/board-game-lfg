@@ -515,6 +515,7 @@ async function goToMain() {
   initDMUnread();
   subscribeGlobalDM();
   resumeRoomSubscription();
+  subscribeNotifications();
   initRoomUnread();
   loadBlocks();
   subscribeInvites();
@@ -1658,6 +1659,7 @@ function showMemberContextMenu(event, member) {
   const isMemberHost = member.user_id === currentRoom?.host_id;
 
   menu.innerHTML = '';
+  addCtxItem(menu, '🚨 신고', () => { showReportModal(member.user_id, member.nickname); hideContextMenu(); }, true);
   if (!isFriend) addCtxItem(menu, t('ctx.add-friend'), () => { sendFriendRequest(member.user_id); hideContextMenu(); });
   if (isFriend)  addCtxItem(menu, t('ctx.dm'),         () => { openDM(member.user_id, member.nickname); hideContextMenu(); });
   if (isRoomHost && !isMemberHost) addCtxItem(menu, t('ctx.kick'), () => { kickMember(member.user_id); hideContextMenu(); }, true);
@@ -1665,7 +1667,6 @@ function showMemberContextMenu(event, member) {
     if (isBlocked) unblockUser(member.user_id); else blockUser(member.user_id);
     hideContextMenu();
   }, !isBlocked);
-  addCtxItem(menu, '🚨 신고', () => { showReportModal(member.user_id, member.nickname); hideContextMenu(); }, true);
 
   menu.classList.remove('hidden');
   const x = Math.min(event.clientX, window.innerWidth - 160);
@@ -2138,6 +2139,7 @@ function switchSettingsTab(tabName) {
   document.querySelectorAll('.settings-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
   document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById(`stab-${tabName}`).classList.remove('hidden');
+  if (tabName === 'inquiry') loadMyInquiries();
 }
 
 document.querySelectorAll('.settings-tab').forEach(tab => {
@@ -2224,7 +2226,96 @@ document.getElementById('inquiry-submit-btn').addEventListener('click', async ()
   msg.style.color = 'var(--success)';
   msg.textContent = '문의가 접수되었습니다. 감사합니다!';
   setTimeout(() => { msg.textContent = ''; }, 4000);
+  loadMyInquiries();
 });
+
+const INQUIRY_TYPE_LABEL = { bug: '🐛 버그 신고', feature: '💡 기능 제안', account: '🔑 계정 문제', other: '💬 기타' };
+
+async function loadMyInquiries() {
+  const list = document.getElementById('my-inquiries-list');
+  if (!list || !currentUser) return;
+  list.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:8px 0;">로딩 중...</div>';
+
+  const { data, error } = await sb.from('inquiries')
+    .select('id, type, title, content, answer, answered_at, created_at, status')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (error || !data?.length) {
+    list.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:8px 0;">문의 내역이 없습니다.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  data.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'my-inquiry-card';
+    const statusLabel = item.status === 'answered' ? '<span style="color:var(--success);font-weight:700;">답변완료</span>'
+                      : item.status === 'resolved'  ? '<span style="color:var(--text-muted);">처리됨</span>'
+                      : '<span style="color:var(--warn);">대기중</span>';
+    el.innerHTML = `
+      <div class="my-inquiry-header">
+        <span class="my-inquiry-type">${INQUIRY_TYPE_LABEL[item.type] || item.type}</span>
+        ${statusLabel}
+      </div>
+      <div class="my-inquiry-title">${escHtml(item.title)}</div>
+      <div class="my-inquiry-content">${escHtml(item.content)}</div>
+      ${item.answer ? `
+        <div class="my-inquiry-answer">
+          <div class="my-inquiry-answer-label">💬 관리자 답변</div>
+          <div>${escHtml(item.answer)}</div>
+        </div>` : ''}
+    `;
+    list.appendChild(el);
+  });
+
+  // 읽음 처리: 답변 있는 문의 알림을 읽음으로 표시
+  await sb.from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', currentUser.id)
+    .eq('type', 'inquiry_answer')
+    .eq('is_read', false);
+  updateNotifBadge(0);
+}
+
+// 알림 배지 업데이트
+function updateNotifBadge(count) {
+  ['notif-badge', 'notif-badge-room'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) { el.textContent = count; el.classList.remove('hidden'); }
+    else el.classList.add('hidden');
+  });
+}
+
+// 알림 구독 (onLogin 후 호출)
+async function subscribeNotifications() {
+  // 미읽음 알림 카운트 초기화
+  const { count } = await sb.from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', currentUser.id)
+    .eq('is_read', false);
+  updateNotifBadge(count || 0);
+
+  // 실시간 구독
+  const ch = sb.channel(`notif-${currentUser.id}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'notifications',
+      filter: `user_id=eq.${currentUser.id}`,
+    }, payload => {
+      if (!payload.new.is_read) {
+        const { count: cnt } = 0;
+        sb.from('notifications').select('*', { count: 'exact', head: true })
+          .eq('user_id', currentUser.id).eq('is_read', false)
+          .then(({ count: c }) => updateNotifBadge(c || 0));
+      }
+    })
+    .subscribe();
+  realtimeChannels.push(ch);
+}
 
 document.getElementById('profanity-filter-toggle').addEventListener('change', e => {
   localStorage.setItem('profanity_filter', e.target.checked);
@@ -2919,10 +3010,10 @@ function showFriendContextMenu(e, f) {
   e.stopPropagation();
   const menu = document.getElementById('member-context-menu');
   menu.innerHTML = '';
+  addCtxItem(menu, '🚨 신고', () => { showReportModal(f.friendId, f.name); hideContextMenu(); }, true);
   addCtxItem(menu, t('btn.dm'), () => { openDM(f.friendId, f.name); hideContextMenu(); });
   addCtxItem(menu, t('btn.remove'), () => { showFriendConfirm(t('confirm.remove-friend'), () => removeFriend(f.id)); hideContextMenu(); }, true);
   addCtxItem(menu, t('btn.block'), () => { showFriendConfirm(t('confirm.block-friend'), () => blockUser(f.friendId)); hideContextMenu(); }, true);
-  addCtxItem(menu, '🚨 신고', () => { showReportModal(f.friendId, f.name); hideContextMenu(); }, true);
   menu.classList.remove('hidden');
   const x = Math.min(e.clientX, window.innerWidth - 160);
   const y = Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8);
@@ -2997,11 +3088,11 @@ async function searchFriendUsers() {
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(name)}</span>
       <div class="friend-item-actions">
+        <button class="btn btn-sm btn-danger" data-report>🚨 신고</button>
         ${friendBtnHtml}
         ${isFriend ? `<button class="btn btn-sm btn-primary" data-dm>${t('btn.dm')}</button>` : ''}
         ${currentRoom ? `<button class="btn btn-sm" data-invite>${t('btn.invite')}</button>` : ''}
         <button class="btn btn-sm btn-danger" data-block>${isBlocked ? t('ctx.unblock') : t('ctx.block')}</button>
-        <button class="btn btn-sm btn-danger" data-report>🚨 신고</button>
       </div>
     `;
     if (!isFriend && !isPending) {
@@ -3339,6 +3430,7 @@ function showReportModal(userId, userName, content = null) {
     preview.style.display = 'none';
   }
 
+  document.getElementById('report-detail').value = '';
   document.getElementById('report-modal').classList.remove('hidden');
 }
 
@@ -3354,10 +3446,13 @@ document.getElementById('report-submit-btn').addEventListener('click', async () 
   if (!selected) return;
   const reason = selected.value;
 
+  const detail = document.getElementById('report-detail').value.trim() || null;
+
   const { error } = await sb.from('reports').insert({
     reporter_id: currentUser.id,
     reported_user_id: reportTarget.userId,
     reason,
+    detail,
     message_content: reportTarget.content || null,
     room_id: currentRoom?.id || null,
     status: 'pending',

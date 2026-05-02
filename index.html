@@ -44,7 +44,7 @@
         <button id="user-name" class="btn-username"></button>
         <button id="friends-btn" class="btn btn-sm" data-i18n-title="title.friends" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
         <button id="dm-btn" class="btn btn-sm" data-i18n-title="title.dm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
-        <button id="settings-btn" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️</button>
+        <button id="settings-btn" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️<span id="notif-badge" class="friends-badge hidden"></span></button>
 <button id="logout-btn" class="btn btn-sm" data-i18n="btn.logout">로그아웃</button>
       </div>
     </div>
@@ -170,8 +170,8 @@
 
     <!-- 문의 탭 -->
     <div class="settings-tab-panel hidden" id="stab-inquiry">
-      <p class="settings-section-title">문의하기</p>
-      <div style="display:flex;flex-direction:column;gap:12px;">
+      <p class="settings-section-title">새 문의</p>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
         <div>
           <label class="inquiry-label">문의 유형</label>
           <select id="inquiry-type" class="inquiry-input">
@@ -187,11 +187,13 @@
         </div>
         <div>
           <label class="inquiry-label">내용</label>
-          <textarea id="inquiry-content" class="inquiry-input" rows="5" placeholder="문의 내용을 자세히 입력해주세요" maxlength="2000" style="resize:vertical;"></textarea>
+          <textarea id="inquiry-content" class="inquiry-input" rows="3" placeholder="문의 내용을 자세히 입력해주세요" maxlength="2000" style="resize:none;"></textarea>
         </div>
-        <button id="inquiry-submit-btn" class="btn btn-primary" style="width:100%;">제출</button>
-        <p id="inquiry-msg" style="font-size:0.82rem;text-align:center;min-height:18px;"></p>
+        <button id="inquiry-submit-btn" class="btn btn-primary btn-sm" style="align-self:flex-end;">제출</button>
+        <p id="inquiry-msg" style="font-size:0.82rem;text-align:center;min-height:16px;"></p>
       </div>
+      <p class="settings-section-title" style="margin-bottom:10px;">내 문의 내역</p>
+      <div id="my-inquiries-list"></div>
     </div>
   </div>
 </div>
@@ -346,7 +348,7 @@
       <button id="members-panel-btn" class="btn btn-sm" data-i18n-title="title.members" title="참여 인원"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 20c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       <button id="copy-invite-btn" class="btn btn-sm" data-i18n="invite.link.btn">🔗 링크 복사</button>
       <button id="invite-friends-btn" class="btn btn-sm" data-i18n-title="title.invite" title="친구 초대">👥</button>
-      <button id="settings-btn-room" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️</button>
+      <button id="settings-btn-room" class="btn btn-sm" data-i18n-title="title.settings" title="설정">⚙️<span id="notif-badge-room" class="friends-badge hidden"></span></button>
       <button id="leave-btn" class="btn btn-sm btn-danger" data-i18n="btn.leave">나가기</button>
     </div>
   </header>
@@ -523,6 +525,10 @@
     <p id="report-target-info" style="font-size:0.9rem;color:var(--text-muted);margin-bottom:12px;"></p>
     <div id="report-reason-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
     <div id="report-msg-preview" style="display:none;background:var(--surface2);border-radius:8px;padding:8px 12px;font-size:0.82rem;color:var(--text-muted);margin-bottom:12px;word-break:break-word;"></div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.82rem;color:var(--text-muted);margin-bottom:6px;">추가 설명 (선택)</label>
+      <textarea id="report-detail" rows="3" placeholder="자세한 상황을 입력해주세요..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+    </div>
     <div style="display:flex;gap:8px;">
       <button id="report-submit-btn" class="btn btn-primary btn-sm">신고</button>
       <button id="report-cancel-btn" class="btn btn-sm">취소</button>
