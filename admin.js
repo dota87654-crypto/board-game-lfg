@@ -577,28 +577,209 @@ async function loadActivityLog() {
 async function renderActivityLog(profile, container) {
   const name = escHtml(profile.nickname || profile.display_name || '알 수 없음');
   const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
+  const sLabel = { pending: '대기중', resolved: '처리됨', dismissed: '기각됨' };
+  const sColor = { pending: 'var(--warn)', resolved: 'var(--success)', dismissed: 'var(--text-muted)' };
 
+  // ① 유저 정보
   container.innerHTML = `
     <div class="activity-section">
       <div class="activity-section-title">👤 유저 정보</div>
       <div class="activity-info-grid">
-        <div class="activity-info-item">
-          <span class="activity-info-label">닉네임</span>
-          <span>${name}</span>
-        </div>
-        <div class="activity-info-item">
-          <span class="activity-info-label">이메일</span>
-          <span>${escHtml(profile.email || '-')}</span>
-        </div>
-        <div class="activity-info-item">
-          <span class="activity-info-label">가입일</span>
-          <span>${new Date(profile.created_at).toLocaleDateString('ko-KR')}</span>
-        </div>
+        <div class="activity-info-item"><span class="activity-info-label">닉네임</span><span>${name}</span></div>
+        <div class="activity-info-item"><span class="activity-info-label">이메일</span><span>${escHtml(profile.email || '-')}</span></div>
+        <div class="activity-info-item"><span class="activity-info-label">가입일</span><span>${profile.created_at ? new Date(profile.created_at).toLocaleDateString('ko-KR') : '-'}</span></div>
       </div>
     </div>
   `;
 
-  // 방 입장 로그
+  // ② 처벌 이력
+  const { data: punishments } = await sb.from('punishments')
+    .select('id, type, expires_at, created_at, is_active, admin_id')
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false });
+
+  if (punishments?.length) {
+    const adminIds = [...new Set(punishments.map(p => p.admin_id).filter(Boolean))];
+    const adminMap = {};
+    if (adminIds.length) {
+      const { data: admins } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', adminIds);
+      (admins || []).forEach(a => { adminMap[a.id] = a.nickname || a.display_name || a.email?.split('@')[0] || '관리자'; });
+    }
+    const typeLabel = { warning: '⚠️ 경고', chat_ban: '💬 채팅금지', suspend: '🔒 이용정지', permanent_ban: '🚫 영구정지' };
+    const rows = punishments.map(p => {
+      const until = p.expires_at ? new Date(p.expires_at).toLocaleDateString('ko-KR') : (p.type === 'permanent_ban' ? '영구' : '-');
+      const statusHtml = p.is_active
+        ? `<span style="color:var(--danger);font-weight:600;">활성</span>`
+        : `<span style="color:var(--text-muted);">해지됨</span>`;
+      return `<tr>
+        <td>${typeLabel[p.type] || p.type}</td>
+        <td>${new Date(p.created_at).toLocaleDateString('ko-KR')}</td>
+        <td>${until}</td>
+        <td>${escHtml(adminMap[p.admin_id] || '-')}</td>
+        <td>${statusHtml}</td>
+      </tr>`;
+    }).join('');
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">⚖️ 처벌 이력 <span class="activity-count">${punishments.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th>처벌 종류</th><th>처벌일</th><th>만료일</th><th>담당 관리자</th><th>상태</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">⚖️ 처벌 이력 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">처벌 이력이 없습니다.</div>
+      </div>
+    `);
+  }
+
+  // ③ 신고 당한 내역
+  const { data: reportedList } = await sb.from('reports')
+    .select('id, reporter_id, reason, detail, status, created_at')
+    .eq('reported_user_id', profile.id)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (reportedList?.length) {
+    const rIds = [...new Set(reportedList.map(r => r.reporter_id).filter(Boolean))];
+    const { data: rp } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', rIds);
+    const rMap = {};
+    (rp || []).forEach(p => { rMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+
+    const rResolved = reportedList.filter(r => r.status === 'resolved').length;
+    const rDismissed = reportedList.filter(r => r.status === 'dismissed').length;
+    const rPending = reportedList.filter(r => r.status === 'pending').length;
+
+    const rows = reportedList.map(r => `<tr>
+      <td>${escHtml(rMap[r.reporter_id] || '알 수 없음')}</td>
+      <td>${escHtml(r.reason)}</td>
+      <td>${r.detail ? escHtml(r.detail) : '-'}</td>
+      <td style="color:${sColor[r.status] || 'inherit'};font-weight:600;">${sLabel[r.status] || r.status}</td>
+      <td>${new Date(r.created_at).toLocaleDateString('ko-KR')}</td>
+    </tr>`).join('');
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🚨 신고 당한 내역 <span class="activity-count">${reportedList.length}건</span></div>
+        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:0.82rem;">
+          <span>처리됨 <b style="color:var(--success)">${rResolved}</b></span>
+          <span>기각됨 <b style="color:var(--text-muted)">${rDismissed}</b></span>
+          <span>대기중 <b style="color:var(--warn)">${rPending}</b></span>
+        </div>
+        <table class="activity-table">
+          <thead><tr><th>신고자</th><th>사유</th><th>상세</th><th>처리 결과</th><th>날짜</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">🚨 신고 당한 내역 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">신고 당한 내역이 없습니다.</div>
+      </div>
+    `);
+  }
+
+  // ④ 신고 한 내역 (허위신고 반복 여부)
+  const { data: reporterList } = await sb.from('reports')
+    .select('id, reported_user_id, reason, detail, status, created_at')
+    .eq('reporter_id', profile.id)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (reporterList?.length) {
+    const rdIds = [...new Set(reporterList.map(r => r.reported_user_id).filter(Boolean))];
+    const { data: rdp } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', rdIds);
+    const rdMap = {};
+    (rdp || []).forEach(p => { rdMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+
+    const total = reporterList.length;
+    const dismissed = reporterList.filter(r => r.status === 'dismissed').length;
+    const resolved = reporterList.filter(r => r.status === 'resolved').length;
+    const pending = reporterList.filter(r => r.status === 'pending').length;
+    const dismissRate = total > 0 ? Math.round((dismissed / total) * 100) : 0;
+    const isSuspicious = dismissed >= 3 && dismissRate >= 50;
+
+    const rows = reporterList.map(r => `<tr>
+      <td>${escHtml(rdMap[r.reported_user_id] || '알 수 없음')}</td>
+      <td>${escHtml(r.reason)}</td>
+      <td>${r.detail ? escHtml(r.detail) : '-'}</td>
+      <td style="color:${sColor[r.status] || 'inherit'};font-weight:600;">${sLabel[r.status] || r.status}</td>
+      <td>${new Date(r.created_at).toLocaleDateString('ko-KR')}</td>
+    </tr>`).join('');
+
+    const suspiciousBadge = isSuspicious
+      ? `<span style="background:#e0525233;color:var(--danger);font-size:0.73rem;padding:2px 8px;border-radius:10px;font-weight:700;text-transform:none;">⚠️ 허위신고 의심</span>`
+      : '';
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">📢 신고 한 내역 <span class="activity-count">${total}건</span>${suspiciousBadge}</div>
+        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:0.82rem;align-items:center;flex-wrap:wrap;">
+          <span>처리됨 <b style="color:var(--success)">${resolved}</b></span>
+          <span>기각됨 <b style="color:var(--text-muted)">${dismissed}</b></span>
+          <span>대기중 <b style="color:var(--warn)">${pending}</b></span>
+          <span style="color:${dismissRate >= 50 ? 'var(--danger)' : 'var(--text-muted)'};">기각률 <b>${dismissRate}%</b></span>
+        </div>
+        <table class="activity-table">
+          <thead><tr><th>피신고자</th><th>사유</th><th>상세</th><th>처리 결과</th><th>날짜</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">📢 신고 한 내역 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">신고한 내역이 없습니다.</div>
+      </div>
+    `);
+  }
+
+  // ⑤ 채팅 로그 (방 채팅만, DM 제외)
+  const { data: chatLogs } = await sb.from('messages')
+    .select('room_id, content, created_at')
+    .eq('user_id', profile.id)
+    .not('room_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (chatLogs?.length) {
+    const chatRoomIds = [...new Set(chatLogs.map(m => m.room_id).filter(Boolean))];
+    const { data: chatRooms } = await sb.from('rooms').select('id, title').in('id', chatRoomIds);
+    const chatRoomMap = {};
+    (chatRooms || []).forEach(r => { chatRoomMap[r.id] = r.title; });
+
+    const rows = chatLogs.map(m => `<tr>
+      <td style="white-space:nowrap;">${escHtml(chatRoomMap[m.room_id] || '(삭제된 방)')}</td>
+      <td>${escHtml(m.content)}</td>
+      <td style="white-space:nowrap;">${new Date(m.created_at).toLocaleString('ko-KR')}</td>
+    </tr>`).join('');
+
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">💬 채팅 로그 <span class="activity-count">최근 ${chatLogs.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th style="width:160px;">방</th><th>메시지</th><th style="width:150px;">시간</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else {
+    container.insertAdjacentHTML('beforeend', `
+      <div class="activity-section">
+        <div class="activity-section-title">💬 채팅 로그 <span class="activity-count">0건</span></div>
+        <div class="activity-empty">방 채팅 기록이 없습니다.</div>
+      </div>
+    `);
+  }
+
+  // ⑥ 방 입장 로그
   const { data: entryLogs } = await sb.from('room_entry_logs')
     .select('room_id, entered_at')
     .eq('user_id', profile.id)
@@ -608,8 +789,7 @@ async function renderActivityLog(profile, container) {
 
   if (entryLogs?.length) {
     const roomIds = [...new Set(entryLogs.map(e => e.room_id).filter(Boolean))];
-    const { data: rooms } = await sb.from('rooms')
-      .select('id, title, game_name, category, location').in('id', roomIds);
+    const { data: rooms } = await sb.from('rooms').select('id, title, game_name, category, location').in('id', roomIds);
     const roomMap = {};
     (rooms || []).forEach(r => { roomMap[r.id] = r; });
 
@@ -621,7 +801,7 @@ async function renderActivityLog(profile, container) {
         <td>${escHtml(room.game_name || '-')}</td>
         <td>${escHtml(room.category || '-')}</td>
         <td>${showLoc ? escHtml(room.location || '-') : '-'}</td>
-        <td>${new Date(e.entered_at).toLocaleString('ko-KR')}</td>
+        <td style="white-space:nowrap;">${new Date(e.entered_at).toLocaleString('ko-KR')}</td>
       </tr>`;
     }).join('');
 
@@ -643,7 +823,7 @@ async function renderActivityLog(profile, container) {
     `);
   }
 
-  // 만든 방 목록
+  // ⑦ 만든 방 목록
   const { data: createdRooms } = await sb.from('rooms')
     .select('id, title, game_name, category, location, created_at')
     .eq('host_id', profile.id)
@@ -659,7 +839,7 @@ async function renderActivityLog(profile, container) {
         <td>${escHtml(r.game_name || '-')}</td>
         <td>${escHtml(r.category || '-')}</td>
         <td>${showLoc ? escHtml(r.location || '-') : '-'}</td>
-        <td>${new Date(r.created_at).toLocaleString('ko-KR')}</td>
+        <td style="white-space:nowrap;">${new Date(r.created_at).toLocaleString('ko-KR')}</td>
       </tr>`;
     }).join('');
 
@@ -677,86 +857,6 @@ async function renderActivityLog(profile, container) {
       <div class="activity-section">
         <div class="activity-section-title">🏠 만든 방 목록 <span class="activity-count">0건</span></div>
         <div class="activity-empty">최근 90일 생성한 방이 없습니다.</div>
-      </div>
-    `);
-  }
-
-  // 신고 당한 내역
-  const { data: reportedList } = await sb.from('reports')
-    .select('id, reporter_id, reason, detail, status, created_at')
-    .eq('reported_user_id', profile.id)
-    .gte('created_at', since90)
-    .order('created_at', { ascending: false })
-    .limit(100);
-
-  if (reportedList?.length) {
-    const rIds = [...new Set(reportedList.map(r => r.reporter_id).filter(Boolean))];
-    const { data: rp } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', rIds);
-    const rMap = {};
-    (rp || []).forEach(p => { rMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
-    const sLabel = { pending: '대기중', resolved: '처리됨', dismissed: '기각됨' };
-    const rows = reportedList.map(r => `<tr>
-      <td>${escHtml(rMap[r.reporter_id] || '알 수 없음')}</td>
-      <td>${escHtml(r.reason)}</td>
-      <td>${r.detail ? escHtml(r.detail) : '-'}</td>
-      <td>${escHtml(sLabel[r.status] || r.status)}</td>
-      <td>${new Date(r.created_at).toLocaleDateString('ko-KR')}</td>
-    </tr>`).join('');
-
-    container.insertAdjacentHTML('beforeend', `
-      <div class="activity-section">
-        <div class="activity-section-title">🚨 신고 당한 내역 <span class="activity-count">${reportedList.length}건</span></div>
-        <table class="activity-table">
-          <thead><tr><th>신고자</th><th>사유</th><th>상세</th><th>상태</th><th>날짜</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    `);
-  } else {
-    container.insertAdjacentHTML('beforeend', `
-      <div class="activity-section">
-        <div class="activity-section-title">🚨 신고 당한 내역 <span class="activity-count">0건</span></div>
-        <div class="activity-empty">최근 90일 신고 당한 내역이 없습니다.</div>
-      </div>
-    `);
-  }
-
-  // 신고 한 내역
-  const { data: reporterList } = await sb.from('reports')
-    .select('id, reported_user_id, reason, detail, status, created_at')
-    .eq('reporter_id', profile.id)
-    .gte('created_at', since90)
-    .order('created_at', { ascending: false })
-    .limit(100);
-
-  if (reporterList?.length) {
-    const rdIds = [...new Set(reporterList.map(r => r.reported_user_id).filter(Boolean))];
-    const { data: rdp } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', rdIds);
-    const rdMap = {};
-    (rdp || []).forEach(p => { rdMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
-    const sLabel = { pending: '대기중', resolved: '처리됨', dismissed: '기각됨' };
-    const rows = reporterList.map(r => `<tr>
-      <td>${escHtml(rdMap[r.reported_user_id] || '알 수 없음')}</td>
-      <td>${escHtml(r.reason)}</td>
-      <td>${r.detail ? escHtml(r.detail) : '-'}</td>
-      <td>${escHtml(sLabel[r.status] || r.status)}</td>
-      <td>${new Date(r.created_at).toLocaleDateString('ko-KR')}</td>
-    </tr>`).join('');
-
-    container.insertAdjacentHTML('beforeend', `
-      <div class="activity-section">
-        <div class="activity-section-title">📢 신고 한 내역 <span class="activity-count">${reporterList.length}건</span></div>
-        <table class="activity-table">
-          <thead><tr><th>피신고자</th><th>사유</th><th>상세</th><th>상태</th><th>날짜</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    `);
-  } else {
-    container.insertAdjacentHTML('beforeend', `
-      <div class="activity-section">
-        <div class="activity-section-title">📢 신고 한 내역 <span class="activity-count">0건</span></div>
-        <div class="activity-empty">최근 90일 신고한 내역이 없습니다.</div>
       </div>
     `);
   }
