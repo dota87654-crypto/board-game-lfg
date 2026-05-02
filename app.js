@@ -1602,10 +1602,11 @@ function renderMembersPanel() {
       : userIconSvg(color);
     el.innerHTML = `
       ${iconHtml}
-      <span class="member-name${isSelf ? '' : ' member-clickable'}">${isHost ? '👑 ' : ''}${escHtml(m.nickname)}</span>
+      <span class="member-name">${isHost ? '👑 ' : ''}${escHtml(m.nickname)}</span>
     `;
     if (!isSelf) {
-      el.querySelector('.member-clickable').addEventListener('click', e => {
+      el.style.cursor = 'pointer';
+      el.addEventListener('click', e => {
         e.stopPropagation();
         showMemberContextMenu(e, m);
       });
