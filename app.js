@@ -2736,6 +2736,7 @@ async function subscribeNotifications() {
       table: 'notifications',
       filter: `user_id=eq.${currentUser.id}`,
     }, async payload => {
+      console.log('[notif realtime]', payload.new?.type, payload.new);
       if (payload.new.is_read) return;
       if (payload.new.type === 'punishment') {
         // 모달 표시 후 즉시 처벌 적용 (이용정지면 signOut)
