@@ -810,12 +810,17 @@ form label input:focus { outline: none; border-color: var(--primary); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 4px;
+  padding: 8px 4px;
   border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+  transition: background 0.15s;
 }
+.friend-item:hover { background: var(--surface2); }
 .friend-item:last-child { border-bottom: none; }
-.friend-item-name { font-size: 0.92rem; font-weight: 600; }
-.friend-item-actions { display: flex; gap: 6px; }
+.friend-item-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.friend-item-name { font-size: 0.92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.friend-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 
 .empty-friends { color: var(--text-muted); font-size: 0.88rem; text-align: center; padding: 24px 0; }
 .empty-blocked { color: var(--text-muted); font-size: 0.88rem; margin: 10px 0 4px; }

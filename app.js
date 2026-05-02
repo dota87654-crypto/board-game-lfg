@@ -2734,13 +2734,13 @@ async function loadFriends() {
 
   const profileMap = {};
   if (allIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, display_name, email, nickname').in('id', allIds);
-    (profiles || []).forEach(p => { profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
+    const { data: profiles } = await sb.from('profiles').select('id, display_name, email, nickname, avatar_url').in('id', allIds);
+    (profiles || []).forEach(p => { profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null }; });
   }
 
   friendsList = accepted.map(f => {
     const fid = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
-    return { id: f.id, friendId: fid, name: profileMap[fid] || '알 수 없음' };
+    return { id: f.id, friendId: fid, name: profileMap[fid]?.name || '알 수 없음', avatar_url: profileMap[fid]?.avatar_url || null };
   });
 
   pendingList = pending.map(f => ({
@@ -2772,27 +2772,37 @@ function renderFriendsList() {
   friendsList.forEach(f => {
     const el = document.createElement('div');
     el.className = 'friend-item';
+    el.style.cursor = 'pointer';
+    const avatarHtml = f.avatar_url
+      ? `<img class="friend-avatar" src="${escHtml(f.avatar_url)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">${userIconSvg('#4a8fe8').replace('<svg', '<svg style="display:none"')}`
+      : userIconSvg('#4a8fe8');
     el.innerHTML = `
-      <span class="friend-item-name">${escHtml(f.name)}</span>
+      <div class="friend-item-left">${avatarHtml}<span class="friend-item-name">${escHtml(f.name)}</span></div>
       <div class="friend-item-actions">
         ${inRoom ? `<button class="btn btn-sm btn-primary" data-invite="${f.friendId}">${t('btn.invite')}</button>` : ''}
-        <button class="btn btn-sm btn-primary" data-dm="${f.friendId}" data-name="${escHtml(f.name)}">${t('btn.dm')}</button>
-        ${!inRoom ? `<button class="btn btn-sm btn-danger" data-block="${f.friendId}">${t('btn.block')}</button>` : ''}
-        ${!inRoom ? `<button class="btn btn-sm btn-danger" data-remove="${f.id}">${t('btn.remove')}</button>` : ''}
+        <button class="btn btn-sm btn-primary" data-dm="${f.friendId}">${t('btn.dm')}</button>
       </div>
     `;
-    if (inRoom) el.querySelector('[data-invite]').addEventListener('click', () => inviteFriend(f.friendId, f.name));
-    el.querySelector('[data-dm]').addEventListener('click', () => openDM(f.friendId, f.name));
-    if (!inRoom) {
-      el.querySelector('[data-remove]').addEventListener('click', () => {
-        showFriendConfirm(t('confirm.remove-friend'), () => removeFriend(f.id));
-      });
-      el.querySelector('[data-block]').addEventListener('click', () => {
-        showFriendConfirm(t('confirm.block-friend'), () => blockUser(f.friendId));
-      });
+    if (inRoom) {
+      el.querySelector('[data-invite]').addEventListener('click', e => { e.stopPropagation(); inviteFriend(f.friendId, f.name); });
     }
+    el.querySelector('[data-dm]').addEventListener('click', e => { e.stopPropagation(); openDM(f.friendId, f.name); });
+    el.addEventListener('click', e => showFriendContextMenu(e, f));
     friendsListBody.appendChild(el);
   });
+}
+
+function showFriendContextMenu(e, f) {
+  const menu = document.getElementById('member-context-menu');
+  menu.innerHTML = '';
+  addCtxItem(menu, t('btn.dm'), () => { openDM(f.friendId, f.name); hideContextMenu(); });
+  addCtxItem(menu, t('btn.remove'), () => { showFriendConfirm(t('confirm.remove-friend'), () => removeFriend(f.id)); hideContextMenu(); }, true);
+  addCtxItem(menu, t('btn.block'), () => { showFriendConfirm(t('confirm.block-friend'), () => blockUser(f.friendId)); hideContextMenu(); }, true);
+  menu.classList.remove('hidden');
+  const x = Math.min(e.clientX, window.innerWidth - 160);
+  const y = Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8);
+  menu.style.left = `${x}px`;
+  menu.style.top = `${y}px`;
 }
 
 function renderPendingList() {
