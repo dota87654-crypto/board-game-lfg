@@ -1401,6 +1401,15 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .guild-card-desc { font-size: 0.85rem; color: var(--text-muted); }
 .guild-card-count { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
 .guild-card-footer { display: flex; justify-content: flex-end; margin-top: 4px; }
+.badge-joined {
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 15%, var(--surface));
+  color: var(--primary);
+  font-weight: 500;
+  vertical-align: middle;
+}
 .guild-role-badge {
   font-size: 0.74rem;
   padding: 2px 8px;

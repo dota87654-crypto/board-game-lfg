@@ -4125,7 +4125,7 @@ function renderPublicGuilds(guilds, myGuildIds) {
     return `
       <div class="guild-card">
         <div class="guild-card-top">
-          <div class="guild-card-name">${escHtml(g.name)}</div>
+          <div class="guild-card-name">${escHtml(g.name)}${isMine ? ' <span class="badge-joined">가입됨</span>' : ''}</div>
           <span class="guild-card-count">👥 ${g.member_count || 0}명</span>
         </div>
         ${g.description ? `<div class="guild-card-desc">${escHtml(g.description)}</div>` : ''}
