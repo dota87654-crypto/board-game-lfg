@@ -1659,7 +1659,6 @@ function showMemberContextMenu(event, member) {
   const isMemberHost = member.user_id === currentRoom?.host_id;
 
   menu.innerHTML = '';
-  addCtxItem(menu, '🚨 신고', () => { showReportModal(member.user_id, member.nickname); hideContextMenu(); }, true);
   if (!isFriend) addCtxItem(menu, t('ctx.add-friend'), () => { sendFriendRequest(member.user_id); hideContextMenu(); });
   if (isFriend)  addCtxItem(menu, t('ctx.dm'),         () => { openDM(member.user_id, member.nickname); hideContextMenu(); });
   if (isRoomHost && !isMemberHost) addCtxItem(menu, t('ctx.kick'), () => { kickMember(member.user_id); hideContextMenu(); }, true);
@@ -1667,6 +1666,7 @@ function showMemberContextMenu(event, member) {
     if (isBlocked) unblockUser(member.user_id); else blockUser(member.user_id);
     hideContextMenu();
   }, !isBlocked);
+  addCtxItem(menu, '🚨 신고', () => { showReportModal(member.user_id, member.nickname); hideContextMenu(); }, true);
 
   menu.classList.remove('hidden');
   const x = Math.min(event.clientX, window.innerWidth - 160);
@@ -3010,10 +3010,10 @@ function showFriendContextMenu(e, f) {
   e.stopPropagation();
   const menu = document.getElementById('member-context-menu');
   menu.innerHTML = '';
-  addCtxItem(menu, '🚨 신고', () => { showReportModal(f.friendId, f.name); hideContextMenu(); }, true);
   addCtxItem(menu, t('btn.dm'), () => { openDM(f.friendId, f.name); hideContextMenu(); });
   addCtxItem(menu, t('btn.remove'), () => { showFriendConfirm(t('confirm.remove-friend'), () => removeFriend(f.id)); hideContextMenu(); }, true);
   addCtxItem(menu, t('btn.block'), () => { showFriendConfirm(t('confirm.block-friend'), () => blockUser(f.friendId)); hideContextMenu(); }, true);
+  addCtxItem(menu, '🚨 신고', () => { showReportModal(f.friendId, f.name); hideContextMenu(); }, true);
   menu.classList.remove('hidden');
   const x = Math.min(e.clientX, window.innerWidth - 160);
   const y = Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8);
@@ -3088,11 +3088,11 @@ async function searchFriendUsers() {
     el.innerHTML = `
       <span class="friend-item-name">${escHtml(name)}</span>
       <div class="friend-item-actions">
-        <button class="btn btn-sm btn-danger" data-report>🚨 신고</button>
         ${friendBtnHtml}
         ${isFriend ? `<button class="btn btn-sm btn-primary" data-dm>${t('btn.dm')}</button>` : ''}
         ${currentRoom ? `<button class="btn btn-sm" data-invite>${t('btn.invite')}</button>` : ''}
         <button class="btn btn-sm btn-danger" data-block>${isBlocked ? t('ctx.unblock') : t('ctx.block')}</button>
+        <button class="btn btn-sm btn-danger" data-report>🚨 신고</button>
       </div>
     `;
     if (!isFriend && !isPending) {
