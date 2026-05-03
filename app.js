@@ -4135,7 +4135,7 @@ async function sha256(str) {
 
 // ==================== GUILD SYSTEM ====================
 
-const GUILD_ROLE_LABELS = { owner: '👑 길드장', officer: '⭐ 부길드장', member: '멤버' };
+const GUILD_ROLE_LABELS = { owner: '👑 길드장', officer: '⭐ 부길드장', admin: '🔷 관리자', member: '멤버' };
 let myGuildPermissions = { can_kick: true, can_yellow_card: true };
 
 let currentGuild = null;
@@ -4332,13 +4332,15 @@ async function enterGuildDetail(guild) {
     .eq('user_id', currentUser.id).eq('type', 'guild_approved').eq('is_read', false);
 
   currentGuild = { ...guild, myRole: myMembership.role };
-  const isOfficer = ['owner', 'officer'].includes(currentGuild.myRole);
-  const isOwner = currentGuild.myRole === 'owner';
+  const isOwner   = currentGuild.myRole === 'owner';
+  const isOfficer = currentGuild.myRole === 'officer';
+  const isAdmin   = currentGuild.myRole === 'admin';
+  const canManageGuild = isOwner || isOfficer;
 
-  // 부길드장이면 본인 권한 로드, 길드장은 항상 모든 권한
+  // 부길드장/관리자면 본인 권한 로드, 길드장은 항상 모든 권한
   if (isOwner) {
     myGuildPermissions = { can_kick: true, can_yellow_card: true };
-  } else if (isOfficer) {
+  } else if (isOfficer || isAdmin) {
     const { data: perms } = await sb.from('guild_officer_permissions')
       .select('can_kick, can_yellow_card')
       .eq('guild_id', guild.id).eq('user_id', currentUser.id).maybeSingle();
@@ -4348,7 +4350,7 @@ async function enterGuildDetail(guild) {
   }
 
   document.getElementById('guild-title-el').textContent = guild.name;
-  document.getElementById('guild-requests-btn').classList.toggle('hidden', !isOfficer);
+  document.getElementById('guild-requests-btn').classList.toggle('hidden', !canManageGuild);
   document.getElementById('guild-officer-perms-btn').classList.toggle('hidden', !isOwner);
   document.getElementById('guild-settings-btn').classList.toggle('hidden', !isOwner);
 
@@ -4363,7 +4365,7 @@ async function enterGuildDetail(guild) {
   await loadGuildMessages(guild.id);
   await loadGuildMembers(guild.id);
   subscribeGuildChat(guild.id);
-  if (isOfficer) loadGuildRequestsBadge(guild.id);
+  if (canManageGuild) loadGuildRequestsBadge(guild.id);
 }
 
 async function loadGuildMessages(guildId) {
@@ -4484,18 +4486,26 @@ async function loadGuildMembers(guildId) {
 
 function renderGuildMembersPanel() {
   const list = document.getElementById('guild-members-list');
-  const isOwner = currentGuild?.myRole === 'owner';
-  const isOfficer = currentGuild?.myRole === 'officer';
-  const canManage = isOwner || isOfficer;
-  const roleOrder = { owner: 0, officer: 1, member: 2 };
+  const myRole = currentGuild?.myRole;
+  const isOwner   = myRole === 'owner';
+  const isOfficer = myRole === 'officer';
+  const isAdmin   = myRole === 'admin';
+  const roleOrder = { owner: 0, officer: 1, admin: 2, member: 3 };
   const sorted = [...guildMembers].sort((a, b) => roleOrder[a.role] - roleOrder[b.role]);
   list.innerHTML = sorted.map(m => {
     const isMe = m.userId === currentUser.id;
-    const canKick = !isMe && (isOwner || (isOfficer && m.role === 'member' && myGuildPermissions.can_kick));
-    const canPromote = isOwner && m.role === 'member';
-    const canDemote = isOwner && m.role === 'officer';
-    const canCard = !isMe && canManage && m.role !== 'owner' && !(isOfficer && m.role === 'officer') && (isOwner || myGuildPermissions.can_yellow_card);
-    const hasActions = canKick || canPromote || canDemote || canCard || !isMe;
+    const canKick = !isMe && (
+      isOwner ||
+      (isOfficer && ['admin', 'member'].includes(m.role) && myGuildPermissions.can_kick) ||
+      (isAdmin   && m.role === 'member' && myGuildPermissions.can_kick)
+    );
+    const canCard = !isMe && m.role !== 'owner' && (
+      isOwner ||
+      (isOfficer && ['admin', 'member'].includes(m.role) && myGuildPermissions.can_yellow_card) ||
+      (isAdmin   && m.role === 'member' && myGuildPermissions.can_yellow_card)
+    );
+    const roleActions = isOwner ? buildRoleActions(m) : [];
+    const hasActions = canKick || canCard || roleActions.length > 0 || !isMe;
     const avatarSrc = m.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(m.userId)}`;
     const yellowBadge = m.yellowCard ? ' 🟡' : '';
     return `<div class="guild-member-item${hasActions ? ' clickable' : ''}" data-uid="${m.userId}">
@@ -4503,7 +4513,7 @@ function renderGuildMembersPanel() {
         <img class="member-avatar" src="${escHtml(avatarSrc)}" alt="" />
         <div>
           <div class="guild-member-name">${escHtml(m.name)}${yellowBadge}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
-          <div class="guild-member-role-label">${GUILD_ROLE_LABELS[m.role]}</div>
+          <div class="guild-member-role-label">${GUILD_ROLE_LABELS[m.role] || m.role}</div>
         </div>
       </div>
       ${hasActions ? '<span class="guild-member-more">⋯</span>' : ''}
@@ -4513,12 +4523,34 @@ function renderGuildMembersPanel() {
     const uid = item.dataset.uid;
     const member = guildMembers.find(m => m.userId === uid);
     if (!member) return;
-    const canKick = uid !== currentUser.id && (isOwner || (isOfficer && member.role === 'member' && myGuildPermissions.can_kick));
-    const canPromote = isOwner && member.role === 'member';
-    const canDemote = isOwner && member.role === 'officer';
-    const canCard = uid !== currentUser.id && canManage && member.role !== 'owner' && !(isOfficer && member.role === 'officer') && (isOwner || myGuildPermissions.can_yellow_card);
-    item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canPromote, canDemote, canCard }));
+    const canKick = uid !== currentUser.id && (
+      isOwner ||
+      (isOfficer && ['admin', 'member'].includes(member.role) && myGuildPermissions.can_kick) ||
+      (isAdmin   && member.role === 'member' && myGuildPermissions.can_kick)
+    );
+    const canCard = uid !== currentUser.id && member.role !== 'owner' && (
+      isOwner ||
+      (isOfficer && ['admin', 'member'].includes(member.role) && myGuildPermissions.can_yellow_card) ||
+      (isAdmin   && member.role === 'member' && myGuildPermissions.can_yellow_card)
+    );
+    const roleActions = isOwner ? buildRoleActions(member) : [];
+    item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canCard, roleActions }));
   });
+}
+
+function buildRoleActions(member) {
+  const actions = [];
+  if (member.role === 'member') {
+    actions.push({ label: '⭐ 부길드장 임명', newRole: 'officer' });
+    actions.push({ label: '🔷 관리자 임명',   newRole: 'admin' });
+  } else if (member.role === 'admin') {
+    actions.push({ label: '⭐ 부길드장 임명', newRole: 'officer' });
+    actions.push({ label: '🔷 관리자 해제',   newRole: 'member' });
+  } else if (member.role === 'officer') {
+    actions.push({ label: '🔷 관리자로 변경', newRole: 'admin' });
+    actions.push({ label: '↩ 부길드장 해제', newRole: 'member' });
+  }
+  return actions;
 }
 
 let _guildCtxHandler = null;
@@ -4531,12 +4563,11 @@ function closeGuildCtxMenu() {
   }
 }
 
-function showGuildMemberMenu(e, member, { canKick, canPromote, canDemote, canCard }) {
+function showGuildMemberMenu(e, member, { canKick, canCard, roleActions = [] }) {
   closeGuildCtxMenu();
   const items = [];
   if (member.userId !== currentUser.id) items.push({ label: '💬 DM', action: () => openDM(member.userId, member.name) });
-  if (canPromote) items.push({ label: '⭐ 부길드장 임명', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'officer') });
-  if (canDemote)  items.push({ label: '↩ 부길드장 해제', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'member') });
+  roleActions.forEach(ra => items.push({ label: ra.label, action: () => updateGuildMemberRole(currentGuild.id, member.userId, ra.newRole) }));
   if (canCard && member.yellowCard) items.push({ label: '🟡 옐로카드 해지', action: () => revokeYellowCard(member) });
   if (canCard)    items.push({ label: '🟡 옐로카드', action: () => openYellowCardModal(member) });
   if (canCard)    items.push({ label: '🔴 레드카드', action: () => issueRedCard(member), danger: true });
@@ -4579,8 +4610,16 @@ function showGuildMemberMenu(e, member, { canKick, canPromote, canDemote, canCar
 
 async function updateGuildMemberRole(guildId, userId, newRole) {
   const member = guildMembers.find(m => m.userId === userId);
-  const action = newRole === 'officer' ? '부길드장으로 임명' : '부길드장 해제';
-  if (!confirm(`${member?.name}님을 ${action}하시겠습니까?`)) return;
+  const actionLabel = GUILD_ROLE_LABELS[newRole] || newRole;
+  if (!confirm(`${member?.name}님을 ${actionLabel}(으)로 변경하시겠습니까?`)) return;
+  if (newRole === 'officer') {
+    const officerCount = guildMembers.filter(m => m.role === 'officer').length;
+    if (officerCount >= 2) { alert('부길드장은 최대 2명까지 임명할 수 있습니다.'); return; }
+  }
+  if (newRole === 'admin') {
+    const adminCount = guildMembers.filter(m => m.role === 'admin').length;
+    if (adminCount >= 10) { alert('관리자는 최대 10명까지 임명할 수 있습니다.'); return; }
+  }
   const { error } = await sb.from('guild_members').update({ role: newRole }).eq('guild_id', guildId).eq('user_id', userId);
   if (error) { alert('실패: ' + error.message); return; }
   await loadGuildMembers(guildId);
@@ -4693,16 +4732,16 @@ async function revokeYellowCard(member) {
 document.getElementById('guild-officer-perms-btn').addEventListener('click', openOfficerPermsModal);
 
 async function openOfficerPermsModal() {
-  const officers = guildMembers.filter(m => m.role === 'officer');
+  const managed = guildMembers.filter(m => m.role === 'officer' || m.role === 'admin');
   const list = document.getElementById('guild-officer-perms-list');
 
-  if (!officers.length) {
-    list.innerHTML = '<div class="guild-empty" style="padding:8px 0;">부길드장이 없습니다.</div>';
+  if (!managed.length) {
+    list.innerHTML = '<div class="guild-empty" style="padding:8px 0;">부길드장/관리자가 없습니다.</div>';
     document.getElementById('guild-officer-perms-modal').classList.remove('hidden');
     return;
   }
 
-  const userIds = officers.map(o => o.userId);
+  const userIds = managed.map(o => o.userId);
   const { data: permsRows } = await sb.from('guild_officer_permissions')
     .select('user_id, can_kick, can_yellow_card')
     .eq('guild_id', currentGuild.id).in('user_id', userIds);
@@ -4712,18 +4751,20 @@ async function openOfficerPermsModal() {
   list.innerHTML = `
     <div class="officer-perms-header">
       <span class="officer-perms-name-col">닉네임</span>
+      <span class="officer-perms-role-col">등급</span>
       <span class="officer-perms-check-col">강퇴</span>
       <span class="officer-perms-check-col">옐로카드</span>
     </div>
-    ${officers.map(o => {
+    ${managed.map(o => {
       const p = permsMap[o.userId];
-      const canKick = p?.can_kick ?? true;
-      const canYellow = p?.can_yellow_card ?? true;
+      const ck = p?.can_kick ?? true;
+      const cy = p?.can_yellow_card ?? true;
       return `
         <div class="officer-perms-row" data-uid="${o.userId}">
           <span class="officer-perms-name-col">${escHtml(o.name)}</span>
-          <span class="officer-perms-check-col"><input type="checkbox" class="perm-kick-cb" ${canKick ? 'checked' : ''}></span>
-          <span class="officer-perms-check-col"><input type="checkbox" class="perm-yellow-cb" ${canYellow ? 'checked' : ''}></span>
+          <span class="officer-perms-role-col" style="font-size:0.8rem;color:var(--text-muted);">${GUILD_ROLE_LABELS[o.role]}</span>
+          <span class="officer-perms-check-col"><input type="checkbox" class="perm-kick-cb" ${ck ? 'checked' : ''}></span>
+          <span class="officer-perms-check-col"><input type="checkbox" class="perm-yellow-cb" ${cy ? 'checked' : ''}></span>
         </div>`;
     }).join('')}
   `;

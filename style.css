@@ -1599,8 +1599,13 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.officer-perms-role-col {
+  width: 72px;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+}
 .officer-perms-check-col {
-  width: 64px;
+  width: 56px;
   text-align: center;
   flex-shrink: 0;
 }
