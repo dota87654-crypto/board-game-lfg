@@ -1679,6 +1679,7 @@ backBtn.addEventListener('click', () => {
   subscribeRooms();
   subscribeNotifications();
   initGuildReqBadge();
+  initGuildChatNotif();
 });
 
 // 나가기 버튼: room_members에서 삭제 후 목록으로
@@ -1747,6 +1748,7 @@ leaveBtn.addEventListener('click', async () => {
   subscribeRooms();
   subscribeNotifications();
   initGuildReqBadge();
+  initGuildChatNotif();
 });
 
 // --- Messages ---
@@ -2055,6 +2057,7 @@ async function handleKicked() {
   subscribeRooms();
   subscribeNotifications();
   initGuildReqBadge();
+  initGuildChatNotif();
   alert(t('kick.notice'));
 }
 
