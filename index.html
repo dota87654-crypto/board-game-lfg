@@ -687,6 +687,7 @@
       <h2 id="guild-title-el" style="position:absolute;left:50%;transform:translateX(-50%);flex:none;margin:0;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40%;pointer-events:none;"></h2>
       <div class="header-right" style="margin-left:auto;">
         <button id="guild-requests-btn" class="btn btn-sm hidden">📋<span id="guild-requests-badge" class="friends-badge hidden"></span></button>
+        <button id="guild-officer-perms-btn" class="btn btn-sm hidden" title="권한 관리">🔑</button>
         <button id="guild-members-panel-btn" class="btn btn-sm" title="멤버">👥</button>
         <button id="guild-settings-btn" class="btn btn-sm hidden" title="길드 설정">⚙️</button>
         <button id="leave-guild-btn" class="btn btn-sm btn-danger">나가기</button>
@@ -773,6 +774,22 @@
       <button id="close-guild-requests-btn" class="modal-close">✕</button>
     </div>
     <div id="guild-requests-list"></div>
+  </div>
+</div>
+
+<div id="guild-officer-perms-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <h3>🔑 부길드장 권한 관리</h3>
+      <button class="modal-close" id="close-guild-officer-perms-modal">&times;</button>
+    </div>
+    <div style="padding:16px;">
+      <div id="guild-officer-perms-list"></div>
+    </div>
+    <div style="padding:0 16px 16px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-sm" id="guild-officer-perms-cancel-btn">취소</button>
+      <button class="btn btn-sm btn-primary" id="guild-officer-perms-save-btn">저장</button>
+    </div>
   </div>
 </div>
 

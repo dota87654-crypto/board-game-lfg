@@ -1580,6 +1580,32 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   line-height: 1.5;
 }
 
+.officer-perms-header,
+.officer-perms-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.officer-perms-header {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.officer-perms-name-col {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.officer-perms-check-col {
+  width: 64px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.officer-perms-row:last-child { border-bottom: none; }
+
 .guild-request-item {
   display: flex;
   align-items: center;

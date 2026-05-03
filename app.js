@@ -4136,6 +4136,7 @@ async function sha256(str) {
 // ==================== GUILD SYSTEM ====================
 
 const GUILD_ROLE_LABELS = { owner: '👑 길드장', officer: '⭐ 부길드장', member: '멤버' };
+let myGuildPermissions = { can_kick: true, can_yellow_card: true };
 
 let currentGuild = null;
 let guildMembers = [];
@@ -4334,8 +4335,21 @@ async function enterGuildDetail(guild) {
   const isOfficer = ['owner', 'officer'].includes(currentGuild.myRole);
   const isOwner = currentGuild.myRole === 'owner';
 
+  // 부길드장이면 본인 권한 로드, 길드장은 항상 모든 권한
+  if (isOwner) {
+    myGuildPermissions = { can_kick: true, can_yellow_card: true };
+  } else if (isOfficer) {
+    const { data: perms } = await sb.from('guild_officer_permissions')
+      .select('can_kick, can_yellow_card')
+      .eq('guild_id', guild.id).eq('user_id', currentUser.id).maybeSingle();
+    myGuildPermissions = { can_kick: perms?.can_kick ?? true, can_yellow_card: perms?.can_yellow_card ?? true };
+  } else {
+    myGuildPermissions = { can_kick: false, can_yellow_card: false };
+  }
+
   document.getElementById('guild-title-el').textContent = guild.name;
   document.getElementById('guild-requests-btn').classList.toggle('hidden', !isOfficer);
+  document.getElementById('guild-officer-perms-btn').classList.toggle('hidden', !isOwner);
   document.getElementById('guild-settings-btn').classList.toggle('hidden', !isOwner);
 
   const leaveBtn = document.getElementById('leave-guild-btn');
@@ -4477,11 +4491,11 @@ function renderGuildMembersPanel() {
   const sorted = [...guildMembers].sort((a, b) => roleOrder[a.role] - roleOrder[b.role]);
   list.innerHTML = sorted.map(m => {
     const isMe = m.userId === currentUser.id;
-    const canKick = !isMe && (isOwner || (isOfficer && m.role === 'member'));
+    const canKick = !isMe && (isOwner || (isOfficer && m.role === 'member' && myGuildPermissions.can_kick));
     const canPromote = isOwner && m.role === 'member';
     const canDemote = isOwner && m.role === 'officer';
-    const canCard = !isMe && canManage && m.role !== 'owner' && !(isOfficer && m.role === 'officer');
-    const hasActions = canKick || canPromote || canDemote || canCard || (!isMe && m.userId !== currentUser.id);
+    const canCard = !isMe && canManage && m.role !== 'owner' && !(isOfficer && m.role === 'officer') && (isOwner || myGuildPermissions.can_yellow_card);
+    const hasActions = canKick || canPromote || canDemote || canCard || !isMe;
     const avatarSrc = m.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(m.userId)}`;
     const yellowBadge = m.yellowCard ? ' 🟡' : '';
     return `<div class="guild-member-item${hasActions ? ' clickable' : ''}" data-uid="${m.userId}">
@@ -4499,10 +4513,10 @@ function renderGuildMembersPanel() {
     const uid = item.dataset.uid;
     const member = guildMembers.find(m => m.userId === uid);
     if (!member) return;
-    const canKick = uid !== currentUser.id && (isOwner || (isOfficer && member.role === 'member'));
+    const canKick = uid !== currentUser.id && (isOwner || (isOfficer && member.role === 'member' && myGuildPermissions.can_kick));
     const canPromote = isOwner && member.role === 'member';
     const canDemote = isOwner && member.role === 'officer';
-    const canCard = uid !== currentUser.id && canManage && member.role !== 'owner' && !(isOfficer && member.role === 'officer');
+    const canCard = uid !== currentUser.id && canManage && member.role !== 'owner' && !(isOfficer && member.role === 'officer') && (isOwner || myGuildPermissions.can_yellow_card);
     item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canPromote, canDemote, canCard }));
   });
 }
@@ -4673,6 +4687,73 @@ async function revokeYellowCard(member) {
   });
   await loadGuildMembers(currentGuild.id);
 }
+
+// ── 부길드장 권한 관리 ────────────────────────────────────────────────
+
+document.getElementById('guild-officer-perms-btn').addEventListener('click', openOfficerPermsModal);
+
+async function openOfficerPermsModal() {
+  const officers = guildMembers.filter(m => m.role === 'officer');
+  const list = document.getElementById('guild-officer-perms-list');
+
+  if (!officers.length) {
+    list.innerHTML = '<div class="guild-empty" style="padding:8px 0;">부길드장이 없습니다.</div>';
+    document.getElementById('guild-officer-perms-modal').classList.remove('hidden');
+    return;
+  }
+
+  const userIds = officers.map(o => o.userId);
+  const { data: permsRows } = await sb.from('guild_officer_permissions')
+    .select('user_id, can_kick, can_yellow_card')
+    .eq('guild_id', currentGuild.id).in('user_id', userIds);
+  const permsMap = {};
+  (permsRows || []).forEach(p => { permsMap[p.user_id] = p; });
+
+  list.innerHTML = `
+    <div class="officer-perms-header">
+      <span class="officer-perms-name-col">닉네임</span>
+      <span class="officer-perms-check-col">강퇴</span>
+      <span class="officer-perms-check-col">옐로카드</span>
+    </div>
+    ${officers.map(o => {
+      const p = permsMap[o.userId];
+      const canKick = p?.can_kick ?? true;
+      const canYellow = p?.can_yellow_card ?? true;
+      return `
+        <div class="officer-perms-row" data-uid="${o.userId}">
+          <span class="officer-perms-name-col">${escHtml(o.name)}</span>
+          <span class="officer-perms-check-col"><input type="checkbox" class="perm-kick-cb" ${canKick ? 'checked' : ''}></span>
+          <span class="officer-perms-check-col"><input type="checkbox" class="perm-yellow-cb" ${canYellow ? 'checked' : ''}></span>
+        </div>`;
+    }).join('')}
+  `;
+  document.getElementById('guild-officer-perms-modal').classList.remove('hidden');
+}
+
+async function saveOfficerPerms() {
+  const rows = document.querySelectorAll('#guild-officer-perms-list .officer-perms-row');
+  const upserts = [];
+  rows.forEach(row => {
+    upserts.push({
+      guild_id: currentGuild.id,
+      user_id: row.dataset.uid,
+      can_kick: row.querySelector('.perm-kick-cb').checked,
+      can_yellow_card: row.querySelector('.perm-yellow-cb').checked,
+    });
+  });
+  if (!upserts.length) { document.getElementById('guild-officer-perms-modal').classList.add('hidden'); return; }
+  const { error } = await sb.from('guild_officer_permissions').upsert(upserts, { onConflict: 'guild_id,user_id' });
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  document.getElementById('guild-officer-perms-modal').classList.add('hidden');
+}
+
+document.getElementById('close-guild-officer-perms-modal').addEventListener('click', () => {
+  document.getElementById('guild-officer-perms-modal').classList.add('hidden');
+});
+document.getElementById('guild-officer-perms-cancel-btn').addEventListener('click', () => {
+  document.getElementById('guild-officer-perms-modal').classList.add('hidden');
+});
+document.getElementById('guild-officer-perms-save-btn').addEventListener('click', saveOfficerPerms);
 
 document.getElementById('guild-members-panel-btn').addEventListener('click', () => {
   document.getElementById('guild-members-panel').classList.toggle('open');
