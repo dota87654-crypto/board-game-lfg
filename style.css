@@ -1508,10 +1508,50 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   gap: 8px;
 }
 .guild-member-item:last-child { border-bottom: none; }
+.guild-member-item.clickable { cursor: pointer; }
+.guild-member-item.clickable:hover { background: var(--surface2); }
 .guild-member-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .guild-member-name { font-size: 0.92rem; font-weight: 600; }
 .guild-member-role-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 .guild-member-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.guild-member-more { color: var(--text-muted); font-size: 1.2rem; flex-shrink: 0; line-height: 1; letter-spacing: 1px; padding: 0 2px; }
+
+/* 길드 멤버 컨텍스트 메뉴 */
+.guild-ctx-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  min-width: 180px;
+  z-index: 9999;
+  overflow: hidden;
+}
+.guild-ctx-menu-header {
+  padding: 10px 16px 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.guild-ctx-menu-item {
+  display: block;
+  width: 100%;
+  padding: 11px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.1s;
+}
+.guild-ctx-menu-item:hover { background: var(--surface2); }
+.guild-ctx-menu-item.danger { color: #f87171; }
+.guild-ctx-menu-item.danger:hover { background: rgba(248,113,113,0.1); }
 .guild-request-item {
   display: flex;
   align-items: center;

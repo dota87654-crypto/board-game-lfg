@@ -4420,8 +4420,9 @@ function renderGuildMembersPanel() {
     const canKick = !isMe && (isOwner || (isOfficer && m.role === 'member'));
     const canPromote = isOwner && m.role === 'member';
     const canDemote = isOwner && m.role === 'officer';
+    const hasActions = canKick || canPromote || canDemote;
     const avatarSrc = m.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(m.userId)}`;
-    return `<div class="guild-member-item">
+    return `<div class="guild-member-item${hasActions ? ' clickable' : ''}" data-uid="${m.userId}">
       <div class="guild-member-info">
         <img class="member-avatar" src="${escHtml(avatarSrc)}" alt="" />
         <div>
@@ -4429,19 +4430,70 @@ function renderGuildMembersPanel() {
           <div class="guild-member-role-label">${GUILD_ROLE_LABELS[m.role]}</div>
         </div>
       </div>
-      <div class="guild-member-actions">
-        ${canPromote ? `<button class="btn btn-xs guild-promote-btn" data-uid="${m.userId}">부길드장</button>` : ''}
-        ${canDemote ? `<button class="btn btn-xs guild-demote-btn" data-uid="${m.userId}">해제</button>` : ''}
-        ${canKick ? `<button class="btn btn-xs btn-danger guild-kick-btn" data-uid="${m.userId}">강퇴</button>` : ''}
-      </div>
+      ${hasActions ? '<span class="guild-member-more">⋯</span>' : ''}
     </div>`;
   }).join('');
-  list.querySelectorAll('.guild-promote-btn').forEach(btn =>
-    btn.addEventListener('click', () => updateGuildMemberRole(currentGuild.id, btn.dataset.uid, 'officer')));
-  list.querySelectorAll('.guild-demote-btn').forEach(btn =>
-    btn.addEventListener('click', () => updateGuildMemberRole(currentGuild.id, btn.dataset.uid, 'member')));
-  list.querySelectorAll('.guild-kick-btn').forEach(btn =>
-    btn.addEventListener('click', () => kickGuildMember(currentGuild.id, btn.dataset.uid)));
+  list.querySelectorAll('.guild-member-item.clickable').forEach(item => {
+    const uid = item.dataset.uid;
+    const member = guildMembers.find(m => m.userId === uid);
+    if (!member) return;
+    const canKick = uid !== currentUser.id && (isOwner || (isOfficer && member.role === 'member'));
+    const canPromote = isOwner && member.role === 'member';
+    const canDemote = isOwner && member.role === 'officer';
+    item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canPromote, canDemote }));
+  });
+}
+
+let _guildCtxHandler = null;
+
+function closeGuildCtxMenu() {
+  document.getElementById('guild-member-ctx-menu')?.remove();
+  if (_guildCtxHandler) {
+    document.removeEventListener('click', _guildCtxHandler);
+    _guildCtxHandler = null;
+  }
+}
+
+function showGuildMemberMenu(e, member, { canKick, canPromote, canDemote }) {
+  closeGuildCtxMenu();
+  const items = [];
+  if (canPromote) items.push({ label: '⭐ 부길드장 임명', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'officer') });
+  if (canDemote) items.push({ label: '↩ 부길드장 해제', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'member') });
+  if (canKick)   items.push({ label: '🚫 강퇴', action: () => kickGuildMember(currentGuild.id, member.userId), danger: true });
+  if (!items.length) return;
+
+  const menu = document.createElement('div');
+  menu.id = 'guild-member-ctx-menu';
+  menu.className = 'guild-ctx-menu';
+  menu.innerHTML = `<div class="guild-ctx-menu-header">${escHtml(member.name)}</div>`
+    + items.map((item, i) =>
+      `<button class="guild-ctx-menu-item${item.danger ? ' danger' : ''}" data-i="${i}">${item.label}</button>`
+    ).join('');
+  menu.addEventListener('click', ev => ev.stopPropagation());
+  items.forEach((item, i) => {
+    menu.querySelector(`[data-i="${i}"]`).addEventListener('click', () => {
+      closeGuildCtxMenu();
+      item.action();
+    });
+  });
+
+  menu.style.visibility = 'hidden';
+  document.body.appendChild(menu);
+
+  const mRect = menu.getBoundingClientRect();
+  const iRect = e.currentTarget.getBoundingClientRect();
+  let left = iRect.right - mRect.width;
+  let top  = iRect.bottom + 4;
+  if (left < 8) left = 8;
+  if (left + mRect.width > window.innerWidth - 8) left = window.innerWidth - mRect.width - 8;
+  if (top + mRect.height > window.innerHeight - 8) top = iRect.top - mRect.height - 4;
+  if (top < 8) top = 8;
+  menu.style.left = `${left}px`;
+  menu.style.top  = `${top}px`;
+  menu.style.visibility = '';
+
+  _guildCtxHandler = () => closeGuildCtxMenu();
+  setTimeout(() => document.addEventListener('click', _guildCtxHandler), 0);
 }
 
 async function updateGuildMemberRole(guildId, userId, newRole) {
