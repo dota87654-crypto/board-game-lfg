@@ -2354,6 +2354,40 @@ async function clearRoomUnread(roomId) {
   });
 }
 
+function clearGuildUnread(guildId) {
+  delete guildChatUnreadMap[guildId];
+  updateGuildChatBadge();
+  refreshMyGuildsBadges();
+  sb.from('guild_reads').upsert({
+    user_id: currentUser.id,
+    guild_id: guildId,
+    last_read_at: new Date().toISOString()
+  }, { onConflict: 'user_id,guild_id' }).then(({ error }) => {
+    if (error) console.error('clearGuildUnread error:', error);
+  });
+}
+
+async function initGuildUnread() {
+  if (!myGuilds.length) return;
+  const guildIds = myGuilds.map(g => g.id);
+  const { data: reads } = await sb.from('guild_reads')
+    .select('guild_id, last_read_at').eq('user_id', currentUser.id).in('guild_id', guildIds);
+  const readMap = {};
+  (reads || []).forEach(r => { readMap[r.guild_id] = r.last_read_at; });
+
+  await Promise.all(guildIds.map(async guildId => {
+    let query = sb.from('guild_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('guild_id', guildId).neq('user_id', currentUser.id);
+    if (readMap[guildId]) query = query.gt('created_at', readMap[guildId]);
+    const { count } = await query;
+    if (count > 0) guildChatUnreadMap[guildId] = count;
+  }));
+
+  updateGuildChatBadge();
+  refreshMyGuildsBadges();
+}
+
 function unsubscribeAll() {
   if (noticeChannel) { sb.removeChannel(noticeChannel); noticeChannel = null; }
   if (guildChatNotifChannel) { sb.removeChannel(guildChatNotifChannel); guildChatNotifChannel = null; }
@@ -4413,10 +4447,10 @@ async function enterGuildDetail(guild) {
   currentGuild = { ...guild, myRole: myMembership.role };
   guildRoleNames = { ...DEFAULT_ROLE_NAMES, ...(guild.role_names || {}) };
 
-  // 길드 입장 시 해당 길드 채팅 미읽 배지 클리어
-  delete guildChatUnreadMap[guild.id];
-  updateGuildChatBadge();
-  refreshMyGuildsBadges();
+  // 길드 입장 전 last_read_at 보존 (divider 표시용), 그 뒤에 clear
+  const { data: guildReadRow } = await sb.from('guild_reads')
+    .select('last_read_at').eq('user_id', currentUser.id).eq('guild_id', guild.id).maybeSingle();
+  const guildLastReadAt = guildReadRow?.last_read_at || null;
   const isOwner   = currentGuild.myRole === 'owner';
   const isOfficer = currentGuild.myRole === 'officer';
   const isAdmin   = currentGuild.myRole === 'admin';
@@ -4443,13 +4477,14 @@ async function enterGuildDetail(guild) {
   document.getElementById('guild-members-panel').classList.remove('open');
   document.getElementById('guild-messages-list').innerHTML = '';
 
-  await loadGuildMessages(guild.id);
+  await loadGuildMessages(guild.id, guildLastReadAt);
+  clearGuildUnread(guild.id);
   await loadGuildMembers(guild.id);
   subscribeGuildChat(guild.id);
   if (canManageGuild) loadGuildRequestsBadge(guild.id);
 }
 
-async function loadGuildMessages(guildId) {
+async function loadGuildMessages(guildId, lastReadAt = null) {
   const { data: msgs } = await sb.from('guild_messages')
     .select('id, content, created_at, user_id')
     .eq('guild_id', guildId).order('created_at', { ascending: true }).limit(100);
@@ -4461,7 +4496,17 @@ async function loadGuildMessages(guildId) {
   msgs.forEach(m => { m.profiles = profileMap[m.user_id] || null; });
   const list = document.getElementById('guild-messages-list');
   list.innerHTML = '';
-  msgs.forEach(msg => appendGuildMessage(msg));
+  let dividerInserted = false;
+  msgs.forEach(msg => {
+    if (lastReadAt && !dividerInserted && msg.created_at > lastReadAt && msg.user_id !== currentUser.id) {
+      const divider = document.createElement('div');
+      divider.className = 'unread-divider';
+      divider.innerHTML = '<span>여기서부터 읽지 않은 메시지입니다</span>';
+      list.appendChild(divider);
+      dividerInserted = true;
+    }
+    appendGuildMessage(msg);
+  });
   list.scrollTop = list.scrollHeight;
 }
 
@@ -5274,6 +5319,7 @@ async function initGuildChatNotif() {
     .eq('user_id', currentUser.id);
   myGuilds = (myMemberships || []).filter(m => m.guilds).map(m => ({ ...m.guilds, myRole: m.role }));
   subscribeGuildChatNotif();
+  await initGuildUnread();
 }
 
 function subscribeGuildChatNotif() {
