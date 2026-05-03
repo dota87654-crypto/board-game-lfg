@@ -54,6 +54,7 @@ function showTab(name) {
   if (name === 'users') { loadUsers(); loadBannedEmails(); }
   if (name === 'inquiries') loadInquiries();
   if (name === 'announcements') loadAdminAnnouncements();
+  if (name === 'faq') loadAdminFAQs();
   if (name === 'activity') { document.getElementById('activity-result').innerHTML = ''; }
 }
 
@@ -522,6 +523,89 @@ async function deleteAnnouncement(id, title) {
   const { error } = await sb.from('announcements').delete().eq('id', id);
   if (error) { alert('삭제 실패: ' + error.message); return; }
   loadAdminAnnouncements();
+}
+
+// ---- FAQ 관리 ----
+async function loadAdminFAQs() {
+  const container = document.getElementById('faq-admin-list');
+  container.innerHTML = '<div class="empty">로딩 중...</div>';
+  const { data, error } = await sb.from('faqs')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) { container.innerHTML = `<div class="empty">오류: ${error.message}</div>`; return; }
+  if (!data?.length) { container.innerHTML = '<div class="empty">등록된 FAQ가 없습니다.</div>'; return; }
+  container.innerHTML = '';
+  data.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'announce-card';
+    card.innerHTML = `
+      <div class="announce-card-header">
+        <div>
+          <div class="announce-card-title">${escHtml(item.question)}</div>
+          <div class="announce-card-meta">순서: ${item.sort_order}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="btn btn-ghost btn-edit" data-id="${item.id}">✏️ 수정</button>
+          <button class="btn btn-danger btn-del" data-id="${item.id}">🗑️ 삭제</button>
+        </div>
+      </div>
+      <div class="announce-card-body">${escHtml(item.answer)}</div>
+    `;
+    card.querySelector('.btn-edit').addEventListener('click', () => startEditFAQ(item));
+    card.querySelector('.btn-del').addEventListener('click', () => deleteFAQ(item.id, item.question));
+    container.appendChild(card);
+  });
+}
+
+function startEditFAQ(item) {
+  document.getElementById('faq-edit-id').value = item.id;
+  document.getElementById('faq-question-input').value = item.question;
+  document.getElementById('faq-answer-input').value = item.answer;
+  document.getElementById('faq-order-input').value = item.sort_order ?? 0;
+  document.getElementById('faq-form-title').textContent = 'FAQ 수정';
+  document.getElementById('faq-cancel-btn').style.display = '';
+  document.getElementById('faq-question-input').focus();
+  document.getElementById('tab-faq').scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetFAQForm() {
+  document.getElementById('faq-edit-id').value = '';
+  document.getElementById('faq-question-input').value = '';
+  document.getElementById('faq-answer-input').value = '';
+  document.getElementById('faq-order-input').value = '0';
+  document.getElementById('faq-form-title').textContent = '새 FAQ 추가';
+  document.getElementById('faq-cancel-btn').style.display = 'none';
+}
+
+document.getElementById('faq-cancel-btn').addEventListener('click', resetFAQForm);
+
+document.getElementById('faq-save-btn').addEventListener('click', async () => {
+  const id = document.getElementById('faq-edit-id').value;
+  const question = document.getElementById('faq-question-input').value.trim();
+  const answer = document.getElementById('faq-answer-input').value.trim();
+  const sort_order = parseInt(document.getElementById('faq-order-input').value) || 0;
+  if (!question || !answer) { alert('질문과 답변을 입력해주세요.'); return; }
+  const btn = document.getElementById('faq-save-btn');
+  btn.disabled = true;
+  let error;
+  if (id) {
+    ({ error } = await sb.from('faqs').update({ question, answer, sort_order, updated_at: new Date().toISOString() }).eq('id', id));
+  } else {
+    ({ error } = await sb.from('faqs').insert({ question, answer, sort_order }));
+  }
+  btn.disabled = false;
+  if (error) { alert('저장 실패: ' + error.message); return; }
+  resetFAQForm();
+  loadAdminFAQs();
+});
+
+async function deleteFAQ(id, question) {
+  if (!confirm(`"${question}" FAQ를 삭제하시겠습니까?`)) return;
+  const { error } = await sb.from('faqs').delete().eq('id', id);
+  if (error) { alert('삭제 실패: ' + error.message); return; }
+  loadAdminFAQs();
 }
 
 // ---- 활동 로그 ----

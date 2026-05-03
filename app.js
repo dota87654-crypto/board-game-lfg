@@ -2820,6 +2820,11 @@ function subscribeAnnouncements() {
 
 async function openAnnouncementModal() {
   document.getElementById('announce-modal').classList.remove('hidden');
+  // 항상 공지사항 탭으로 초기화
+  document.getElementById('announce-list').classList.remove('hidden');
+  document.getElementById('faq-list').classList.add('hidden');
+  document.getElementById('announce-tab-btn').classList.add('active');
+  document.getElementById('faq-tab-btn').classList.remove('active');
   const container = document.getElementById('announce-list');
   container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">로딩 중...</div>';
 
@@ -2871,6 +2876,54 @@ document.getElementById('close-announce-modal').addEventListener('click', () => 
 });
 document.getElementById('announcement-btn').addEventListener('click', openAnnouncementModal);
 document.getElementById('announcement-btn-room').addEventListener('click', openAnnouncementModal);
+
+document.getElementById('announce-tab-btn').addEventListener('click', () => {
+  document.getElementById('announce-list').classList.remove('hidden');
+  document.getElementById('faq-list').classList.add('hidden');
+  document.getElementById('announce-tab-btn').classList.add('active');
+  document.getElementById('faq-tab-btn').classList.remove('active');
+  if (!document.getElementById('announce-list').children.length) openAnnouncementModal();
+});
+
+document.getElementById('faq-tab-btn').addEventListener('click', () => {
+  document.getElementById('faq-list').classList.remove('hidden');
+  document.getElementById('announce-list').classList.add('hidden');
+  document.getElementById('faq-tab-btn').classList.add('active');
+  document.getElementById('announce-tab-btn').classList.remove('active');
+  loadFAQs();
+});
+
+async function loadFAQs() {
+  const container = document.getElementById('faq-list');
+  container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">로딩 중...</div>';
+  const { data, error } = await sb.from('faqs')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error || !data?.length) {
+    container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">등록된 FAQ가 없습니다.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  data.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'faq-item';
+    el.innerHTML = `
+      <div class="faq-question">
+        <span>${escHtml(item.question)}</span>
+        <span class="announce-toggle">▼</span>
+      </div>
+      <div class="faq-answer hidden">${escHtml(item.answer)}</div>
+    `;
+    el.querySelector('.faq-question').addEventListener('click', () => {
+      const answer = el.querySelector('.faq-answer');
+      const toggle = el.querySelector('.announce-toggle');
+      answer.classList.toggle('hidden');
+      toggle.textContent = answer.classList.contains('hidden') ? '▼' : '▲';
+    });
+    container.appendChild(el);
+  });
+}
 
 document.getElementById('profanity-filter-toggle').addEventListener('change', e => {
   localStorage.setItem('profanity_filter', e.target.checked);

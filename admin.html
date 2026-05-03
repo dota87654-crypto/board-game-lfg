@@ -112,6 +112,7 @@
   <div class="tab" data-tab="users">👥 유저 관리</div>
   <div class="tab" data-tab="inquiries">📩 문의 목록</div>
   <div class="tab" data-tab="announcements">📢 공지사항</div>
+  <div class="tab" data-tab="faq">❓ FAQ</div>
   <div class="tab" data-tab="activity">👤 활동 로그</div>
 </div>
 
@@ -223,6 +224,32 @@
     </div>
     <div class="section-title">공지 목록</div>
     <div id="announcements-list"></div>
+  </div>
+
+  <!-- FAQ 탭 -->
+  <div id="tab-faq" class="tab-content" style="display:none;">
+    <div class="announce-form">
+      <h4 id="faq-form-title">새 FAQ 추가</h4>
+      <input type="hidden" id="faq-edit-id" value="" />
+      <div class="form-group">
+        <label>질문</label>
+        <input type="text" id="faq-question-input" class="form-input" placeholder="자주 묻는 질문" />
+      </div>
+      <div class="form-group">
+        <label>답변</label>
+        <textarea id="faq-answer-input" class="form-input" rows="4" placeholder="답변 내용"></textarea>
+      </div>
+      <div class="form-group">
+        <label>정렬 순서 (숫자 낮을수록 위)</label>
+        <input type="number" id="faq-order-input" class="form-input" value="0" style="width:100px;" />
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn btn-primary" id="faq-save-btn">저장</button>
+        <button class="btn btn-ghost" id="faq-cancel-btn" style="display:none;">취소</button>
+      </div>
+    </div>
+    <div class="section-title">FAQ 목록</div>
+    <div id="faq-admin-list"></div>
   </div>
 
   <!-- 활동 로그 탭 -->
