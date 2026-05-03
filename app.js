@@ -4594,8 +4594,9 @@ function openYellowCardModal(member) {
   const today = new Date();
   today.setDate(today.getDate() + 7);
   document.getElementById('guild-card-expires-input').value = today.toISOString().slice(0, 10);
-  document.getElementById('guild-card-reason-input').value = '';
-  document.getElementById('guild-card-target-label').textContent = `대상: ${member.name}`;
+  document.getElementById('guild-card-reason-select').value = '';
+  document.getElementById('guild-card-detail-input').value = '';
+  document.getElementById('guild-card-target-label').textContent = member.name;
   document.getElementById('guild-yellow-card-modal').classList.remove('hidden');
 }
 
@@ -4616,20 +4617,22 @@ document.getElementById('guild-card-confirm-btn').addEventListener('click', asyn
   const expiresAt = new Date(expiresVal);
   expiresAt.setHours(23, 59, 59, 999);
   if (expiresAt <= new Date()) { alert('만료일은 오늘 이후여야 합니다.'); return; }
-  const reason = document.getElementById('guild-card-reason-input').value.trim();
+  const reason = document.getElementById('guild-card-reason-select').value;
+  const detail = document.getElementById('guild-card-detail-input').value.trim();
   document.getElementById('guild-yellow-card-modal').classList.add('hidden');
   _yellowCardTarget = null;
 
+  const reasonText = [reason, detail].filter(Boolean).join(' / ') || null;
   const { error } = await sb.from('guild_cards').insert({
     guild_id: currentGuild.id, user_id: member.userId,
     issued_by: currentUser.id, card_type: 'yellow',
-    reason: reason || null, expires_at: expiresAt.toISOString(),
+    reason: reasonText, expires_at: expiresAt.toISOString(),
   });
   if (error) { alert('옐로카드 부여 실패: ' + error.message); return; }
   const expiresStr = expiresVal;
   await sb.from('notifications').insert({
     user_id: member.userId, type: 'guild_yellow_card', is_read: false,
-    message: `[${currentGuild.name}] 길드에서 옐로카드를 받았습니다. (만료: ${expiresStr}${reason ? ' / 사유: ' + reason : ''})`,
+    message: `[${currentGuild.name}] 길드에서 옐로카드를 받았습니다. (만료: ${expiresStr}${reasonText ? ' / 사유: ' + reasonText : ''})`,
   });
   await loadGuildMembers(currentGuild.id);
 });

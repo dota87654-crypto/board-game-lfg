@@ -778,20 +778,34 @@
 </div>
 
 <div id="guild-yellow-card-modal" class="modal-overlay hidden">
-  <div class="modal" style="max-width:360px;">
+  <div class="modal" style="max-width:380px;">
     <div class="modal-header">
       <h3>🟡 옐로카드 부여</h3>
       <button class="modal-close" id="close-guild-yellow-card-modal">&times;</button>
     </div>
-    <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-      <p id="guild-card-target-label" style="margin:0;font-weight:600;"></p>
-      <div>
-        <label style="font-size:0.85rem;color:var(--text-muted);">만료일 <span style="color:var(--danger);">*</span></label>
-        <input type="date" id="guild-card-expires-input" style="width:100%;margin-top:4px;" />
+    <div style="padding:16px;display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.85rem;color:var(--text-muted);white-space:nowrap;">대상</span>
+        <span id="guild-card-target-label" style="font-weight:600;"></span>
       </div>
       <div>
-        <label style="font-size:0.85rem;color:var(--text-muted);">사유 (선택)</label>
-        <input type="text" id="guild-card-reason-input" placeholder="사유를 입력하세요..." style="width:100%;margin-top:4px;" />
+        <label class="guild-card-label">만료일 <span style="color:var(--danger);">*</span></label>
+        <input type="date" id="guild-card-expires-input" class="guild-card-input" />
+      </div>
+      <div>
+        <label class="guild-card-label">사유 (선택)</label>
+        <select id="guild-card-reason-select" class="guild-card-input">
+          <option value="">선택 안함</option>
+          <option value="욕설">욕설</option>
+          <option value="도배">도배</option>
+          <option value="부적절한 행동">부적절한 행동</option>
+          <option value="사기">사기</option>
+          <option value="기타">기타</option>
+        </select>
+      </div>
+      <div>
+        <label class="guild-card-label">상세내용 (선택)</label>
+        <textarea id="guild-card-detail-input" class="guild-card-input guild-card-textarea" rows="4" placeholder="상세 내용을 입력하세요..."></textarea>
       </div>
     </div>
     <div style="padding:0 16px 16px;display:flex;gap:8px;justify-content:flex-end;">

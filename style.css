@@ -1552,6 +1552,34 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 .guild-ctx-menu-item:hover { background: var(--surface2); }
 .guild-ctx-menu-item.danger { color: #f87171; }
 .guild-ctx-menu-item.danger:hover { background: rgba(248,113,113,0.1); }
+
+.guild-card-label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.guild-card-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.guild-card-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.guild-card-textarea {
+  resize: vertical;
+  min-height: 88px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
 .guild-request-item {
   display: flex;
   align-items: center;
