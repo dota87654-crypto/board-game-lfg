@@ -4179,8 +4179,16 @@ async function loadGuildList() {
     publicGuilds.forEach(g => { g.member_count = countMap[g.id] || 0; });
   }
 
+  // 현재 유저의 pending/rejected 신청 목록
+  const { data: myRequests } = await sb.from('guild_join_requests')
+    .select('guild_id, status, rejected_at')
+    .eq('user_id', currentUser.id)
+    .in('status', ['pending', 'rejected']);
+  const requestMap = {};
+  (myRequests || []).forEach(r => { requestMap[r.guild_id] = r; });
+
   renderMyGuilds(myGuilds);
-  renderPublicGuilds(publicGuilds || [], myGuildIds);
+  renderPublicGuilds(publicGuilds || [], myGuildIds, requestMap);
   updateGuildRoomField();
   updateGuildReqBadge();
 }
@@ -4209,11 +4217,32 @@ function renderMyGuilds(guilds) {
   });
 }
 
-function renderPublicGuilds(guilds, myGuildIds) {
+function renderPublicGuilds(guilds, myGuildIds, requestMap = {}) {
   const el = document.getElementById('public-guilds-list');
   if (!guilds.length) { el.innerHTML = '<div class="guild-empty">공개 길드가 없습니다.</div>'; return; }
   el.innerHTML = guilds.map(g => {
     const isMine = myGuildIds.includes(g.id);
+    let joinBtn = '';
+    if (isMine) {
+      joinBtn = `<button class="btn btn-sm guild-enter-public-btn" data-guild-id="${g.id}">입장</button>`;
+    } else {
+      const req = requestMap[g.id];
+      if (req?.status === 'pending') {
+        joinBtn = `<button class="btn btn-sm" disabled>신청됨</button>`;
+      } else if (req?.status === 'rejected') {
+        const rejectedAt = new Date(req.rejected_at);
+        const diffMs = Date.now() - rejectedAt.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const daysLeft = 7 - diffDays;
+        if (daysLeft > 0) {
+          joinBtn = `<button class="btn btn-sm" disabled>거절됨 · ${daysLeft}일 후 가능</button>`;
+        } else {
+          joinBtn = `<button class="btn btn-sm btn-primary guild-join-btn" data-guild-id="${g.id}">가입 신청</button>`;
+        }
+      } else {
+        joinBtn = `<button class="btn btn-sm btn-primary guild-join-btn" data-guild-id="${g.id}">가입 신청</button>`;
+      }
+    }
     return `
       <div class="guild-card">
         <div class="guild-card-top">
@@ -4221,12 +4250,7 @@ function renderPublicGuilds(guilds, myGuildIds) {
           <span class="guild-card-count">👥 ${g.member_count || 0}명</span>
         </div>
         ${g.description ? `<div class="guild-card-desc">${escHtml(g.description)}</div>` : ''}
-        <div class="guild-card-footer">
-          ${isMine
-            ? `<button class="btn btn-sm guild-enter-public-btn" data-guild-id="${g.id}">입장</button>`
-            : `<button class="btn btn-sm btn-primary guild-join-btn" data-guild-id="${g.id}">가입 신청</button>`
-          }
-        </div>
+        <div class="guild-card-footer">${joinBtn}</div>
       </div>
     `;
   }).join('');
@@ -4243,6 +4267,25 @@ function renderPublicGuilds(guilds, myGuildIds) {
 
 async function requestJoinGuild(guildId, btn) {
   if (myGuilds.length >= 3) { alert('최대 3개 길드까지 가입할 수 있습니다.'); return; }
+  // 기존 pending/rejected 상태 확인
+  const { data: existing } = await sb.from('guild_join_requests')
+    .select('status, rejected_at')
+    .eq('guild_id', guildId).eq('user_id', currentUser.id)
+    .in('status', ['pending', 'rejected']).maybeSingle();
+  if (existing?.status === 'pending') {
+    alert('이미 가입 신청 중입니다.');
+    return;
+  }
+  if (existing?.status === 'rejected') {
+    const diffDays = Math.floor((Date.now() - new Date(existing.rejected_at).getTime()) / (1000 * 60 * 60 * 24));
+    const daysLeft = 7 - diffDays;
+    if (daysLeft > 0) {
+      alert(`가입 신청이 거절됐습니다. ${daysLeft}일 후 재신청 가능합니다.`);
+      return;
+    }
+    // 7일 경과 — 기존 rejected 레코드 삭제 후 재신청
+    await sb.from('guild_join_requests').delete().eq('guild_id', guildId).eq('user_id', currentUser.id).eq('status', 'rejected');
+  }
   btn.disabled = true;
   const { error } = await sb.from('guild_join_requests').insert({ guild_id: guildId, user_id: currentUser.id });
   if (error) {
@@ -4550,32 +4593,40 @@ async function openGuildRequestsModal() {
       <div class="guild-request-item" data-req-id="${req.id}">
         <span class="guild-member-name">${escHtml(profileMap[req.user_id] || '알 수 없음')}</span>
         <div class="guild-member-actions">
-          <button class="btn btn-sm btn-primary req-approve-btn" data-req-id="${req.id}" data-uid="${req.user_id}">승인</button>
-          <button class="btn btn-sm btn-danger req-reject-btn" data-req-id="${req.id}" data-uid="${req.user_id}">거절</button>
+          <button class="btn btn-sm btn-primary req-approve-btn" data-req-id="${req.id}" data-uid="${req.user_id}" data-name="${escHtml(profileMap[req.user_id] || '알 수 없음')}">승인</button>
+          <button class="btn btn-sm btn-danger req-reject-btn" data-req-id="${req.id}" data-uid="${req.user_id}" data-name="${escHtml(profileMap[req.user_id] || '알 수 없음')}">거절</button>
         </div>
       </div>`).join('');
     list.querySelectorAll('.req-approve-btn').forEach(btn =>
-      btn.addEventListener('click', () => handleGuildRequest(btn.dataset.reqId, btn.dataset.uid, true)));
+      btn.addEventListener('click', () => handleGuildRequest(btn.dataset.reqId, btn.dataset.uid, true, btn.dataset.name)));
     list.querySelectorAll('.req-reject-btn').forEach(btn =>
-      btn.addEventListener('click', () => handleGuildRequest(btn.dataset.reqId, btn.dataset.uid, false)));
+      btn.addEventListener('click', () => handleGuildRequest(btn.dataset.reqId, btn.dataset.uid, false, btn.dataset.name)));
   }
   document.getElementById('guild-requests-modal').classList.remove('hidden');
 }
 
-async function handleGuildRequest(reqId, userId, approve) {
-  if (approve) {
-    const { count: mc } = await sb.from('guild_members').select('*', { count: 'exact', head: true }).eq('guild_id', currentGuild.id);
-    if (mc >= 100) { alert('길드 최대 인원(100명)에 도달했습니다.'); return; }
-    const { count: uc } = await sb.from('guild_members').select('*', { count: 'exact', head: true }).eq('user_id', userId);
-    if (uc >= 3) { alert('해당 유저가 이미 3개 길드에 가입되어 있습니다.'); return; }
-    const { error } = await sb.from('guild_members').insert({ guild_id: currentGuild.id, user_id: userId });
-    if (error) { alert('가입 처리 실패: ' + error.message); return; }
-    await sb.from('notifications').insert({ user_id: userId, type: 'guild_approved', message: `[${currentGuild.name}] 길드 가입이 승인되었습니다.`, is_read: false });
+async function handleGuildRequest(reqId, userId, approve, userName) {
+  if (!approve) {
+    const name = userName || '이 유저';
+    if (!confirm(`${name}님의 가입 신청을 정말 거절하시겠습니까?\n거절 시 해당 유저는 7일간 재신청할 수 없습니다.`)) return;
+    const now = new Date().toISOString();
+    await sb.from('guild_join_requests').update({ status: 'rejected', rejected_at: now }).eq('id', reqId);
+    await sb.from('notifications').insert({ user_id: userId, type: 'guild_rejected', message: `[${currentGuild.name}] 길드 가입이 거절됐습니다.`, is_read: false });
+    document.querySelector(`[data-req-id="${reqId}"]`)?.remove();
+    loadGuildRequestsBadge(currentGuild.id);
+    return;
   }
-  await sb.from('guild_join_requests').update({ status: approve ? 'approved' : 'rejected' }).eq('id', reqId);
+  const { count: mc } = await sb.from('guild_members').select('*', { count: 'exact', head: true }).eq('guild_id', currentGuild.id);
+  if (mc >= 100) { alert('길드 최대 인원(100명)에 도달했습니다.'); return; }
+  const { count: uc } = await sb.from('guild_members').select('*', { count: 'exact', head: true }).eq('user_id', userId);
+  if (uc >= 3) { alert('해당 유저가 이미 3개 길드에 가입되어 있습니다.'); return; }
+  const { error } = await sb.from('guild_members').insert({ guild_id: currentGuild.id, user_id: userId });
+  if (error) { alert('가입 처리 실패: ' + error.message); return; }
+  await sb.from('notifications').insert({ user_id: userId, type: 'guild_approved', message: `[${currentGuild.name}] 길드 가입이 승인되었습니다.`, is_read: false });
+  await sb.from('guild_join_requests').update({ status: 'approved' }).eq('id', reqId);
   document.querySelector(`[data-req-id="${reqId}"]`)?.remove();
   loadGuildRequestsBadge(currentGuild.id);
-  if (approve) loadGuildMembers(currentGuild.id);
+  loadGuildMembers(currentGuild.id);
 }
 
 document.getElementById('close-guild-requests-btn').addEventListener('click', () => {
