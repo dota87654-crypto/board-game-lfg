@@ -340,6 +340,8 @@ let friendNotifChannel = null;
 let chatNotifChannel = null;
 let participatingRoomId = null;
 let roomUnreadMap = {};
+let guildChatUnreadMap = {};
+let guildChatNotifChannel = null;
 let currentRoomMembers = [];
 let blockedSet = new Set();
 let blockedList = [];
@@ -643,8 +645,6 @@ async function goToMain() {
   loadPendingInvites();
   handlePendingInvite();
   initGuildReqBadge();
-  // myGuilds 로드 후 채팅 알림 구독 (loadGuildList 호출 이후 시점에 처리)
-  setTimeout(subscribeGuildChatNotif, 1500);
 }
 
 async function resumeRoomSubscription() {
@@ -2355,6 +2355,8 @@ async function clearRoomUnread(roomId) {
 
 function unsubscribeAll() {
   if (noticeChannel) { sb.removeChannel(noticeChannel); noticeChannel = null; }
+  if (guildChatNotifChannel) { sb.removeChannel(guildChatNotifChannel); guildChatNotifChannel = null; }
+  guildChatUnreadMap = {};
   realtimeChannels.forEach(ch => sb.removeChannel(ch));
   realtimeChannels = [];
 }
@@ -4260,6 +4262,7 @@ async function loadGuildList() {
   renderPublicGuilds(publicGuilds || [], myGuildIds, requestMap);
   updateGuildRoomField();
   updateGuildReqBadge();
+  subscribeGuildChatNotif();
 }
 
 function renderMyGuilds(guilds) {
@@ -4393,6 +4396,10 @@ async function enterGuildDetail(guild) {
 
   currentGuild = { ...guild, myRole: myMembership.role };
   guildRoleNames = { ...DEFAULT_ROLE_NAMES, ...(guild.role_names || {}) };
+
+  // 길드 입장 시 해당 길드 채팅 미읽 배지 클리어
+  delete guildChatUnreadMap[guild.id];
+  updateGuildChatBadge();
   const isOwner   = currentGuild.myRole === 'owner';
   const isOfficer = currentGuild.myRole === 'officer';
   const isAdmin   = currentGuild.myRole === 'admin';
@@ -5235,20 +5242,28 @@ function subscribeGuildList() {
     .subscribe();
 }
 
-let guildChatNotifChannel = null;
+function updateGuildChatBadge() {
+  const badge = document.getElementById('guild-chat-badge');
+  if (!badge) return;
+  const total = Object.values(guildChatUnreadMap).reduce((s, n) => s + n, 0);
+  if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
+  else badge.classList.add('hidden');
+}
 
 function subscribeGuildChatNotif() {
   if (guildChatNotifChannel) { sb.removeChannel(guildChatNotifChannel); guildChatNotifChannel = null; }
   const guildIds = myGuilds.map(g => g.id);
   if (!guildIds.length) return;
-  // 길드 목록/메인 화면에서 내 길드들의 새 메시지 알림
   guildChatNotifChannel = sb.channel(`guild-chat-notif-${currentUser.id}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guild_messages' },
       payload => {
-        if (!guildIds.includes(payload.new.guild_id)) return;
-        if (payload.new.user_id === currentUser.id) return;
-        if (currentGuild?.id === payload.new.guild_id) return; // 이미 해당 길드 안에 있으면 guild_chat(true)가 담당
-        playGuildChat(false);
+        const msg = payload.new;
+        if (!guildIds.includes(msg.guild_id)) return;
+        if (msg.user_id === currentUser.id) return;
+        if (currentGuild?.id === msg.guild_id) return;
+        if (isNotifOn('guild_chat')) playGuildChat(false);
+        guildChatUnreadMap[msg.guild_id] = (guildChatUnreadMap[msg.guild_id] || 0) + 1;
+        updateGuildChatBadge();
       })
     .subscribe();
 }
