@@ -1521,12 +1521,16 @@ function showEntryLimitModal() {
 
 // --- Room Password ---
 async function tryEnterRoom(room) {
-  // 방장은 제한 없음, 일반 멤버는 재입장 포함 횟수 체크
+  // 이미 참여 중인 방이면 입장 횟수 체크 없이 바로 입장
+  if (myRoomIds.has(room.id)) { enterRoom(room); return; }
+  const { data: membership } = await sb.from('room_members')
+    .select('room_id').eq('room_id', room.id).eq('user_id', currentUser.id).maybeSingle();
+  if (membership) { enterRoom(room); return; }
+
+  // 방장은 제한 없음, 신규 입장만 횟수 체크
   if (currentUser.id !== room.host_id) {
     if (await isEntryLimitExceeded(room.id)) { showEntryLimitModal(); return; }
   }
-
-  if (myRoomIds.has(room.id)) { enterRoom(room); return; }
 
   if (!room.is_open) { alert('모집이 마감된 방입니다.'); return; }
 
