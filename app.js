@@ -4026,7 +4026,8 @@ function attachMessageReportHandler(el, userId, userName, content) {
     e.stopPropagation();
     showReportModal(userId, userName, content);
   });
-  el.addEventListener('pointerdown', () => {
+  el.addEventListener('pointerdown', e => {
+    if (e.target.closest('a')) return;
     longPressTimer = setTimeout(() => showReportModal(userId, userName, content), 600);
   });
   el.addEventListener('pointerup', () => clearTimeout(longPressTimer));

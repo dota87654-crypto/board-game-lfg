@@ -1104,8 +1104,8 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 .message.mine .message-bubble { background: var(--primary); color: #fff; border-radius: 16px 16px 4px 16px; }
 .message.theirs .message-bubble { background: var(--surface2); border-radius: 16px 16px 16px 4px; }
-.message.mine .message-bubble a { color: #fff; text-decoration: underline; }
-.message.theirs .message-bubble a { color: var(--primary); text-decoration: underline; }
+.message.mine .message-bubble a { color: #fff; text-decoration: underline; word-break: break-all; }
+.message.theirs .message-bubble a { color: var(--primary); text-decoration: underline; word-break: break-all; }
 .message-time { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; }
 
 .system-message {
