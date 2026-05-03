@@ -2751,6 +2751,7 @@ async function subscribeNotifications() {
       } else if (payload.new.type === 'guild_request') {
         // 가입신청 알림 → 길드 아이콘 뱃지 즉시 갱신
         updateGuildReqBadge();
+        if (currentGuild) loadGuildRequestsBadge(currentGuild.id);
       } else if (payload.new.type !== 'guild_approved') {
         sb.from('notifications').select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser.id).eq('is_read', false)
@@ -4587,7 +4588,7 @@ async function initGuildReqBadge() {
 
   const ch = sb.channel(`guild-req-notif-${currentUser.id}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'guild_join_requests' },
-      (payload) => { console.log('[guild_join_requests realtime]', payload); updateGuildReqBadge(); })
+      (payload) => { console.log('[guild_join_requests realtime]', payload); updateGuildReqBadge(); if (currentGuild) loadGuildRequestsBadge(currentGuild.id); })
     .subscribe((status) => console.log('[guild_join_requests subscribe status]', status));
   realtimeChannels.push(ch);
 }
