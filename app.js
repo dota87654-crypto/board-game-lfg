@@ -4273,7 +4273,7 @@ function appendGuildMessage(msg) {
     const avatarSrc = msg.profiles?.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(msg.user_id || name)}`;
     authorHtml = `<div class="message-author"><img class="message-author-avatar" src="${escHtml(avatarSrc)}" alt="" />${escHtml(name)}</div>`;
   }
-  el.innerHTML = `${authorHtml}<div class="message-bubble">${escHtml(msg.content)}</div><div class="message-time">${time}</div>`;
+  el.innerHTML = `${authorHtml}<div class="message-bubble">${renderMessageContent(msg.content)}</div><div class="message-time">${time}</div>`;
   document.getElementById('guild-messages-list').appendChild(el);
 }
 
