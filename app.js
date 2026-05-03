@@ -1670,6 +1670,8 @@ backBtn.addEventListener('click', () => {
   renderRooms();  // 즉시 현재 목록 표시
   loadRooms();    // DB에서 최신 데이터 갱신
   subscribeRooms();
+  subscribeNotifications();
+  initGuildReqBadge();
 });
 
 // 나가기 버튼: room_members에서 삭제 후 목록으로
@@ -1736,6 +1738,8 @@ leaveBtn.addEventListener('click', async () => {
   renderRooms();
   await loadRooms();
   subscribeRooms();
+  subscribeNotifications();
+  initGuildReqBadge();
 });
 
 // --- Messages ---
@@ -2042,6 +2046,8 @@ async function handleKicked() {
   renderRooms();
   await loadRooms();
   subscribeRooms();
+  subscribeNotifications();
+  initGuildReqBadge();
   alert(t('kick.notice'));
 }
 
