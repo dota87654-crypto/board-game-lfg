@@ -645,6 +645,7 @@ async function goToMain() {
   loadPendingInvites();
   handlePendingInvite();
   initGuildReqBadge();
+  initGuildChatNotif();
 }
 
 async function resumeRoomSubscription() {
@@ -5264,6 +5265,15 @@ function updateGuildChatBadge() {
   const total = Object.values(guildChatUnreadMap).reduce((s, n) => s + n, 0);
   if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
   else badge.classList.add('hidden');
+}
+
+async function initGuildChatNotif() {
+  // 로그인 직후 myGuilds가 비어있으므로 직접 로드 후 구독
+  const { data: myMemberships } = await sb.from('guild_members')
+    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names)')
+    .eq('user_id', currentUser.id);
+  myGuilds = (myMemberships || []).filter(m => m.guilds).map(m => ({ ...m.guilds, myRole: m.role }));
+  subscribeGuildChatNotif();
 }
 
 function subscribeGuildChatNotif() {
