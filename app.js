@@ -2732,7 +2732,8 @@ async function subscribeNotifications() {
     .eq('is_read', false)
     .neq('type', 'punishment')
     .neq('type', 'guild_request')
-    .neq('type', 'guild_approved');
+    .neq('type', 'guild_approved')
+    .neq('type', 'guild_rejected');
   updateNotifBadge(count || 0);
 
   const ch = sb.channel(`notif-${currentUser.id}`)
@@ -2752,10 +2753,10 @@ async function subscribeNotifications() {
         // 가입신청 알림 → 길드 아이콘 뱃지 즉시 갱신
         updateGuildReqBadge();
         if (currentGuild) loadGuildRequestsBadge(currentGuild.id);
-      } else if (payload.new.type !== 'guild_approved') {
+      } else if (payload.new.type !== 'guild_approved' && payload.new.type !== 'guild_rejected') {
         sb.from('notifications').select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser.id).eq('is_read', false)
-          .neq('type', 'punishment').neq('type', 'guild_request').neq('type', 'guild_approved')
+          .neq('type', 'punishment').neq('type', 'guild_request').neq('type', 'guild_approved').neq('type', 'guild_rejected')
           .then(({ count: c }) => updateNotifBadge(c || 0));
       }
     })
