@@ -4136,7 +4136,16 @@ async function sha256(str) {
 // ==================== GUILD SYSTEM ====================
 
 const GUILD_ROLE_LABELS = { owner: '👑 길드장', officer: '⭐ 부길드장', admin: '🔷 관리자', member: '멤버' };
+const ROLE_EMOJI = { owner: '👑', officer: '⭐', admin: '🔷', member: '' };
+const DEFAULT_ROLE_NAMES = { owner: '길드장', officer: '부길드장', admin: '관리자', member: '멤버' };
+let guildRoleNames = { ...DEFAULT_ROLE_NAMES };
 let myGuildPermissions = { can_kick: true, can_yellow_card: true };
+
+function getRoleLabel(role) {
+  const emoji = ROLE_EMOJI[role];
+  const name  = guildRoleNames[role] || DEFAULT_ROLE_NAMES[role] || role;
+  return emoji ? `${emoji} ${name}` : name;
+}
 
 let currentGuild = null;
 let guildMembers = [];
@@ -4169,7 +4178,7 @@ document.getElementById('guild-main-btn').addEventListener('click', () => {
 
 async function loadGuildList() {
   const { data: myMemberships } = await sb.from('guild_members')
-    .select('guild_id, role, guilds(id, name, description, is_public, owner_id)')
+    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names)')
     .eq('user_id', currentUser.id);
 
   myGuilds = (myMemberships || [])
@@ -4332,6 +4341,7 @@ async function enterGuildDetail(guild) {
     .eq('user_id', currentUser.id).eq('type', 'guild_approved').eq('is_read', false);
 
   currentGuild = { ...guild, myRole: myMembership.role };
+  guildRoleNames = { ...DEFAULT_ROLE_NAMES, ...(guild.role_names || {}) };
   const isOwner   = currentGuild.myRole === 'owner';
   const isOfficer = currentGuild.myRole === 'officer';
   const isAdmin   = currentGuild.myRole === 'admin';
@@ -4513,7 +4523,7 @@ function renderGuildMembersPanel() {
         <img class="member-avatar" src="${escHtml(avatarSrc)}" alt="" />
         <div>
           <div class="guild-member-name">${escHtml(m.name)}${yellowBadge}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
-          <div class="guild-member-role-label">${GUILD_ROLE_LABELS[m.role] || m.role}</div>
+          <div class="guild-member-role-label">${getRoleLabel(m.role)}</div>
         </div>
       </div>
       ${hasActions ? '<span class="guild-member-more">⋯</span>' : ''}
@@ -4540,15 +4550,18 @@ function renderGuildMembersPanel() {
 
 function buildRoleActions(member) {
   const actions = [];
+  const on = getRoleLabel('officer');
+  const an = getRoleLabel('admin');
+  const mn = getRoleLabel('member');
   if (member.role === 'member') {
-    actions.push({ label: '⭐ 부길드장 임명', newRole: 'officer' });
-    actions.push({ label: '🔷 관리자 임명',   newRole: 'admin' });
+    actions.push({ label: `⭐ ${on} 임명`, newRole: 'officer' });
+    actions.push({ label: `🔷 ${an} 임명`, newRole: 'admin' });
   } else if (member.role === 'admin') {
-    actions.push({ label: '⭐ 부길드장 임명', newRole: 'officer' });
-    actions.push({ label: '🔷 관리자 해제',   newRole: 'member' });
+    actions.push({ label: `⭐ ${on} 임명`,  newRole: 'officer' });
+    actions.push({ label: `🔷 ${an} 해제`,  newRole: 'member' });
   } else if (member.role === 'officer') {
-    actions.push({ label: '🔷 관리자로 변경', newRole: 'admin' });
-    actions.push({ label: '↩ 부길드장 해제', newRole: 'member' });
+    actions.push({ label: `🔷 ${an}로 변경`, newRole: 'admin' });
+    actions.push({ label: `↩ ${on} 해제`,   newRole: 'member' });
   }
   return actions;
 }
@@ -4610,7 +4623,7 @@ function showGuildMemberMenu(e, member, { canKick, canCard, roleActions = [] }) 
 
 async function updateGuildMemberRole(guildId, userId, newRole) {
   const member = guildMembers.find(m => m.userId === userId);
-  const actionLabel = GUILD_ROLE_LABELS[newRole] || newRole;
+  const actionLabel = getRoleLabel(newRole);
   if (!confirm(`${member?.name}님을 ${actionLabel}(으)로 변경하시겠습니까?`)) return;
   if (newRole === 'officer') {
     const officerCount = guildMembers.filter(m => m.role === 'officer').length;
@@ -4732,6 +4745,12 @@ async function revokeYellowCard(member) {
 document.getElementById('guild-officer-perms-btn').addEventListener('click', openOfficerPermsModal);
 
 async function openOfficerPermsModal() {
+  // 직책 이름 입력창에 현재 값 채우기
+  document.getElementById('role-name-owner').value   = guildRoleNames.owner   || DEFAULT_ROLE_NAMES.owner;
+  document.getElementById('role-name-officer').value = guildRoleNames.officer || DEFAULT_ROLE_NAMES.officer;
+  document.getElementById('role-name-admin').value   = guildRoleNames.admin   || DEFAULT_ROLE_NAMES.admin;
+  document.getElementById('role-name-member').value  = guildRoleNames.member  || DEFAULT_ROLE_NAMES.member;
+
   const managed = guildMembers.filter(m => m.role === 'officer' || m.role === 'admin');
   const list = document.getElementById('guild-officer-perms-list');
 
@@ -4762,7 +4781,7 @@ async function openOfficerPermsModal() {
       return `
         <div class="officer-perms-row" data-uid="${o.userId}">
           <span class="officer-perms-name-col">${escHtml(o.name)}</span>
-          <span class="officer-perms-role-col" style="font-size:0.8rem;color:var(--text-muted);">${GUILD_ROLE_LABELS[o.role]}</span>
+          <span class="officer-perms-role-col" style="font-size:0.8rem;color:var(--text-muted);">${getRoleLabel(o.role)}</span>
           <span class="officer-perms-check-col"><input type="checkbox" class="perm-kick-cb" ${ck ? 'checked' : ''}></span>
           <span class="officer-perms-check-col"><input type="checkbox" class="perm-yellow-cb" ${cy ? 'checked' : ''}></span>
         </div>`;
@@ -4772,6 +4791,21 @@ async function openOfficerPermsModal() {
 }
 
 async function saveOfficerPerms() {
+  // 직책 이름 저장
+  const newRoleNames = {
+    owner:   document.getElementById('role-name-owner').value.trim()   || DEFAULT_ROLE_NAMES.owner,
+    officer: document.getElementById('role-name-officer').value.trim() || DEFAULT_ROLE_NAMES.officer,
+    admin:   document.getElementById('role-name-admin').value.trim()   || DEFAULT_ROLE_NAMES.admin,
+    member:  document.getElementById('role-name-member').value.trim()  || DEFAULT_ROLE_NAMES.member,
+  };
+  const { error: rnErr } = await sb.from('guilds')
+    .update({ role_names: newRoleNames }).eq('id', currentGuild.id);
+  if (rnErr) { alert('직책 이름 저장 실패: ' + rnErr.message); return; }
+  guildRoleNames = newRoleNames;
+  currentGuild.role_names = newRoleNames;
+  renderGuildMembersPanel();
+
+  // 권한 저장
   const rows = document.querySelectorAll('#guild-officer-perms-list .officer-perms-row');
   const upserts = [];
   rows.forEach(row => {
@@ -4782,9 +4816,10 @@ async function saveOfficerPerms() {
       can_yellow_card: row.querySelector('.perm-yellow-cb').checked,
     });
   });
-  if (!upserts.length) { document.getElementById('guild-officer-perms-modal').classList.add('hidden'); return; }
-  const { error } = await sb.from('guild_officer_permissions').upsert(upserts, { onConflict: 'guild_id,user_id' });
-  if (error) { alert('저장 실패: ' + error.message); return; }
+  if (upserts.length) {
+    const { error } = await sb.from('guild_officer_permissions').upsert(upserts, { onConflict: 'guild_id,user_id' });
+    if (error) { alert('권한 저장 실패: ' + error.message); return; }
+  }
   document.getElementById('guild-officer-perms-modal').classList.add('hidden');
 }
 

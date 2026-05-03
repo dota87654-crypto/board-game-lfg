@@ -783,8 +783,20 @@
       <h3>🔑 권한 관리</h3>
       <button class="modal-close" id="close-guild-officer-perms-modal">&times;</button>
     </div>
-    <div style="padding:16px;">
-      <div id="guild-officer-perms-list"></div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:10px;">직책 이름 변경</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div class="role-name-row"><span class="role-name-emoji">👑</span><input id="role-name-owner"   class="guild-card-input role-name-input" placeholder="길드장" /></div>
+          <div class="role-name-row"><span class="role-name-emoji">⭐</span><input id="role-name-officer" class="guild-card-input role-name-input" placeholder="부길드장" /></div>
+          <div class="role-name-row"><span class="role-name-emoji">🔷</span><input id="role-name-admin"   class="guild-card-input role-name-input" placeholder="관리자" /></div>
+          <div class="role-name-row"><span class="role-name-emoji">　</span><input id="role-name-member"  class="guild-card-input role-name-input" placeholder="멤버" /></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:10px;">권한 설정</div>
+        <div id="guild-officer-perms-list"></div>
+      </div>
     </div>
     <div style="padding:0 16px 16px;display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-sm" id="guild-officer-perms-cancel-btn">취소</button>

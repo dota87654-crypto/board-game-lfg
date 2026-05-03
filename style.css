@@ -1580,6 +1580,19 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   line-height: 1.5;
 }
 
+.role-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.role-name-emoji {
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+.role-name-input { flex: 1; }
+
 .officer-perms-header,
 .officer-perms-row {
   display: flex;
