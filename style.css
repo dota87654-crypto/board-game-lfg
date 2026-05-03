@@ -427,6 +427,7 @@ main { padding: 24px 20px; }
   gap: 10px;
 }
 .tag-filter-dropdown.hidden { display: none; }
+.tag-filter-group-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-top: 4px; }
 .tag-chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag-dropdown-footer { display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 8px; }
 .tag-reset-btn {
@@ -1451,7 +1452,28 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
-.guild-search-bar { margin-bottom: 14px; }
+.guild-search-bar { margin-bottom: 8px; }
+.guild-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.guild-filter-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.guild-form-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
 .guild-search-input {
   width: 100%;
   padding: 8px 14px;

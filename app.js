@@ -4136,6 +4136,17 @@ async function sha256(str) {
 // ==================== GUILD SYSTEM ====================
 
 const GUILD_ROLE_LABELS = { owner: '👑 길드장', officer: '⭐ 부길드장', admin: '🔷 관리자', member: '멤버' };
+
+const GUILD_TAG_GROUPS = [
+  { group: '활동 스타일', tags: ['친목', '진지하게', '초보환영', '숙련자', '정기모임'] },
+  { group: '게임 성향',   tags: ['전략게임', '파티게임', '협력게임', '경쟁게임', '롤플레잉'] },
+  { group: '모임 방식',   tags: ['온라인', '오프라인', '온/오프라인'] },
+  { group: '기타',        tags: ['성인전용', '가족친화', '주말모임', '평일모임'] },
+];
+const GUILD_TAGS_FLAT = GUILD_TAG_GROUPS.flatMap(g => g.tags);
+
+let guildTagFilter = [];
+let guildRegionFilter = { sido: '', sigungu: '' };
 const ROLE_EMOJI = { owner: '👑', officer: '⭐', admin: '🔷', member: '' };
 const DEFAULT_ROLE_NAMES = { owner: '길드장', officer: '부길드장', admin: '관리자', member: '멤버' };
 let guildRoleNames = { ...DEFAULT_ROLE_NAMES };
@@ -4188,8 +4199,13 @@ async function loadGuildList() {
   const myGuildIds = myGuilds.map(g => g.id);
 
   const searchVal = document.getElementById('guild-search-input').value.trim();
-  let query = sb.from('guilds').select('id, name, description, is_public, owner_id').eq('is_public', true);
+  let query = sb.from('guilds').select('id, name, description, is_public, owner_id, tags, region_sido, region_sigungu').eq('is_public', true);
   if (searchVal) query = query.ilike('name', `%${searchVal}%`);
+  if (guildTagFilter.length) query = query.overlaps('tags', guildTagFilter);
+  if (guildRegionFilter.sido) {
+    if (guildRegionFilter.sigungu) query = query.eq('region_sido', guildRegionFilter.sido).eq('region_sigungu', guildRegionFilter.sigungu);
+    else query = query.eq('region_sido', guildRegionFilter.sido);
+  }
   const { data: publicGuilds } = await query.order('created_at', { ascending: false }).limit(30);
 
   if (publicGuilds?.length) {
@@ -4264,6 +4280,8 @@ function renderPublicGuilds(guilds, myGuildIds, requestMap = {}) {
         joinBtn = `<button class="btn btn-sm btn-primary guild-join-btn" data-guild-id="${g.id}">가입 신청</button>`;
       }
     }
+    const regionStr = [g.region_sido, g.region_sigungu].filter(Boolean).join(' ');
+    const tagsHtml = (g.tags?.length || regionStr) ? `<div class="room-card-tags">${regionStr ? `<span class="room-region-tag">📍 ${escHtml(regionStr)}</span>` : ''}${(g.tags || []).map(t => `<span class="room-tag">${escHtml(t)}</span>`).join('')}</div>` : '';
     return `
       <div class="guild-card">
         <div class="guild-card-top">
@@ -4271,6 +4289,7 @@ function renderPublicGuilds(guilds, myGuildIds, requestMap = {}) {
           <span class="guild-card-count">👥 ${g.member_count || 0}명</span>
         </div>
         ${g.description ? `<div class="guild-card-desc">${escHtml(g.description)}</div>` : ''}
+        ${tagsHtml}
         <div class="guild-card-footer">${joinBtn}</div>
       </div>
     `;
@@ -4970,8 +4989,120 @@ document.getElementById('close-my-guilds-modal').addEventListener('click', () =>
   document.getElementById('my-guilds-modal').classList.add('hidden');
 });
 
-document.getElementById('create-guild-btn').addEventListener('click', () => {
+// ── 길드 태그/지역 필터 초기화 ──────────────────────────────────────
+
+(function initGuildFilters() {
+  // 태그 필터 드롭다운
+  const tagFilterBtn  = document.getElementById('guild-tag-filter-btn');
+  const tagFilterDrop = document.getElementById('guild-tag-filter-dropdown');
+  tagFilterDrop.innerHTML = GUILD_TAG_GROUPS.map(g =>
+    `<div class="tag-filter-group-label">${g.group}</div>` +
+    g.tags.map(t => `<button class="tag-chip" data-tag="${escHtml(t)}">${escHtml(t)}</button>`).join('')
+  ).join('');
+  tagFilterBtn.addEventListener('click', () => {
+    tagFilterDrop.classList.toggle('hidden');
+    tagFilterBtn.classList.toggle('open', !tagFilterDrop.classList.contains('hidden'));
+  });
+  tagFilterDrop.addEventListener('click', e => {
+    const chip = e.target.closest('.tag-chip');
+    if (!chip) return;
+    chip.classList.toggle('selected');
+    guildTagFilter = [...tagFilterDrop.querySelectorAll('.tag-chip.selected')].map(c => c.dataset.tag);
+    const n = guildTagFilter.length;
+    tagFilterBtn.textContent = n ? `🏷️ 태그 ${n}개 선택됨` : '🏷️ 태그 필터';
+    tagFilterBtn.classList.toggle('open', !tagFilterDrop.classList.contains('hidden'));
+    loadGuildList();
+  });
+  document.addEventListener('click', e => {
+    if (!tagFilterBtn.contains(e.target) && !tagFilterDrop.contains(e.target)) {
+      tagFilterDrop.classList.add('hidden');
+      tagFilterBtn.classList.remove('open');
+    }
+  });
+
+  // 지역 필터
+  const sidoEl = document.getElementById('guild-filter-sido');
+  const sigunguEl = document.getElementById('guild-filter-sigungu');
+  Object.keys(REGION_DATA).forEach(sido => {
+    const opt = document.createElement('option'); opt.value = sido; opt.textContent = sido;
+    sidoEl.appendChild(opt);
+  });
+  sidoEl.addEventListener('change', () => {
+    const sido = sidoEl.value;
+    guildRegionFilter = { sido, sigungu: '' };
+    sigunguEl.innerHTML = '<option value="">전체 구/군</option>';
+    if (sido && REGION_DATA[sido]) {
+      REGION_DATA[sido].forEach(gu => {
+        const opt = document.createElement('option'); opt.value = gu; opt.textContent = gu;
+        sigunguEl.appendChild(opt);
+      });
+      sigunguEl.classList.remove('hidden');
+    } else {
+      sigunguEl.classList.add('hidden');
+    }
+    loadGuildList();
+  });
+  sigunguEl.addEventListener('change', () => {
+    guildRegionFilter.sigungu = sigunguEl.value;
+    loadGuildList();
+  });
+
+  // 길드 만들기 모달 지역 드롭다운
+  const createSido    = document.getElementById('guild-create-sido');
+  const createSigungu = document.getElementById('guild-create-sigungu');
+  Object.keys(REGION_DATA).forEach(sido => {
+    const opt = document.createElement('option'); opt.value = sido; opt.textContent = sido;
+    createSido.appendChild(opt);
+  });
+  createSido.addEventListener('change', () => {
+    const sido = createSido.value;
+    createSigungu.innerHTML = '<option value="">구/군 선택</option>';
+    if (sido && REGION_DATA[sido]) {
+      REGION_DATA[sido].forEach(gu => {
+        const opt = document.createElement('option'); opt.value = gu; opt.textContent = gu;
+        createSigungu.appendChild(opt);
+      });
+      createSigungu.classList.remove('hidden');
+    } else {
+      createSigungu.classList.add('hidden');
+    }
+  });
+
+  // 길드 만들기 태그 패널
+  const createTagToggle = document.getElementById('guild-create-tag-toggle');
+  const createTagPanel  = document.getElementById('guild-create-tag-panel');
+  createTagPanel.innerHTML = GUILD_TAG_GROUPS.map(g =>
+    `<div class="tag-filter-group-label">${g.group}</div>` +
+    g.tags.map(t => `<button type="button" class="tag-chip" data-tag="${escHtml(t)}">${escHtml(t)}</button>`).join('')
+  ).join('');
+  createTagToggle.addEventListener('click', () => {
+    const open = !createTagPanel.classList.contains('hidden');
+    createTagPanel.classList.toggle('hidden', open);
+    createTagToggle.classList.toggle('open', !open);
+  });
+  createTagPanel.addEventListener('click', e => {
+    const chip = e.target.closest('.tag-chip');
+    if (!chip) return;
+    chip.classList.toggle('selected');
+    const n = createTagPanel.querySelectorAll('.tag-chip.selected').length;
+    createTagToggle.textContent = n ? `🏷️ 태그 ${n}개 선택됨` : '🏷️ 태그 선택';
+    createTagToggle.classList.toggle('open', !createTagPanel.classList.contains('hidden'));
+  });
+})();
+
+function resetGuildCreateForm() {
   document.getElementById('create-guild-form').reset();
+  document.getElementById('guild-create-sido').value = '';
+  document.getElementById('guild-create-sigungu').classList.add('hidden');
+  document.getElementById('guild-create-sigungu').innerHTML = '<option value="">구/군 선택</option>';
+  document.getElementById('guild-create-tag-panel').querySelectorAll('.tag-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('guild-create-tag-panel').classList.add('hidden');
+  document.getElementById('guild-create-tag-toggle').textContent = '🏷️ 태그 선택';
+  document.getElementById('guild-create-tag-toggle').classList.remove('open');
+}
+
+document.getElementById('create-guild-btn').addEventListener('click', () => {
+  resetGuildCreateForm();
   document.getElementById('create-guild-modal').classList.remove('hidden');
 });
 document.getElementById('close-create-guild-btn').addEventListener('click', () => {
@@ -4987,9 +5118,13 @@ document.getElementById('create-guild-form').addEventListener('submit', async e 
   const name = document.getElementById('guild-name-input').value.trim();
   const desc = document.getElementById('guild-desc-input').value.trim();
   const isPublic = document.getElementById('guild-public-check').checked;
+  const tags = [...document.querySelectorAll('#guild-create-tag-panel .tag-chip.selected')].map(c => c.dataset.tag);
+  const regionSido    = document.getElementById('guild-create-sido').value;
+  const regionSigungu = document.getElementById('guild-create-sigungu').value;
   if (!name || name.length < 2) { alert('길드 이름은 2자 이상이어야 합니다.'); return; }
   const { data: guild, error } = await sb.from('guilds')
-    .insert({ name, description: desc, is_public: isPublic, owner_id: currentUser.id }).select().single();
+    .insert({ name, description: desc, is_public: isPublic, owner_id: currentUser.id,
+              tags: tags.length ? tags : [], region_sido: regionSido || null, region_sigungu: regionSigungu || null }).select().single();
   if (error) {
     if (error.code === '23505') alert('이미 사용 중인 길드 이름입니다.');
     else alert('길드 생성 실패: ' + error.message);

@@ -659,6 +659,18 @@
       <div class="guild-search-bar">
         <input type="text" id="guild-search-input" class="guild-search-input" placeholder="공개 길드 검색..." autocomplete="off" />
       </div>
+      <div class="guild-filter-bar">
+        <div class="tag-filter-wrap">
+          <button id="guild-tag-filter-btn" class="tag-filter-toggle">🏷️ 태그 필터</button>
+          <div id="guild-tag-filter-dropdown" class="tag-filter-dropdown hidden"></div>
+        </div>
+        <select id="guild-filter-sido" class="guild-filter-select">
+          <option value="">전체 지역</option>
+        </select>
+        <select id="guild-filter-sigungu" class="guild-filter-select hidden">
+          <option value="">전체 구/군</option>
+        </select>
+      </div>
       <div class="guild-section-title">공개 길드</div>
       <div id="public-guilds-list" class="guild-list"></div>
     </div>
@@ -726,6 +738,22 @@
       <label><span>소개 (선택)</span>
         <textarea id="guild-desc-input" maxlength="200" placeholder="길드 소개를 입력하세요..."></textarea>
       </label>
+      <div>
+        <span class="guild-form-label">지역 (선택)</span>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <select id="guild-create-sido" class="guild-card-input" style="flex:1;">
+            <option value="">시/도 선택</option>
+          </select>
+          <select id="guild-create-sigungu" class="guild-card-input hidden" style="flex:1;">
+            <option value="">구/군 선택</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <span class="guild-form-label">태그 (선택)</span>
+        <button type="button" id="guild-create-tag-toggle" class="create-tag-toggle" style="margin-top:4px;">🏷️ 태그 선택</button>
+        <div id="guild-create-tag-panel" class="create-tag-panel hidden"></div>
+      </div>
       <label class="guild-public-row">
         <span>공개 길드 <small>(비공개: 초대로만 가입)</small></span>
         <input type="checkbox" id="guild-public-check" checked />
