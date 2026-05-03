@@ -4156,6 +4156,12 @@ document.getElementById('guild-detail-back-btn').addEventListener('click', () =>
   loadGuildList();
 });
 
+document.getElementById('guild-main-btn').addEventListener('click', () => {
+  if (guildChatChannel) { sb.removeChannel(guildChatChannel); guildChatChannel = null; }
+  currentGuild = null;
+  showScreen('main');
+});
+
 async function loadGuildList() {
   const { data: myMemberships } = await sb.from('guild_members')
     .select('guild_id, role, guilds(id, name, description, is_public, owner_id)')
@@ -4325,7 +4331,6 @@ async function enterGuildDetail(guild) {
   const isOwner = currentGuild.myRole === 'owner';
 
   document.getElementById('guild-title-el').textContent = guild.name;
-  document.getElementById('guild-meta-el').textContent = guild.description || '';
   document.getElementById('guild-requests-btn').classList.toggle('hidden', !isOfficer);
   document.getElementById('guild-settings-btn').classList.toggle('hidden', !isOwner);
 
@@ -4448,8 +4453,6 @@ async function loadGuildMembers(guildId) {
     name: profileMap[m.user_id]?.name || '알 수 없음',
     avatar_url: profileMap[m.user_id]?.avatar_url || null,
   }));
-  document.getElementById('guild-meta-el').textContent =
-    `${currentGuild?.description || ''} · 👥 ${guildMembers.length}명`;
   renderGuildMembersPanel();
 }
 

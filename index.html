@@ -680,12 +680,13 @@
 <div id="guild-detail-screen" class="screen hidden">
   <header>
     <div class="header-inner">
-      <button id="guild-detail-back-btn" class="btn btn-sm">← 길드</button>
-      <div id="guild-title-area" style="flex:1;min-width:0;">
-        <h2 id="guild-title-el" style="margin:0;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></h2>
-        <span id="guild-meta-el" style="font-size:0.78rem;color:var(--text-muted);"></span>
+      <div class="header-left" style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <button id="guild-detail-back-btn" class="btn btn-sm">← 길드 목록</button>
+        <button id="guild-main-btn" class="btn btn-sm">메인</button>
       </div>
-      <div class="header-right">
+      <div style="flex:1;"></div>
+      <div class="header-right" style="align-items:center;">
+        <h2 id="guild-title-el" style="margin:0;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;"></h2>
         <button id="guild-requests-btn" class="btn btn-sm hidden">📋<span id="guild-requests-badge" class="friends-badge hidden"></span></button>
         <button id="guild-members-panel-btn" class="btn btn-sm" title="멤버">👥</button>
         <button id="guild-settings-btn" class="btn btn-sm hidden" title="길드 설정">⚙️</button>
