@@ -4501,6 +4501,7 @@ function closeGuildCtxMenu() {
 function showGuildMemberMenu(e, member, { canKick, canPromote, canDemote }) {
   closeGuildCtxMenu();
   const items = [];
+  if (member.userId !== currentUser.id) items.push({ label: '💬 DM', action: () => openDM(member.userId, member.name) });
   if (canPromote) items.push({ label: '⭐ 부길드장 임명', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'officer') });
   if (canDemote) items.push({ label: '↩ 부길드장 해제', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'member') });
   if (canKick)   items.push({ label: '🚫 강퇴', action: () => kickGuildMember(currentGuild.id, member.userId), danger: true });
