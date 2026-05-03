@@ -643,6 +643,8 @@ async function goToMain() {
   loadPendingInvites();
   handlePendingInvite();
   initGuildReqBadge();
+  // myGuilds 로드 후 채팅 알림 구독 (loadGuildList 호출 이후 시점에 처리)
+  setTimeout(subscribeGuildChatNotif, 1500);
 }
 
 async function resumeRoomSubscription() {
@@ -2358,7 +2360,7 @@ function unsubscribeAll() {
 }
 
 // --- Notifications (Web Audio API) ---
-const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, dm_in_dm: true, friend_req: true };
+const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, dm_in_dm: true, friend_req: true, guild_request: true, guild_request_list: true, guild_chat: true, guild_chat_list: true };
 let audioCtx = null;
 
 function getAudioCtx() {
@@ -2431,6 +2433,22 @@ function playFriendRequest() {
   tone(ctx, 1319, 'sine', t + 0.2, 0.18, 0.3);
 }
 
+// 길드 가입신청: triangle 2음 (D5→F#5) 묵직하고 공식적인 느낌
+function playGuildRequest(inGuild = false) {
+  const key = inGuild ? 'guild_request' : 'guild_request_list';
+  if (!isNotifOn(key)) return;
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  tone(ctx, 587, 'triangle', t, 0.15, 0.28);
+  tone(ctx, 740, 'triangle', t + 0.14, 0.18, 0.28);
+}
+
+// 길드 채팅: sine 단음 (E5) 방 채팅보다 살짝 낮은 톤
+function playGuildChat(inGuild = false) {
+  const key = inGuild ? 'guild_chat' : 'guild_chat_list';
+  if (!isNotifOn(key)) return;
+  tone(getAudioCtx(), 659, 'sine', getAudioCtx().currentTime, 0.12, 0.13);
+}
+
 // --- Settings modal ---
 const settingsModal = document.getElementById('settings-modal');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
@@ -2442,6 +2460,10 @@ const notifToggles = {
   chat_in_room: document.getElementById('notif-chat-in-room'),
   dm_in_dm: document.getElementById('notif-dm-in-dm'),
   friend_req: document.getElementById('notif-friend-req'),
+  guild_request: document.getElementById('notif-guild-request'),
+  guild_request_list: document.getElementById('notif-guild-request-list'),
+  guild_chat: document.getElementById('notif-guild-chat'),
+  guild_chat_list: document.getElementById('notif-guild-chat-list'),
 };
 
 function switchSettingsTab(tabName) {
@@ -2458,6 +2480,11 @@ document.querySelectorAll('.settings-tab').forEach(tab => {
 function openSettings(tab = 'general') {
   const s = getNotifSettings();
   Object.entries(notifToggles).forEach(([k, el]) => { el.checked = s[k]; });
+  // 길드장/부길드장 전용 토글 표시 여부
+  const isOfficerInAnyGuild = myGuilds.some(g => ['owner', 'officer'].includes(g.myRole));
+  document.querySelectorAll('.guild-officer-notif-row').forEach(el => {
+    el.style.display = isOfficerInAnyGuild ? '' : 'none';
+  });
   document.getElementById('lang-select').value = localStorage.getItem('lang') || 'auto';
   document.getElementById('profanity-filter-toggle').checked = isProfanityFilterOn();
   const vol = parseInt(localStorage.getItem('notif_volume') ?? '75');
@@ -2758,7 +2785,8 @@ async function subscribeNotifications() {
       } else if (payload.new.type === 'guild_request') {
         // 가입신청 알림 → 길드 아이콘 뱃지 즉시 갱신
         updateGuildReqBadge();
-        if (currentGuild) loadGuildRequestsBadge(currentGuild.id);
+        if (currentGuild) { loadGuildRequestsBadge(currentGuild.id); playGuildRequest(true); }
+        else playGuildRequest(false);
       } else if (!['guild_approved','guild_rejected','guild_yellow_card','guild_red_card'].includes(payload.new.type)) {
         sb.from('notifications').select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser.id).eq('is_read', false)
@@ -4443,6 +4471,7 @@ function subscribeGuildChat(guildId) {
         appendGuildMessage(msg);
         const list = document.getElementById('guild-messages-list');
         list.scrollTop = list.scrollHeight;
+        playGuildChat(true);
       })
     .subscribe();
 }
@@ -5203,5 +5232,23 @@ function subscribeGuildList() {
   guildListChannel = sb.channel('guilds-list-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'guilds' }, () => loadGuildList())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'guild_members', filter: `user_id=eq.${currentUser.id}` }, () => loadGuildList())
+    .subscribe();
+}
+
+let guildChatNotifChannel = null;
+
+function subscribeGuildChatNotif() {
+  if (guildChatNotifChannel) { sb.removeChannel(guildChatNotifChannel); guildChatNotifChannel = null; }
+  const guildIds = myGuilds.map(g => g.id);
+  if (!guildIds.length) return;
+  // 길드 목록/메인 화면에서 내 길드들의 새 메시지 알림
+  guildChatNotifChannel = sb.channel(`guild-chat-notif-${currentUser.id}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'guild_messages' },
+      payload => {
+        if (!guildIds.includes(payload.new.guild_id)) return;
+        if (payload.new.user_id === currentUser.id) return;
+        if (currentGuild?.id === payload.new.guild_id) return; // 이미 해당 길드 안에 있으면 guild_chat(true)가 담당
+        playGuildChat(false);
+      })
     .subscribe();
 }
