@@ -4362,7 +4362,7 @@ async function enterGuildDetail(guild) {
   document.getElementById('guild-title-el').textContent = guild.name;
   document.getElementById('guild-requests-btn').classList.toggle('hidden', !canManageGuild);
   document.getElementById('guild-officer-perms-btn').classList.toggle('hidden', !isOwner);
-  document.getElementById('guild-settings-btn').classList.toggle('hidden', !isOwner);
+  document.getElementById('guild-manage-btn').classList.toggle('hidden', !isOwner);
 
   const leaveBtn = document.getElementById('leave-guild-btn');
   if (isOwner) { leaveBtn.textContent = '길드 관리'; leaveBtn.className = 'btn btn-sm'; }
@@ -4920,7 +4920,8 @@ document.getElementById('leave-guild-btn').addEventListener('click', async () =>
   loadGuildList();
 });
 
-document.getElementById('guild-settings-btn').addEventListener('click', openGuildSettings);
+document.getElementById('guild-settings-btn').addEventListener('click', () => openSettings());
+document.getElementById('guild-manage-btn').addEventListener('click', openGuildSettings);
 
 function openGuildSettings() {
   if (!currentGuild) return;
