@@ -777,6 +777,30 @@
   </div>
 </div>
 
+<div id="guild-yellow-card-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <h3>🟡 옐로카드 부여</h3>
+      <button class="modal-close" id="close-guild-yellow-card-modal">&times;</button>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+      <p id="guild-card-target-label" style="margin:0;font-weight:600;"></p>
+      <div>
+        <label style="font-size:0.85rem;color:var(--text-muted);">만료일 <span style="color:var(--danger);">*</span></label>
+        <input type="date" id="guild-card-expires-input" style="width:100%;margin-top:4px;" />
+      </div>
+      <div>
+        <label style="font-size:0.85rem;color:var(--text-muted);">사유 (선택)</label>
+        <input type="text" id="guild-card-reason-input" placeholder="사유를 입력하세요..." style="width:100%;margin-top:4px;" />
+      </div>
+    </div>
+    <div style="padding:0 16px 16px;display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-sm" id="guild-card-cancel-btn">취소</button>
+      <button class="btn btn-sm btn-primary" id="guild-card-confirm-btn">부여</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="app.js"></script>
 

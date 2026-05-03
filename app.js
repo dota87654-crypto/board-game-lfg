@@ -2733,7 +2733,9 @@ async function subscribeNotifications() {
     .neq('type', 'punishment')
     .neq('type', 'guild_request')
     .neq('type', 'guild_approved')
-    .neq('type', 'guild_rejected');
+    .neq('type', 'guild_rejected')
+    .neq('type', 'guild_yellow_card')
+    .neq('type', 'guild_red_card');
   updateNotifBadge(count || 0);
 
   const ch = sb.channel(`notif-${currentUser.id}`)
@@ -2753,10 +2755,12 @@ async function subscribeNotifications() {
         // 가입신청 알림 → 길드 아이콘 뱃지 즉시 갱신
         updateGuildReqBadge();
         if (currentGuild) loadGuildRequestsBadge(currentGuild.id);
-      } else if (payload.new.type !== 'guild_approved' && payload.new.type !== 'guild_rejected') {
+      } else if (!['guild_approved','guild_rejected','guild_yellow_card','guild_red_card'].includes(payload.new.type)) {
         sb.from('notifications').select('*', { count: 'exact', head: true })
           .eq('user_id', currentUser.id).eq('is_read', false)
-          .neq('type', 'punishment').neq('type', 'guild_request').neq('type', 'guild_approved').neq('type', 'guild_rejected')
+          .neq('type', 'punishment').neq('type', 'guild_request')
+          .neq('type', 'guild_approved').neq('type', 'guild_rejected')
+          .neq('type', 'guild_yellow_card').neq('type', 'guild_red_card')
           .then(({ count: c }) => updateNotifBadge(c || 0));
       }
     })
@@ -4445,13 +4449,21 @@ async function loadGuildMembers(guildId) {
     .eq('guild_id', guildId).order('joined_at', { ascending: true });
   if (!members?.length) { guildMembers = []; renderGuildMembersPanel(); return; }
   const userIds = members.map(m => m.user_id);
-  const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds);
+  const [{ data: profiles }, { data: cards }] = await Promise.all([
+    sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds),
+    sb.from('guild_cards').select('user_id, card_type, expires_at, id')
+      .eq('guild_id', guildId).eq('card_type', 'yellow')
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`),
+  ]);
   const profileMap = {};
   (profiles || []).forEach(p => { profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null }; });
+  const yellowCardMap = {};
+  (cards || []).forEach(c => { yellowCardMap[c.user_id] = c; });
   guildMembers = members.map(m => ({
     userId: m.user_id, role: m.role,
     name: profileMap[m.user_id]?.name || '알 수 없음',
     avatar_url: profileMap[m.user_id]?.avatar_url || null,
+    yellowCard: yellowCardMap[m.user_id] || null,
   }));
   renderGuildMembersPanel();
 }
@@ -4460,6 +4472,7 @@ function renderGuildMembersPanel() {
   const list = document.getElementById('guild-members-list');
   const isOwner = currentGuild?.myRole === 'owner';
   const isOfficer = currentGuild?.myRole === 'officer';
+  const canManage = isOwner || isOfficer;
   const roleOrder = { owner: 0, officer: 1, member: 2 };
   const sorted = [...guildMembers].sort((a, b) => roleOrder[a.role] - roleOrder[b.role]);
   list.innerHTML = sorted.map(m => {
@@ -4467,13 +4480,15 @@ function renderGuildMembersPanel() {
     const canKick = !isMe && (isOwner || (isOfficer && m.role === 'member'));
     const canPromote = isOwner && m.role === 'member';
     const canDemote = isOwner && m.role === 'officer';
-    const hasActions = canKick || canPromote || canDemote;
+    const canCard = !isMe && canManage && m.role !== 'owner' && !(isOfficer && m.role === 'officer');
+    const hasActions = canKick || canPromote || canDemote || canCard || (!isMe && m.userId !== currentUser.id);
     const avatarSrc = m.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(m.userId)}`;
+    const yellowBadge = m.yellowCard ? ' 🟡' : '';
     return `<div class="guild-member-item${hasActions ? ' clickable' : ''}" data-uid="${m.userId}">
       <div class="guild-member-info">
         <img class="member-avatar" src="${escHtml(avatarSrc)}" alt="" />
         <div>
-          <div class="guild-member-name">${escHtml(m.name)}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
+          <div class="guild-member-name">${escHtml(m.name)}${yellowBadge}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
           <div class="guild-member-role-label">${GUILD_ROLE_LABELS[m.role]}</div>
         </div>
       </div>
@@ -4487,7 +4502,8 @@ function renderGuildMembersPanel() {
     const canKick = uid !== currentUser.id && (isOwner || (isOfficer && member.role === 'member'));
     const canPromote = isOwner && member.role === 'member';
     const canDemote = isOwner && member.role === 'officer';
-    item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canPromote, canDemote }));
+    const canCard = uid !== currentUser.id && canManage && member.role !== 'owner' && !(isOfficer && member.role === 'officer');
+    item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canPromote, canDemote, canCard }));
   });
 }
 
@@ -4501,13 +4517,16 @@ function closeGuildCtxMenu() {
   }
 }
 
-function showGuildMemberMenu(e, member, { canKick, canPromote, canDemote }) {
+function showGuildMemberMenu(e, member, { canKick, canPromote, canDemote, canCard }) {
   closeGuildCtxMenu();
   const items = [];
   if (member.userId !== currentUser.id) items.push({ label: '💬 DM', action: () => openDM(member.userId, member.name) });
   if (canPromote) items.push({ label: '⭐ 부길드장 임명', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'officer') });
-  if (canDemote) items.push({ label: '↩ 부길드장 해제', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'member') });
-  if (canKick)   items.push({ label: '🚫 강퇴', action: () => kickGuildMember(currentGuild.id, member.userId), danger: true });
+  if (canDemote)  items.push({ label: '↩ 부길드장 해제', action: () => updateGuildMemberRole(currentGuild.id, member.userId, 'member') });
+  if (canCard && member.yellowCard) items.push({ label: '🟡 옐로카드 해지', action: () => revokeYellowCard(member) });
+  if (canCard)    items.push({ label: '🟡 옐로카드', action: () => openYellowCardModal(member) });
+  if (canCard)    items.push({ label: '🔴 레드카드', action: () => issueRedCard(member), danger: true });
+  if (canKick)    items.push({ label: '🚫 강퇴', action: () => kickGuildMember(currentGuild.id, member.userId), danger: true });
   if (!items.length) return;
 
   const menu = document.createElement('div');
@@ -4559,6 +4578,97 @@ async function kickGuildMember(guildId, userId) {
   const { error } = await sb.from('guild_members').delete().eq('guild_id', guildId).eq('user_id', userId);
   if (error) { alert('실패: ' + error.message); return; }
   await loadGuildMembers(guildId);
+}
+
+// ── 길드 카드 ──────────────────────────────────────────────────────────
+
+let _yellowCardTarget = null;
+
+function openYellowCardModal(member) {
+  _yellowCardTarget = member;
+  if (member.yellowCard) {
+    if (!confirm(`${member.name}님은 이미 옐로카드가 있습니다.\n레드카드로 전환하고 즉시 강퇴하시겠습니까?`)) return;
+    issueRedCardInternal(member, true);
+    return;
+  }
+  const today = new Date();
+  today.setDate(today.getDate() + 7);
+  document.getElementById('guild-card-expires-input').value = today.toISOString().slice(0, 10);
+  document.getElementById('guild-card-reason-input').value = '';
+  document.getElementById('guild-card-target-label').textContent = `대상: ${member.name}`;
+  document.getElementById('guild-yellow-card-modal').classList.remove('hidden');
+}
+
+document.getElementById('close-guild-yellow-card-modal').addEventListener('click', () => {
+  document.getElementById('guild-yellow-card-modal').classList.add('hidden');
+  _yellowCardTarget = null;
+});
+document.getElementById('guild-card-cancel-btn').addEventListener('click', () => {
+  document.getElementById('guild-yellow-card-modal').classList.add('hidden');
+  _yellowCardTarget = null;
+});
+
+document.getElementById('guild-card-confirm-btn').addEventListener('click', async () => {
+  const member = _yellowCardTarget;
+  if (!member) return;
+  const expiresVal = document.getElementById('guild-card-expires-input').value;
+  if (!expiresVal) { alert('만료일을 선택해주세요.'); return; }
+  const expiresAt = new Date(expiresVal);
+  expiresAt.setHours(23, 59, 59, 999);
+  if (expiresAt <= new Date()) { alert('만료일은 오늘 이후여야 합니다.'); return; }
+  const reason = document.getElementById('guild-card-reason-input').value.trim();
+  document.getElementById('guild-yellow-card-modal').classList.add('hidden');
+  _yellowCardTarget = null;
+
+  const { error } = await sb.from('guild_cards').insert({
+    guild_id: currentGuild.id, user_id: member.userId,
+    issued_by: currentUser.id, card_type: 'yellow',
+    reason: reason || null, expires_at: expiresAt.toISOString(),
+  });
+  if (error) { alert('옐로카드 부여 실패: ' + error.message); return; }
+  const expiresStr = expiresVal;
+  await sb.from('notifications').insert({
+    user_id: member.userId, type: 'guild_yellow_card', is_read: false,
+    message: `[${currentGuild.name}] 길드에서 옐로카드를 받았습니다. (만료: ${expiresStr}${reason ? ' / 사유: ' + reason : ''})`,
+  });
+  await loadGuildMembers(currentGuild.id);
+});
+
+async function issueRedCard(member) {
+  if (!confirm(`${member.name}님에게 레드카드를 부여하고 즉시 강퇴하시겠습니까?`)) return;
+  await issueRedCardInternal(member, false);
+}
+
+async function issueRedCardInternal(member, fromYellow) {
+  const reason = fromYellow ? '옐로카드 누적으로 인한 레드카드' : null;
+  const { error } = await sb.from('guild_cards').insert({
+    guild_id: currentGuild.id, user_id: member.userId,
+    issued_by: currentUser.id, card_type: 'red',
+    reason, expires_at: null,
+  });
+  if (error) { alert('레드카드 부여 실패: ' + error.message); return; }
+  const { error: kickErr } = await sb.from('guild_members')
+    .delete().eq('guild_id', currentGuild.id).eq('user_id', member.userId);
+  if (kickErr) { alert('강퇴 실패: ' + kickErr.message); return; }
+  const msg = fromYellow
+    ? `[${currentGuild.name}] 옐로카드가 누적되어 레드카드 처리 후 강퇴됐습니다.`
+    : `[${currentGuild.name}] 레드카드를 받아 강퇴됐습니다.`;
+  await sb.from('notifications').insert({
+    user_id: member.userId, type: 'guild_red_card', is_read: false, message: msg,
+  });
+  await loadGuildMembers(currentGuild.id);
+}
+
+async function revokeYellowCard(member) {
+  if (!member.yellowCard) return;
+  if (!confirm(`${member.name}님의 옐로카드를 해지하시겠습니까?`)) return;
+  const { error } = await sb.from('guild_cards').delete().eq('id', member.yellowCard.id);
+  if (error) { alert('해지 실패: ' + error.message); return; }
+  await sb.from('notifications').insert({
+    user_id: member.userId, type: 'guild_yellow_card', is_read: false,
+    message: `[${currentGuild.name}] 길드 옐로카드가 해지됐습니다.`,
+  });
+  await loadGuildMembers(currentGuild.id);
 }
 
 document.getElementById('guild-members-panel-btn').addEventListener('click', () => {
