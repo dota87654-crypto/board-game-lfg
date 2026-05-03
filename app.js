@@ -4364,10 +4364,6 @@ async function enterGuildDetail(guild) {
   document.getElementById('guild-officer-perms-btn').classList.toggle('hidden', !isOwner);
   document.getElementById('guild-manage-btn').classList.toggle('hidden', !isOwner);
 
-  const leaveBtn = document.getElementById('leave-guild-btn');
-  if (isOwner) { leaveBtn.textContent = '길드 관리'; leaveBtn.className = 'btn btn-sm'; }
-  else { leaveBtn.textContent = '나가기'; leaveBtn.className = 'btn btn-sm btn-danger'; }
-
   showScreen('guild-detail');
   document.getElementById('guild-members-panel').classList.remove('open');
   document.getElementById('guild-messages-list').innerHTML = '';
@@ -4515,7 +4511,7 @@ function renderGuildMembersPanel() {
       (isAdmin   && m.role === 'member' && myGuildPermissions.can_yellow_card)
     );
     const roleActions = isOwner ? buildRoleActions(m) : [];
-    const hasActions = canKick || canCard || roleActions.length > 0 || !isMe;
+    const hasActions = true;
     const avatarSrc = m.avatar_url || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(m.userId)}`;
     const yellowBadge = m.yellowCard ? ' 🟡' : '';
     return `<div class="guild-member-item${hasActions ? ' clickable' : ''}" data-uid="${m.userId}">
@@ -4533,18 +4529,19 @@ function renderGuildMembersPanel() {
     const uid = item.dataset.uid;
     const member = guildMembers.find(m => m.userId === uid);
     if (!member) return;
-    const canKick = uid !== currentUser.id && (
+    const isItemMe = uid === currentUser.id;
+    const canKick = !isItemMe && (
       isOwner ||
       (isOfficer && ['admin', 'member'].includes(member.role) && myGuildPermissions.can_kick) ||
       (isAdmin   && member.role === 'member' && myGuildPermissions.can_kick)
     );
-    const canCard = uid !== currentUser.id && member.role !== 'owner' && (
+    const canCard = !isItemMe && member.role !== 'owner' && (
       isOwner ||
       (isOfficer && ['admin', 'member'].includes(member.role) && myGuildPermissions.can_yellow_card) ||
       (isAdmin   && member.role === 'member' && myGuildPermissions.can_yellow_card)
     );
     const roleActions = isOwner ? buildRoleActions(member) : [];
-    item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canCard, roleActions }));
+    item.addEventListener('click', e => showGuildMemberMenu(e, member, { canKick, canCard, roleActions, isSelf: isItemMe }));
   });
 }
 
@@ -4576,10 +4573,14 @@ function closeGuildCtxMenu() {
   }
 }
 
-function showGuildMemberMenu(e, member, { canKick, canCard, roleActions = [] }) {
+function showGuildMemberMenu(e, member, { canKick, canCard, roleActions = [], isSelf = false }) {
   closeGuildCtxMenu();
   const items = [];
-  if (member.userId !== currentUser.id) items.push({ label: '💬 DM', action: () => openDM(member.userId, member.name) });
+  if (isSelf) {
+    items.push({ label: '🚪 탈퇴하기', action: () => leaveGuild(), danger: true });
+  } else {
+    items.push({ label: '💬 DM', action: () => openDM(member.userId, member.name) });
+  }
   roleActions.forEach(ra => items.push({ label: ra.label, action: () => updateGuildMemberRole(currentGuild.id, member.userId, ra.newRole) }));
   if (canCard && member.yellowCard) items.push({ label: '🟡 옐로카드 해지', action: () => revokeYellowCard(member) });
   if (canCard)    items.push({ label: '🟡 옐로카드', action: () => openYellowCardModal(member) });
@@ -4908,17 +4909,20 @@ document.getElementById('close-guild-requests-btn').addEventListener('click', ()
   document.getElementById('guild-requests-modal').classList.add('hidden');
 });
 
-document.getElementById('leave-guild-btn').addEventListener('click', async () => {
+async function leaveGuild() {
   if (!currentGuild) return;
-  if (currentGuild.myRole === 'owner') { openGuildSettings(); return; }
-  if (!confirm(`[${currentGuild.name}] 길드에서 나가시겠습니까?`)) return;
+  if (currentGuild.myRole === 'owner') {
+    alert('길드장은 탈퇴할 수 없습니다.\n길드장을 위임한 후 탈퇴해주세요.');
+    return;
+  }
+  if (!confirm('정말로 길드를 탈퇴하시겠습니까?')) return;
   const { error } = await sb.from('guild_members').delete().eq('guild_id', currentGuild.id).eq('user_id', currentUser.id);
   if (error) { alert('실패: ' + error.message); return; }
   if (guildChatChannel) { sb.removeChannel(guildChatChannel); guildChatChannel = null; }
   currentGuild = null;
   showScreen('guild-list');
   loadGuildList();
-});
+}
 
 document.getElementById('guild-settings-btn').addEventListener('click', () => openSettings());
 document.getElementById('guild-manage-btn').addEventListener('click', openGuildSettings);
