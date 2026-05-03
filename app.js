@@ -1806,7 +1806,7 @@ function appendMessage(msg) {
   }
   el.innerHTML = `
     ${authorHtml}
-    <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
+    <div class="message-bubble">${renderMessageContent(msg.content)}</div>
     <div class="message-time">${time}</div>
   `;
   if (!isMine && msg.user_id) {
@@ -3900,7 +3900,7 @@ function appendDMMessage(msg, senderName, senderAvatarUrl) {
   const authorHtml = !isMine ? `<div class="message-author">${escHtml(senderName)}</div>` : '';
   el.innerHTML = `
     ${authorHtml}
-    <div class="message-bubble">${escHtml(filterProfanity(msg.content))}</div>
+    <div class="message-bubble">${renderMessageContent(msg.content)}</div>
     <div class="message-time">${time}</div>
   `;
   dmMessages.appendChild(el);
@@ -4040,6 +4040,33 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+const CHAT_LINK_DOMAINS = ['discord.gg', 'discord.com', 'gather.town', 'youtube.com', 'youtu.be'];
+
+function renderMessageContent(rawText) {
+  const text = filterProfanity(rawText);
+  const urlRegex = /https?:\/\/\S+/g;
+  let result = '';
+  let lastIndex = 0;
+  let match;
+  while ((match = urlRegex.exec(text)) !== null) {
+    result += escHtml(text.slice(lastIndex, match.index));
+    const url = match[0].replace(/[.,;:!?)"']+$/, '');
+    let allowed = false;
+    try {
+      const hostname = new URL(url).hostname.replace(/^www\./, '');
+      allowed = CHAT_LINK_DOMAINS.some(d => hostname === d || hostname.endsWith('.' + d));
+    } catch {}
+    if (allowed) {
+      result += `<a href="${escHtml(url)}" target="_blank" rel="noopener noreferrer">${escHtml(url)}</a>`;
+    } else {
+      result += escHtml(url);
+    }
+    lastIndex = match.index + url.length;
+  }
+  result += escHtml(text.slice(lastIndex));
+  return result;
 }
 
 async function sha256(str) {
