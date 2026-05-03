@@ -4265,21 +4265,36 @@ async function loadGuildList() {
   subscribeGuildChatNotif();
 }
 
+function refreshMyGuildsBadges() {
+  myGuilds.forEach(g => {
+    const el = document.getElementById(`my-guild-unread-${g.id}`);
+    if (!el) return;
+    const count = guildChatUnreadMap[g.id] || 0;
+    if (count > 0) { el.textContent = count; el.classList.remove('hidden'); }
+    else { el.textContent = ''; el.classList.add('hidden'); }
+  });
+}
+
 function renderMyGuilds(guilds) {
   const el = document.getElementById('my-guilds-list');
   if (!guilds.length) { el.innerHTML = '<div class="guild-empty">가입한 길드가 없습니다.</div>'; return; }
-  el.innerHTML = guilds.map(g => `
+  el.innerHTML = guilds.map(g => {
+    const unread = guildChatUnreadMap[g.id] || 0;
+    return `
     <div class="guild-card">
       <div class="guild-card-top">
         <div class="guild-card-name">${escHtml(g.name)}${g.is_public ? '' : ' 🔒'}</div>
-        <span class="guild-role-badge role-${g.myRole}">${GUILD_ROLE_LABELS[g.myRole]}</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          ${unread > 0 ? `<span id="my-guild-unread-${g.id}" class="room-unread-badge">${unread}</span>` : `<span id="my-guild-unread-${g.id}" class="room-unread-badge hidden"></span>`}
+          <span class="guild-role-badge role-${g.myRole}">${GUILD_ROLE_LABELS[g.myRole]}</span>
+        </div>
       </div>
       ${g.description ? `<div class="guild-card-desc">${escHtml(g.description)}</div>` : ''}
       <div class="guild-card-footer">
         <button class="btn btn-sm btn-primary guild-enter-btn" data-guild-id="${g.id}">입장</button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
   el.querySelectorAll('.guild-enter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.getElementById('my-guilds-modal').classList.add('hidden');
@@ -4400,6 +4415,7 @@ async function enterGuildDetail(guild) {
   // 길드 입장 시 해당 길드 채팅 미읽 배지 클리어
   delete guildChatUnreadMap[guild.id];
   updateGuildChatBadge();
+  refreshMyGuildsBadges();
   const isOwner   = currentGuild.myRole === 'owner';
   const isOfficer = currentGuild.myRole === 'officer';
   const isAdmin   = currentGuild.myRole === 'admin';
@@ -5264,6 +5280,7 @@ function subscribeGuildChatNotif() {
         if (isNotifOn('guild_chat')) playGuildChat(false);
         guildChatUnreadMap[msg.guild_id] = (guildChatUnreadMap[msg.guild_id] || 0) + 1;
         updateGuildChatBadge();
+        refreshMyGuildsBadges();
       })
     .subscribe();
 }
