@@ -257,6 +257,110 @@ textarea.inquiry-input { font-family: inherit; }
 .nickname-msg.error { color: var(--danger); }
 .nickname-msg.success { color: var(--success); }
 
+/* Nickname setup - avatar section */
+.nick-avatar-section {
+  margin-top: 24px;
+  text-align: left;
+}
+.nick-avatar-section-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.nick-avatar-optional {
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.nick-avatar-preview-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+.nick-avatar-preview-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.nick-avatar-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: none;
+}
+.nick-avatar-preview-img.visible { display: block; }
+.nick-avatar-ph {
+  font-size: 1.8rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+.nick-avatar-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.nick-avatar-tab {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.nick-avatar-tab.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.nick-avatar-panel { display: block; }
+.nick-avatar-panel.hidden { display: none; }
+.nick-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+.nick-avatar-grid .avatar-preset-item {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+.nick-upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 22px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--surface2);
+}
+.nick-upload-area:hover { border-color: var(--primary); background: var(--surface); }
+.nick-upload-text { font-size: 0.9rem; color: var(--text-muted); }
+.nick-upload-hint { font-size: 0.78rem; color: var(--text-muted); }
+
 /* Profile */
 .profile-card {
   max-width: 560px;

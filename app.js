@@ -334,6 +334,8 @@ let myRoomIds = new Set();
 let realtimeChannels = [];
 let currentNickname = '';
 let currentAvatarUrl = '';
+let pendingNickAvatarUrl = '';
+let pendingNickAvatarFile = null;
 let dmUnreadMap = {};
 let globalDMChannel = null;
 let friendNotifChannel = null;
@@ -3035,21 +3037,41 @@ async function submitNickname() {
     return;
   }
   nicknameSubmitBtn.disabled = true;
-  const ok = await saveNickname(nick, nicknameMsg);
+
+  let avatarUrl = pendingNickAvatarUrl;
+  if (pendingNickAvatarFile) {
+    try {
+      const file = pendingNickAvatarFile;
+      const ext = file.name.split('.').pop().toLowerCase();
+      const path = `${currentUser.id}/avatar.${ext}`;
+      const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+      avatarUrl = urlData.publicUrl + '?t=' + Date.now();
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      avatarUrl = '';
+    }
+  }
+
+  const ok = await saveNickname(nick, nicknameMsg, avatarUrl);
   nicknameSubmitBtn.disabled = false;
   if (ok) {
     currentNickname = nick;
+    if (avatarUrl) currentAvatarUrl = avatarUrl;
     await goToMain();
   }
 }
 
-async function saveNickname(nick, msgEl) {
+async function saveNickname(nick, msgEl, avatarUrl = '') {
   const { data: dup } = await sb.from('profiles').select('id').eq('nickname', nick).neq('id', currentUser.id).maybeSingle();
   if (dup) {
     setNicknameMsg(msgEl, t('nick.err.dup'), 'error');
     return false;
   }
-  const { error } = await sb.from('profiles').update({ nickname: nick }).eq('id', currentUser.id);
+  const updates = { nickname: nick };
+  if (avatarUrl) updates.avatar_url = avatarUrl;
+  const { error } = await sb.from('profiles').update(updates).eq('id', currentUser.id);
   if (error) {
     setNicknameMsg(msgEl, t('nick.err.save'), 'error');
     return false;
@@ -3183,6 +3205,71 @@ async function selectPresetAvatar(url) {
   avatarPresetGrid.querySelectorAll('.avatar-preset-item').forEach(el => {
     el.classList.toggle('selected', el.src === url);
   });
+}
+
+// 닉네임 설정 화면 아바타 섹션
+const nickAvatarGrid = document.getElementById('nick-avatar-preset-grid');
+AVATAR_PRESETS.forEach(url => {
+  const img = document.createElement('img');
+  img.src = url;
+  img.className = 'avatar-preset-item';
+  img.addEventListener('click', () => selectNickPresetAvatar(url));
+  nickAvatarGrid.appendChild(img);
+});
+
+document.getElementById('nick-tab-preset').addEventListener('click', () => {
+  document.getElementById('nick-tab-preset').classList.add('active');
+  document.getElementById('nick-tab-upload').classList.remove('active');
+  document.getElementById('nick-panel-preset').classList.remove('hidden');
+  document.getElementById('nick-panel-upload').classList.add('hidden');
+});
+
+document.getElementById('nick-tab-upload').addEventListener('click', () => {
+  document.getElementById('nick-tab-upload').classList.add('active');
+  document.getElementById('nick-tab-preset').classList.remove('active');
+  document.getElementById('nick-panel-upload').classList.remove('hidden');
+  document.getElementById('nick-panel-preset').classList.add('hidden');
+});
+
+document.getElementById('nick-avatar-upload').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  e.target.value = '';
+
+  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowed.includes(file.type)) {
+    alert(t('avatar.type.error'));
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    alert(t('avatar.size.error'));
+    return;
+  }
+
+  pendingNickAvatarFile = file;
+  pendingNickAvatarUrl = '';
+  nickAvatarGrid.querySelectorAll('.avatar-preset-item').forEach(el => el.classList.remove('selected'));
+
+  const reader = new FileReader();
+  reader.onload = (ev) => setNickAvatarPreview(ev.target.result);
+  reader.readAsDataURL(file);
+});
+
+function selectNickPresetAvatar(url) {
+  pendingNickAvatarUrl = url;
+  pendingNickAvatarFile = null;
+  setNickAvatarPreview(url);
+  nickAvatarGrid.querySelectorAll('.avatar-preset-item').forEach(el => {
+    el.classList.toggle('selected', el.getAttribute('src') === url);
+  });
+}
+
+function setNickAvatarPreview(src) {
+  const img = document.getElementById('nick-avatar-preview');
+  const ph = document.getElementById('nick-avatar-placeholder');
+  img.src = src;
+  img.classList.add('visible');
+  ph.style.display = 'none';
 }
 
 // 프로필 닉네임 변경

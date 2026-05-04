@@ -32,7 +32,32 @@
     <p style="margin-bottom:24px;color:var(--text-muted);font-size:0.9rem;" data-i18n="nick.subtitle">사용할 닉네임을 입력해주세요 (2~16자)</p>
     <input type="text" id="nickname-input" class="nickname-input" data-i18n-placeholder="nick.placeholder" placeholder="닉네임을 입력하세요" maxlength="16" autocomplete="off" />
     <div id="nickname-msg" class="nickname-msg"></div>
-    <button id="nickname-submit-btn" class="btn btn-primary" style="width:100%;margin-top:16px;" data-i18n="btn.done">완료</button>
+
+    <div class="nick-avatar-section">
+      <div class="nick-avatar-section-label">프로필 사진 <span class="nick-avatar-optional">선택사항</span></div>
+      <div class="nick-avatar-preview-row">
+        <div class="nick-avatar-preview-wrap">
+          <img id="nick-avatar-preview" class="nick-avatar-preview-img" src="" alt="" />
+          <span id="nick-avatar-placeholder" class="nick-avatar-ph">?</span>
+        </div>
+      </div>
+      <div class="nick-avatar-tabs">
+        <button id="nick-tab-preset" class="nick-avatar-tab active" type="button">기본 아바타</button>
+        <button id="nick-tab-upload" class="nick-avatar-tab" type="button">직접 업로드</button>
+      </div>
+      <div id="nick-panel-preset" class="nick-avatar-panel">
+        <div id="nick-avatar-preset-grid" class="nick-avatar-grid"></div>
+      </div>
+      <div id="nick-panel-upload" class="nick-avatar-panel hidden">
+        <label class="nick-upload-area" for="nick-avatar-upload">
+          <input type="file" id="nick-avatar-upload" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" />
+          <span class="nick-upload-text">📁 클릭해서 사진 선택</span>
+          <small class="nick-upload-hint">JPG, PNG, GIF, WEBP · 최대 2MB</small>
+        </label>
+      </div>
+    </div>
+
+    <button id="nickname-submit-btn" class="btn btn-primary" style="width:100%;margin-top:20px;" data-i18n="btn.done">완료</button>
   </div>
 </div>
 
