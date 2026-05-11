@@ -648,6 +648,7 @@ async function goToMain() {
   handlePendingInvite();
   initGuildReqBadge();
   initGuildChatNotif();
+  startPresence();
 }
 
 async function resumeRoomSubscription() {
@@ -664,6 +665,7 @@ async function resumeRoomSubscription() {
 }
 
 function onLogout() {
+  stopPresence();
   currentUser = null;
   currentRoom = null;
   participatingRoomId = null;
@@ -1885,19 +1887,22 @@ async function loadRoomMembers(roomId) {
   if (!data?.length) { currentRoomMembers = []; renderMembersPanel(); return; }
   const userIds = data.map(m => m.user_id);
   const { data: profiles } = await sb.from('profiles')
-    .select('id, nickname, display_name, email, avatar_url')
+    .select('id, nickname, display_name, email, avatar_url, online_status')
     .in('id', userIds);
   const profileMap = {};
   (profiles || []).forEach(p => {
+    onlineStatusMap[p.id] = p.online_status || 'offline';
     profileMap[p.id] = {
       name: p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown'),
       avatar_url: p.avatar_url || null,
+      onlineStatus: p.online_status || 'offline',
     };
   });
   currentRoomMembers = data.map(m => ({
     user_id: m.user_id,
     nickname: profileMap[m.user_id]?.name || t('unknown'),
     avatar_url: profileMap[m.user_id]?.avatar_url || null,
+    onlineStatus: profileMap[m.user_id]?.onlineStatus || 'offline',
   }));
   renderMembersPanel();
 }
@@ -1918,6 +1923,7 @@ function renderMembersPanel() {
       : userIconSvg(color);
     el.innerHTML = `
       ${iconHtml}
+      ${statusDot(m.onlineStatus, m.user_id)}
       <span class="member-name">${isHost ? '👑 ' : ''}${escHtml(m.nickname)}</span>
     `;
     if (!isSelf) {
@@ -2400,6 +2406,107 @@ function unsubscribeAll() {
   realtimeChannels.forEach(ch => sb.removeChannel(ch));
   realtimeChannels = [];
 }
+
+// ── 온라인 상태 관리 ──────────────────────────────────────────────────────
+
+const onlineStatusMap = {};
+let _presenceTimer  = null;
+let _awayTimer      = null;
+let _myStatus       = 'offline';
+let _presenceChannel = null;
+
+function statusDot(status, uid) {
+  const uidAttr = uid ? ` data-status-uid="${uid}"` : '';
+  return `<span class="status-dot ${status || 'offline'}"${uidAttr}></span>`;
+}
+
+async function setOnlineStatus(status) {
+  if (!currentUser) return;
+  _myStatus = status;
+  const dot = document.getElementById('my-status-dot');
+  if (dot) dot.className = `status-dot ${status}`;
+  onlineStatusMap[currentUser.id] = status;
+  await sb.from('profiles').update({ online_status: status, last_seen: new Date().toISOString() }).eq('id', currentUser.id);
+}
+
+function _resetAwayTimer() {
+  clearTimeout(_awayTimer);
+  _awayTimer = setTimeout(() => setOnlineStatus('away'), 5 * 60 * 1000);
+}
+
+function _onActivity() {
+  if (_myStatus === 'away') setOnlineStatus('online');
+  _resetAwayTimer();
+}
+
+function startPresence() {
+  setOnlineStatus('online');
+  _presenceTimer = setInterval(() => {
+    if (!currentUser) return;
+    sb.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', currentUser.id);
+  }, 60000);
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(ev =>
+    document.addEventListener(ev, _onActivity, { passive: true }));
+  _resetAwayTimer();
+
+  document.addEventListener('visibilitychange', _onVisibility);
+
+  _presenceChannel = sb.channel('online-presence')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, payload => {
+      const { id, online_status } = payload.new;
+      if (!online_status) return;
+      onlineStatusMap[id] = online_status;
+      document.querySelectorAll(`[data-status-uid="${id}"]`).forEach(el => {
+        el.className = `status-dot ${online_status}`;
+      });
+    })
+    .subscribe();
+}
+
+function _onVisibility() {
+  if (document.hidden) {
+    if (_myStatus === 'online') setOnlineStatus('away');
+  } else {
+    if (_myStatus === 'away') setOnlineStatus('online');
+    _resetAwayTimer();
+  }
+}
+
+function stopPresence() {
+  clearInterval(_presenceTimer);
+  clearTimeout(_awayTimer);
+  _presenceTimer = null; _awayTimer = null;
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(ev =>
+    document.removeEventListener(ev, _onActivity));
+  document.removeEventListener('visibilitychange', _onVisibility);
+  if (_presenceChannel) { sb.removeChannel(_presenceChannel); _presenceChannel = null; }
+  if (currentUser) {
+    sb.from('profiles').update({ online_status: 'offline', last_seen: new Date().toISOString() }).eq('id', currentUser.id);
+  }
+}
+
+// 탭 닫기 / 새로고침 시 keepalive fetch로 오프라인 처리
+window.addEventListener('beforeunload', () => {
+  if (!currentUser) return;
+  fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${currentUser.id}`, {
+    method: 'PATCH', keepalive: true,
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` },
+    body: JSON.stringify({ online_status: 'offline', last_seen: new Date().toISOString() }),
+  });
+});
+
+// 헤더 상태 토글
+document.getElementById('status-toggle-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('status-dropdown').classList.toggle('hidden');
+});
+document.querySelectorAll('#status-dropdown .status-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    setOnlineStatus(opt.dataset.status);
+    document.getElementById('status-dropdown').classList.add('hidden');
+  });
+});
+document.addEventListener('click', () => document.getElementById('status-dropdown')?.classList.add('hidden'));
 
 // --- Notifications (Web Audio API) ---
 const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, dm_in_dm: true, friend_req: true, guild_request: true, guild_request_list: true, guild_chat: true, guild_chat_list: true };
@@ -3720,13 +3827,16 @@ async function loadFriends() {
 
   const profileMap = {};
   if (allIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, display_name, email, nickname, avatar_url').in('id', allIds);
-    (profiles || []).forEach(p => { profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null }; });
+    const { data: profiles } = await sb.from('profiles').select('id, display_name, email, nickname, avatar_url, online_status').in('id', allIds);
+    (profiles || []).forEach(p => {
+      onlineStatusMap[p.id] = p.online_status || 'offline';
+      profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null, onlineStatus: p.online_status || 'offline' };
+    });
   }
 
   friendsList = accepted.map(f => {
     const fid = f.requester_id === currentUser.id ? f.addressee_id : f.requester_id;
-    return { id: f.id, friendId: fid, name: profileMap[fid]?.name || '알 수 없음', avatar_url: profileMap[fid]?.avatar_url || null };
+    return { id: f.id, friendId: fid, name: profileMap[fid]?.name || '알 수 없음', avatar_url: profileMap[fid]?.avatar_url || null, onlineStatus: profileMap[fid]?.onlineStatus || 'offline' };
   });
 
   pendingList = pending.map(f => ({
@@ -3763,7 +3873,7 @@ function renderFriendsList() {
       ? `<img class="friend-avatar" src="${escHtml(f.avatar_url)}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">${userIconSvg('#4a8fe8').replace('<svg', '<svg style="display:none"')}`
       : userIconSvg('#4a8fe8');
     el.innerHTML = `
-      <div class="friend-item-left">${avatarHtml}<span class="friend-item-name">${escHtml(f.name)}</span></div>
+      <div class="friend-item-left">${avatarHtml}${statusDot(f.onlineStatus, f.friendId)}<span class="friend-item-name">${escHtml(f.name)}</span></div>
       <div class="friend-item-actions">
         ${inRoom ? `<button class="btn btn-sm btn-primary" data-invite="${f.friendId}">${t('btn.invite')}</button>` : ''}
         <button class="btn btn-sm btn-primary" data-dm="${f.friendId}">${t('btn.dm')}</button>
@@ -4683,19 +4793,23 @@ async function loadGuildMembers(guildId) {
   if (!members?.length) { guildMembers = []; renderGuildMembersPanel(); return; }
   const userIds = members.map(m => m.user_id);
   const [{ data: profiles }, { data: cards }] = await Promise.all([
-    sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds),
+    sb.from('profiles').select('id, nickname, display_name, email, avatar_url, online_status').in('id', userIds),
     sb.from('guild_cards').select('user_id, card_type, expires_at, id')
       .eq('guild_id', guildId).eq('card_type', 'yellow')
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`),
   ]);
   const profileMap = {};
-  (profiles || []).forEach(p => { profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null }; });
+  (profiles || []).forEach(p => {
+    onlineStatusMap[p.id] = p.online_status || 'offline';
+    profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null, onlineStatus: p.online_status || 'offline' };
+  });
   const yellowCardMap = {};
   (cards || []).forEach(c => { yellowCardMap[c.user_id] = c; });
   guildMembers = members.map(m => ({
     userId: m.user_id, role: m.role,
     name: profileMap[m.user_id]?.name || '알 수 없음',
     avatar_url: profileMap[m.user_id]?.avatar_url || null,
+    onlineStatus: profileMap[m.user_id]?.onlineStatus || 'offline',
     yellowCard: yellowCardMap[m.user_id] || null,
   }));
   renderGuildMembersPanel();
@@ -4729,7 +4843,7 @@ function renderGuildMembersPanel() {
       <div class="guild-member-info">
         <img class="member-avatar" src="${escHtml(avatarSrc)}" alt="" />
         <div>
-          <div class="guild-member-name">${escHtml(m.name)}${yellowBadge}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
+          <div class="guild-member-name">${statusDot(m.onlineStatus, m.userId)} ${escHtml(m.name)}${yellowBadge}${isMe ? ' <span style="color:var(--text-muted);font-size:0.75rem;">(나)</span>' : ''}</div>
           <div class="guild-member-role-label">${getRoleLabel(m.role)}</div>
         </div>
       </div>

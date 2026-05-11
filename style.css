@@ -129,6 +129,18 @@ header {
 }
 .btn-username:hover { background: var(--surface2); color: var(--text); }
 
+/* Online Status */
+.status-dot { display:inline-block; width:9px; height:9px; border-radius:50%; flex-shrink:0; border:1.5px solid var(--surface); }
+.status-dot.online  { background:#4caf7d; }
+.status-dot.away    { background:#f5a623; }
+.status-dot.offline { background:#888; }
+.status-toggle-wrap { position:relative; display:flex; align-items:center; gap:2px; }
+.status-toggle-btn  { background:none; border:none; cursor:pointer; padding:4px 5px; border-radius:6px; display:flex; align-items:center; transition:background 0.15s; }
+.status-toggle-btn:hover { background:var(--surface2); }
+.status-dropdown { position:absolute; top:calc(100% + 6px); right:0; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.2); z-index:200; min-width:140px; overflow:hidden; }
+.status-option { display:flex; align-items:center; gap:9px; padding:10px 14px; cursor:pointer; font-size:0.88rem; transition:background 0.12s; }
+.status-option:hover { background:var(--surface2); }
+
 /* Settings */
 .settings-body { padding: 4px 0; }
 .settings-modal { display: flex; flex-direction: column; }

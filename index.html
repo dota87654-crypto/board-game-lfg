@@ -67,7 +67,14 @@
     <div class="header-inner">
       <h1 data-i18n="app.name">🎲 보드게임 LFG</h1>
       <div class="header-right">
-        <button id="user-name" class="btn-username"></button>
+        <div class="status-toggle-wrap">
+          <button id="user-name" class="btn-username"></button>
+          <button id="status-toggle-btn" class="status-toggle-btn" title="상태 변경"><span id="my-status-dot" class="status-dot offline"></span></button>
+          <div id="status-dropdown" class="status-dropdown hidden">
+            <div class="status-option" data-status="online"><span class="status-dot online"></span>접속 중</div>
+            <div class="status-option" data-status="away"><span class="status-dot away"></span>자리비움</div>
+          </div>
+        </div>
         <button id="friends-btn" class="btn btn-sm" data-i18n-title="title.friends" title="친구">👥<span id="friends-badge" class="friends-badge hidden"></span></button>
         <button id="dm-btn" class="btn btn-sm" data-i18n-title="title.dm" title="메시지">💬<span id="dm-badge" class="friends-badge hidden"></span></button>
         <button id="announcement-btn" class="btn btn-sm" title="공지사항">📢<span id="announce-badge" class="friends-badge hidden"></span></button>
