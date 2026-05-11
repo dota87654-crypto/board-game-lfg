@@ -56,6 +56,7 @@ function showTab(name) {
   if (name === 'announcements') loadAdminAnnouncements();
   if (name === 'faq') loadAdminFAQs();
   if (name === 'activity') { document.getElementById('activity-result').innerHTML = ''; }
+  if (name === 'guild-log') { document.getElementById('guild-log-result').innerHTML = ''; }
 }
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -995,6 +996,174 @@ async function unbanEmail(id, email) {
 
 function escHtml(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── 길드 로그 ────────────────────────────────────────────────────────────
+
+document.getElementById('guild-log-search-btn').addEventListener('click', loadGuildLog);
+document.getElementById('guild-log-search-input').addEventListener('keydown', e => { if (e.key === 'Enter') loadGuildLog(); });
+
+async function loadGuildLog() {
+  const query = document.getElementById('guild-log-search-input').value.trim();
+  const container = document.getElementById('guild-log-result');
+  if (!query) { container.innerHTML = '<div class="empty">길드 이름을 입력하세요.</div>'; return; }
+  container.innerHTML = '<div class="empty">검색 중...</div>';
+
+  const { data: guilds, error } = await sb.from('guilds')
+    .select('id, name, description')
+    .ilike('name', `%${query}%`)
+    .limit(20);
+  if (error) { container.innerHTML = `<div class="empty">오류: ${error.message}</div>`; return; }
+  if (!guilds?.length) { container.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>'; return; }
+
+  if (guilds.length === 1) {
+    container.innerHTML = '';
+    await renderGuildLog(guilds[0], container);
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="activity-section">
+      <div class="activity-section-title">검색 결과 <span class="activity-count">${guilds.length}개</span></div>
+      <table class="activity-table">
+        <thead><tr><th>길드명</th><th>설명</th></tr></thead>
+        <tbody>
+          ${guilds.map(g => `
+            <tr class="activity-user-pick" data-id="${g.id}">
+              <td>${escHtml(g.name)}</td>
+              <td>${escHtml(g.description || '-')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  container.querySelectorAll('.activity-user-pick').forEach(row => {
+    row.addEventListener('click', async () => {
+      const guild = guilds.find(g => g.id === row.dataset.id);
+      if (guild) { container.innerHTML = ''; await renderGuildLog(guild, container); }
+    });
+  });
+}
+
+const ACTION_LABEL = {
+  yellow_card_issued: '🟡 옐로카드 부여',
+  yellow_card_revoked: '⬜ 옐로카드 해지',
+  red_card_issued: '🔴 레드카드 부여',
+  kick: '🚫 강퇴',
+  role_change: '🔧 등급 변경',
+  join_approved: '✅ 가입 승인',
+  join_rejected: '❌ 가입 거절',
+};
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return `${fmtDate(iso)} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+async function renderGuildLog(guild, container) {
+  const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
+
+  container.innerHTML = `
+    <div class="activity-section">
+      <div class="activity-section-title">🏰 ${escHtml(guild.name)}</div>
+      <div class="activity-info-grid">
+        <div class="activity-info-item"><span class="activity-info-label">설명</span><span>${escHtml(guild.description || '-')}</span></div>
+        <div class="activity-info-item"><span class="activity-info-label">조회 기간</span><span>최근 90일</span></div>
+      </div>
+    </div>
+    <div id="guild-action-log-section"></div>
+    <div id="guild-chat-log-section"></div>
+  `;
+
+  // ① 액션 로그
+  const { data: logs } = await sb.from('guild_logs')
+    .select('id, actor_id, target_id, action_type, detail, created_at')
+    .eq('guild_id', guild.id)
+    .gte('created_at', since90)
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  const actionSection = container.querySelector('#guild-action-log-section');
+  if (logs?.length) {
+    const actorIds = [...new Set([...logs.map(l => l.actor_id), ...logs.map(l => l.target_id)].filter(Boolean))];
+    const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', actorIds);
+    const pMap = {};
+    (profiles || []).forEach(p => { pMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '?'; });
+
+    actionSection.innerHTML = `
+      <div class="activity-section">
+        <div class="activity-section-title">⚙️ 운영 로그 <span class="activity-count">${logs.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th>날짜</th><th>구분</th><th>집행자</th><th>대상</th><th>내용</th></tr></thead>
+          <tbody>
+            ${logs.map(l => `
+              <tr>
+                <td style="white-space:nowrap;">${fmtDate(l.created_at)}</td>
+                <td style="white-space:nowrap;">${ACTION_LABEL[l.action_type] || l.action_type}</td>
+                <td>${escHtml(pMap[l.actor_id] || '-')}</td>
+                <td>${escHtml(pMap[l.target_id] || '-')}</td>
+                <td>${escHtml(l.detail || '-')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else {
+    actionSection.innerHTML = `
+      <div class="activity-section">
+        <div class="activity-section-title">⚙️ 운영 로그 <span class="activity-count">0건</span></div>
+        <div class="empty" style="padding:12px 0;">최근 90일간 운영 로그가 없습니다.</div>
+      </div>
+    `;
+  }
+
+  // ② 채팅 로그
+  const { data: chats } = await sb.from('guild_messages')
+    .select('id, user_id, content, created_at')
+    .eq('guild_id', guild.id)
+    .gte('created_at', since90)
+    .order('created_at', { ascending: false })
+    .limit(500);
+
+  const chatSection = container.querySelector('#guild-chat-log-section');
+  if (chats?.length) {
+    const chatUserIds = [...new Set(chats.map(c => c.user_id).filter(Boolean))];
+    const { data: chatProfiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', chatUserIds);
+    const cpMap = {};
+    (chatProfiles || []).forEach(p => { cpMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '?'; });
+
+    chatSection.innerHTML = `
+      <div class="activity-section">
+        <div class="activity-section-title">💬 채팅 로그 <span class="activity-count">${chats.length}건</span></div>
+        <table class="activity-table">
+          <thead><tr><th>날짜·시간</th><th>닉네임</th><th>내용</th></tr></thead>
+          <tbody>
+            ${chats.map(c => `
+              <tr>
+                <td style="white-space:nowrap;">${fmtDateTime(c.created_at)}</td>
+                <td style="white-space:nowrap;">${escHtml(cpMap[c.user_id] || '-')}</td>
+                <td style="word-break:break-all;">${escHtml(c.content)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else {
+    chatSection.innerHTML = `
+      <div class="activity-section">
+        <div class="activity-section-title">💬 채팅 로그 <span class="activity-count">0건</span></div>
+        <div class="empty" style="padding:12px 0;">최근 90일간 채팅 기록이 없습니다.</div>
+      </div>
+    `;
+  }
 }
 
 init();

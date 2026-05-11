@@ -4847,7 +4847,12 @@ async function updateGuildMemberRole(guildId, userId, newRole) {
   }
   const { error } = await sb.from('guild_members').update({ role: newRole }).eq('guild_id', guildId).eq('user_id', userId);
   if (error) { alert('실패: ' + error.message); return; }
+  await insertGuildLog(guildId, currentUser.id, userId, 'role_change', `${member?.name}의 등급을 ${actionLabel}(으)로 변경`);
   await loadGuildMembers(guildId);
+}
+
+async function insertGuildLog(guildId, actorId, targetId, actionType, detail) {
+  await sb.from('guild_logs').insert({ guild_id: guildId, actor_id: actorId, target_id: targetId, action_type: actionType, detail });
 }
 
 async function kickGuildMember(guildId, userId) {
@@ -4855,6 +4860,7 @@ async function kickGuildMember(guildId, userId) {
   if (!confirm(`${member?.name}님을 강퇴하시겠습니까?`)) return;
   const { error } = await sb.from('guild_members').delete().eq('guild_id', guildId).eq('user_id', userId);
   if (error) { alert('실패: ' + error.message); return; }
+  await insertGuildLog(guildId, currentUser.id, userId, 'kick', `${member?.name} 강퇴`);
   await loadGuildMembers(guildId);
 }
 
@@ -4912,6 +4918,8 @@ document.getElementById('guild-card-confirm-btn').addEventListener('click', asyn
     user_id: member.userId, type: 'guild_yellow_card', is_read: false,
     message: `[${currentGuild.name}] 길드에서 옐로카드를 받았습니다. (만료: ${expiresStr}${reasonText ? ' / 사유: ' + reasonText : ''})`,
   });
+  await insertGuildLog(currentGuild.id, currentUser.id, member.userId, 'yellow_card_issued',
+    `${member.name}에게 옐로카드 부여 (만료: ${expiresStr}${reasonText ? ' / 사유: ' + reasonText : ''})`);
   await loadGuildMembers(currentGuild.id);
 });
 
@@ -4937,6 +4945,8 @@ async function issueRedCardInternal(member, fromYellow) {
   await sb.from('notifications').insert({
     user_id: member.userId, type: 'guild_red_card', is_read: false, message: msg,
   });
+  await insertGuildLog(currentGuild.id, currentUser.id, member.userId, 'red_card_issued',
+    `${member.name}에게 레드카드 부여 후 강퇴${fromYellow ? ' (옐로카드 누적)' : ''}`);
   await loadGuildMembers(currentGuild.id);
 }
 
@@ -4949,6 +4959,8 @@ async function revokeYellowCard(member) {
     user_id: member.userId, type: 'guild_yellow_card', is_read: false,
     message: `[${currentGuild.name}] 길드 옐로카드가 해지됐습니다.`,
   });
+  await insertGuildLog(currentGuild.id, currentUser.id, member.userId, 'yellow_card_revoked',
+    `${member.name}의 옐로카드 해지`);
   await loadGuildMembers(currentGuild.id);
 }
 
@@ -5099,6 +5111,7 @@ async function handleGuildRequest(reqId, userId, approve, userName) {
     const now = new Date().toISOString();
     await sb.from('guild_join_requests').update({ status: 'rejected', rejected_at: now }).eq('id', reqId);
     await sb.from('notifications').insert({ user_id: userId, type: 'guild_rejected', message: `[${currentGuild.name}] 길드 가입이 거절됐습니다.`, is_read: false });
+    await insertGuildLog(currentGuild.id, currentUser.id, userId, 'join_rejected', `${name} 가입 거절`);
     document.querySelector(`[data-req-id="${reqId}"]`)?.remove();
     loadGuildRequestsBadge(currentGuild.id);
     return;
@@ -5110,6 +5123,7 @@ async function handleGuildRequest(reqId, userId, approve, userName) {
   const { error } = await sb.from('guild_members').insert({ guild_id: currentGuild.id, user_id: userId });
   if (error) { alert('가입 처리 실패: ' + error.message); return; }
   await sb.from('notifications').insert({ user_id: userId, type: 'guild_approved', message: `[${currentGuild.name}] 길드 가입이 승인되었습니다.`, is_read: false });
+  await insertGuildLog(currentGuild.id, currentUser.id, userId, 'join_approved', `${userName || userId} 가입 승인`);
   await sb.from('guild_join_requests').update({ status: 'approved' }).eq('id', reqId);
   document.querySelector(`[data-req-id="${reqId}"]`)?.remove();
   loadGuildRequestsBadge(currentGuild.id);
