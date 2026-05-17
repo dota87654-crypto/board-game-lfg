@@ -116,6 +116,7 @@
   <div class="tab" data-tab="activity">👤 활동 로그</div>
   <div class="tab" data-tab="guild-log">🏰 길드 로그</div>
   <div class="tab" data-tab="user-list">📋 전체 유저</div>
+  <div class="tab" data-tab="terms">📜 이용약관</div>
 </div>
 
 <div class="content">
@@ -270,6 +271,25 @@
       <button class="btn btn-primary" id="guild-log-search-btn">검색</button>
     </div>
     <div id="guild-log-result"></div>
+  </div>
+
+  <!-- 이용약관 탭 -->
+  <div id="tab-terms" class="tab-content" style="display:none;">
+    <div class="announce-form">
+      <h4>이용약관 내용 편집</h4>
+      <div class="form-row">
+        <label>약관 내용</label>
+        <textarea id="terms-content-input" class="form-input" style="min-height:480px;font-family:monospace;font-size:0.85rem;" placeholder="이용약관 내용을 입력하세요..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;align-items:center;">
+        <button class="btn btn-primary" id="terms-save-btn">저장</button>
+        <span id="terms-save-status" style="font-size:0.82rem;color:var(--text-muted);"></span>
+      </div>
+    </div>
+    <div id="terms-preview-wrap" class="activity-section" style="display:none;">
+      <div class="activity-section-title">미리보기</div>
+      <div id="terms-preview-body" style="font-size:0.875rem;line-height:1.9;white-space:pre-wrap;word-break:break-word;color:var(--text-muted);"></div>
+    </div>
   </div>
 
   <!-- 전체 유저 목록 탭 -->

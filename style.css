@@ -1591,6 +1591,29 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 }
 .faq-answer.hidden { display: none; }
 
+/* 이용약관 */
+.terms-updated {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: 14px;
+}
+.terms-body {
+  font-size: 0.875rem;
+  line-height: 1.9;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.terms-article-title {
+  display: block;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-top: 18px;
+  margin-bottom: 2px;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

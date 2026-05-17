@@ -58,6 +58,7 @@ function showTab(name) {
   if (name === 'activity') { document.getElementById('activity-result').innerHTML = ''; }
   if (name === 'guild-log') { document.getElementById('guild-log-result').innerHTML = ''; }
   if (name === 'user-list') loadUserList();
+  if (name === 'terms') loadAdminTerms();
 }
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -1166,6 +1167,42 @@ async function renderGuildLog(guild, container) {
     `;
   }
 }
+
+// ── 이용약관 관리 ────────────────────────────────────────────────────────
+
+async function loadAdminTerms() {
+  const textarea = document.getElementById('terms-content-input');
+  const status = document.getElementById('terms-save-status');
+  textarea.value = '';
+  status.textContent = '불러오는 중...';
+
+  const { data, error } = await sb.from('terms').select('content, updated_at').eq('id', 1).maybeSingle();
+  if (error) { status.textContent = '오류: ' + error.message; return; }
+  if (data) {
+    textarea.value = data.content;
+    const d = new Date(data.updated_at).toLocaleString('ko-KR');
+    status.textContent = `마지막 저장: ${d}`;
+  } else {
+    status.textContent = '저장된 약관 없음';
+  }
+}
+
+document.getElementById('terms-save-btn').addEventListener('click', async () => {
+  const content = document.getElementById('terms-content-input').value.trim();
+  const status = document.getElementById('terms-save-status');
+  if (!content) { alert('내용을 입력해주세요.'); return; }
+
+  const btn = document.getElementById('terms-save-btn');
+  btn.disabled = true;
+  status.textContent = '저장 중...';
+
+  const now = new Date().toISOString();
+  const { error } = await sb.from('terms').upsert({ id: 1, content, updated_at: now }, { onConflict: 'id' });
+
+  btn.disabled = false;
+  if (error) { status.textContent = '저장 실패: ' + error.message; return; }
+  status.textContent = `저장 완료: ${new Date(now).toLocaleString('ko-KR')}`;
+});
 
 // ── 전체 유저 목록 ────────────────────────────────────────────────────────
 

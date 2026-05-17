@@ -3119,13 +3119,16 @@ function subscribeAnnouncements() {
   realtimeChannels.push(ch);
 }
 
+function _setAnnounceTab(active) {
+  ['announce', 'faq', 'terms'].forEach(t => {
+    document.getElementById(`${t}-list`).classList.toggle('hidden', t !== active);
+    document.getElementById(`${t}-tab-btn`).classList.toggle('active', t === active);
+  });
+}
+
 async function openAnnouncementModal() {
   document.getElementById('announce-modal').classList.remove('hidden');
-  // 항상 공지사항 탭으로 초기화
-  document.getElementById('announce-list').classList.remove('hidden');
-  document.getElementById('faq-list').classList.add('hidden');
-  document.getElementById('announce-tab-btn').classList.add('active');
-  document.getElementById('faq-tab-btn').classList.remove('active');
+  _setAnnounceTab('announce');
   const container = document.getElementById('announce-list');
   container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">로딩 중...</div>';
 
@@ -3179,19 +3182,18 @@ document.getElementById('announcement-btn').addEventListener('click', openAnnoun
 document.getElementById('announcement-btn-room').addEventListener('click', openAnnouncementModal);
 
 document.getElementById('announce-tab-btn').addEventListener('click', () => {
-  document.getElementById('announce-list').classList.remove('hidden');
-  document.getElementById('faq-list').classList.add('hidden');
-  document.getElementById('announce-tab-btn').classList.add('active');
-  document.getElementById('faq-tab-btn').classList.remove('active');
+  _setAnnounceTab('announce');
   if (!document.getElementById('announce-list').children.length) openAnnouncementModal();
 });
 
 document.getElementById('faq-tab-btn').addEventListener('click', () => {
-  document.getElementById('faq-list').classList.remove('hidden');
-  document.getElementById('announce-list').classList.add('hidden');
-  document.getElementById('faq-tab-btn').classList.add('active');
-  document.getElementById('announce-tab-btn').classList.remove('active');
+  _setAnnounceTab('faq');
   loadFAQs();
+});
+
+document.getElementById('terms-tab-btn').addEventListener('click', () => {
+  _setAnnounceTab('terms');
+  loadTerms();
 });
 
 async function loadFAQs() {
@@ -3230,6 +3232,28 @@ document.getElementById('profanity-filter-toggle').addEventListener('change', e 
   localStorage.setItem('profanity_filter', e.target.checked);
   scheduleSaveSettings();
 });
+
+async function loadTerms() {
+  const container = document.getElementById('terms-list');
+  container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">로딩 중...</div>';
+  const { data, error } = await sb.from('terms').select('content, updated_at').eq('id', 1).maybeSingle();
+  if (error || !data) {
+    container.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:20px;">이용약관을 불러올 수 없습니다.</div>';
+    return;
+  }
+  const updated = new Date(data.updated_at).toLocaleDateString('ko-KR');
+  const lines = escHtml(data.content).split('\n');
+  const body = lines.map(line => {
+    const t = line.trim();
+    if (/^제\d+조/.test(t) || /^부칙/.test(t)) return `<strong class="terms-article-title">${line}</strong>`;
+    if (t === '') return '';
+    return `<span>${line}</span>`;
+  }).join('\n');
+  container.innerHTML = `
+    <div class="terms-updated">최종 수정일: ${updated}</div>
+    <div class="terms-body">${body}</div>
+  `;
+}
 
 document.addEventListener('click', () => { hideContextMenu(); hideDMListContextMenu(); });
 
