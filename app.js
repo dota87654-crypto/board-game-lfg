@@ -424,6 +424,7 @@ applyTheme(localStorage.getItem('theme') || 'dark');
 document.getElementById('theme-select').addEventListener('change', e => {
   localStorage.setItem('theme', e.target.value);
   applyTheme(e.target.value);
+  scheduleSaveSettings();
 });
 
 // 초기 언어 적용 (로그인 전)
@@ -660,6 +661,7 @@ async function goToMain() {
   initGuildReqBadge();
   initGuildChatNotif();
   startPresence();
+  loadUserSettings();
 }
 
 async function resumeRoomSubscription() {
@@ -2590,6 +2592,56 @@ function getNotifVolume() {
   return parseInt(localStorage.getItem('notif_volume') ?? '75') / 100;
 }
 
+// --- Settings Sync (Supabase) ---
+let _settingsSaveTimer = null;
+
+function getSettingsSnapshot() {
+  return {
+    theme: localStorage.getItem('theme') || 'dark',
+    notif: getNotifSettings(),
+    notif_volume: parseInt(localStorage.getItem('notif_volume') ?? '75'),
+    profanity_filter: localStorage.getItem('profanity_filter') === 'true',
+  };
+}
+
+function applySettingsSnapshot(s) {
+  if (!s) return;
+  if (s.theme != null) { localStorage.setItem('theme', s.theme); applyTheme(s.theme); }
+  if (s.notif != null) { localStorage.setItem('notif_settings', JSON.stringify({ ...NOTIF_DEFAULTS, ...s.notif })); }
+  if (s.notif_volume != null) { localStorage.setItem('notif_volume', String(s.notif_volume)); }
+  if (s.profanity_filter != null) { localStorage.setItem('profanity_filter', String(s.profanity_filter)); }
+}
+
+function scheduleSaveSettings() {
+  clearTimeout(_settingsSaveTimer);
+  _settingsSaveTimer = setTimeout(async () => {
+    if (!currentUser) return;
+    await sb.from('profiles').update({ settings: getSettingsSnapshot() }).eq('id', currentUser.id);
+  }, 600);
+}
+
+async function loadUserSettings() {
+  if (!currentUser) return;
+  const { data } = await sb.from('profiles').select('settings').eq('id', currentUser.id).maybeSingle();
+  if (data?.settings && Object.keys(data.settings).length > 0) {
+    applySettingsSnapshot(data.settings);
+    // 설정 모달이 열려있으면 UI 새로고침
+    if (!document.getElementById('settings-modal').classList.contains('hidden')) {
+      const s = getNotifSettings();
+      Object.entries(notifToggles).forEach(([k, el]) => { el.checked = s[k]; });
+      const vol = parseInt(localStorage.getItem('notif_volume') ?? '75');
+      document.getElementById('notif-volume').value = vol;
+      document.getElementById('notif-volume-val').textContent = vol;
+      document.getElementById('profanity-filter-toggle').checked = isProfanityFilterOn();
+      const thSel = document.getElementById('theme-select');
+      if (thSel) thSel.value = localStorage.getItem('theme') || 'dark';
+    }
+  } else {
+    // 클라우드에 설정 없으면 현재 로컬 설정을 업로드
+    scheduleSaveSettings();
+  }
+}
+
 function tone(ctx, freq, type, t, duration, vol = 0.25) {
   const scaledVol = vol * getNotifVolume();
   if (scaledVol <= 0) return;
@@ -2730,6 +2782,7 @@ Object.entries(notifToggles).forEach(([key, el]) => {
     const s = getNotifSettings();
     s[key] = el.checked;
     localStorage.setItem('notif_settings', JSON.stringify(s));
+    scheduleSaveSettings();
   });
 });
 
@@ -2738,6 +2791,7 @@ const volVal = document.getElementById('notif-volume-val');
 volSlider.addEventListener('input', () => {
   volVal.textContent = volSlider.value;
   localStorage.setItem('notif_volume', volSlider.value);
+  scheduleSaveSettings();
 });
 
 document.getElementById('settings-btn').addEventListener('click', () => openSettings());
@@ -3174,6 +3228,7 @@ async function loadFAQs() {
 
 document.getElementById('profanity-filter-toggle').addEventListener('change', e => {
   localStorage.setItem('profanity_filter', e.target.checked);
+  scheduleSaveSettings();
 });
 
 document.addEventListener('click', () => { hideContextMenu(); hideDMListContextMenu(); });
