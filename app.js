@@ -619,7 +619,7 @@ async function onLogin(user) {
   const ok = await checkAndApplyPunishment(user.id);
   if (!ok) return;
 
-  const { data: profile } = await sb.from('profiles').select('nickname, lang, avatar_url').eq('id', user.id).single();
+  const { data: profile } = await sb.from('profiles').select('nickname, lang, avatar_url, agreed_terms_version').eq('id', user.id).single();
   currentAvatarUrl = profile?.avatar_url || '';
 
   const savedLang = profile?.lang || localStorage.getItem('lang') || 'auto';
@@ -628,12 +628,63 @@ async function onLogin(user) {
   if (langSelect) langSelect.value = savedLang;
   setLang(savedLang);
 
+  // 이용약관 동의 체크
+  const termsOk = await checkTermsAgreement(user.id, profile?.agreed_terms_version ?? 0);
+  if (!termsOk) return;
+
   if (profile?.nickname) {
     currentNickname = profile.nickname;
     await goToMain();
   } else {
     showScreen('nickname');
   }
+}
+
+async function checkTermsAgreement(userId, agreedVersion) {
+  const { data: terms } = await sb.from('terms').select('version').eq('id', 1).maybeSingle();
+  const currentVersion = terms?.version ?? 1;
+  if (agreedVersion >= currentVersion) return true;
+
+  return new Promise(resolve => {
+    showTermsAgreeModal(currentVersion, async agreed => {
+      if (!agreed) {
+        currentUser = null;
+        await sb.auth.signOut();
+        resolve(false);
+        return;
+      }
+      await sb.from('profiles').update({ agreed_terms_version: currentVersion }).eq('id', userId);
+      resolve(true);
+    });
+  });
+}
+
+async function showTermsAgreeModal(version, callback) {
+  const modal = document.getElementById('terms-agree-modal');
+  const content = document.getElementById('terms-agree-content');
+  content.innerHTML = '<span style="color:var(--text-muted);">불러오는 중...</span>';
+  modal.classList.remove('hidden');
+
+  const { data: terms } = await sb.from('terms').select('content').eq('id', 1).maybeSingle();
+  if (terms?.content) {
+    const lines = escHtml(terms.content).split('\n');
+    content.innerHTML = lines.map(line => {
+      const t = line.trim();
+      if (/^제\d+조/.test(t) || /^부칙/.test(t)) return `<strong style="display:block;color:var(--text);font-weight:700;margin-top:14px;">${line}</strong>`;
+      return line || '';
+    }).join('\n');
+  } else {
+    content.textContent = '이용약관을 불러올 수 없습니다.';
+  }
+
+  document.getElementById('terms-agree-btn').onclick = () => {
+    modal.classList.add('hidden');
+    callback(true);
+  };
+  document.getElementById('terms-disagree-btn').onclick = () => {
+    modal.classList.add('hidden');
+    callback(false);
+  };
 }
 
 async function goToMain() {

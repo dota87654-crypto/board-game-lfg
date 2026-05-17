@@ -275,6 +275,15 @@
 
   <!-- 이용약관 탭 -->
   <div id="tab-terms" class="tab-content" style="display:none;">
+    <div class="announce-form" style="margin-bottom:16px;">
+      <h4>버전 관리</h4>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:12px;flex-wrap:wrap;">
+        <span style="font-size:0.9rem;">현재 버전: <b id="terms-current-version" style="color:var(--primary);">-</b></span>
+        <button class="btn btn-warn" id="terms-bump-version-btn">버전 올리기 (전체 재동의)</button>
+        <span id="terms-version-status" style="font-size:0.82rem;color:var(--text-muted);"></span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-muted);margin-top:8px;">버전을 올리면 모든 유저가 다음 로그인 시 이용약관 동의를 다시 해야 합니다.</p>
+    </div>
     <div class="announce-form">
       <h4>이용약관 내용 편집</h4>
       <div class="form-row">
@@ -285,10 +294,6 @@
         <button class="btn btn-primary" id="terms-save-btn">저장</button>
         <span id="terms-save-status" style="font-size:0.82rem;color:var(--text-muted);"></span>
       </div>
-    </div>
-    <div id="terms-preview-wrap" class="activity-section" style="display:none;">
-      <div class="activity-section-title">미리보기</div>
-      <div id="terms-preview-body" style="font-size:0.875rem;line-height:1.9;white-space:pre-wrap;word-break:break-word;color:var(--text-muted);"></div>
     </div>
   </div>
 

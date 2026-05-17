@@ -1173,13 +1173,18 @@ async function renderGuildLog(guild, container) {
 async function loadAdminTerms() {
   const textarea = document.getElementById('terms-content-input');
   const status = document.getElementById('terms-save-status');
+  const verEl = document.getElementById('terms-current-version');
+  const verStatus = document.getElementById('terms-version-status');
   textarea.value = '';
   status.textContent = '불러오는 중...';
+  verEl.textContent = '-';
+  verStatus.textContent = '';
 
-  const { data, error } = await sb.from('terms').select('content, updated_at').eq('id', 1).maybeSingle();
+  const { data, error } = await sb.from('terms').select('content, updated_at, version').eq('id', 1).maybeSingle();
   if (error) { status.textContent = '오류: ' + error.message; return; }
   if (data) {
     textarea.value = data.content;
+    verEl.textContent = data.version ?? 1;
     const d = new Date(data.updated_at).toLocaleString('ko-KR');
     status.textContent = `마지막 저장: ${d}`;
   } else {
@@ -1202,6 +1207,27 @@ document.getElementById('terms-save-btn').addEventListener('click', async () => 
   btn.disabled = false;
   if (error) { status.textContent = '저장 실패: ' + error.message; return; }
   status.textContent = `저장 완료: ${new Date(now).toLocaleString('ko-KR')}`;
+});
+
+document.getElementById('terms-bump-version-btn').addEventListener('click', async () => {
+  const verEl = document.getElementById('terms-current-version');
+  const verStatus = document.getElementById('terms-version-status');
+  const curVer = parseInt(verEl.textContent) || 1;
+  const nextVer = curVer + 1;
+
+  if (!confirm(`버전을 ${curVer} → ${nextVer}로 올리면 모든 유저가 다음 로그인 시 이용약관 재동의가 필요합니다.\n계속하시겠습니까?`)) return;
+
+  const btn = document.getElementById('terms-bump-version-btn');
+  btn.disabled = true;
+  verStatus.textContent = '업데이트 중...';
+
+  const now = new Date().toISOString();
+  const { error } = await sb.from('terms').upsert({ id: 1, version: nextVer, updated_at: now }, { onConflict: 'id' });
+
+  btn.disabled = false;
+  if (error) { verStatus.textContent = '실패: ' + error.message; return; }
+  verEl.textContent = nextVer;
+  verStatus.textContent = `v${nextVer} 적용 완료 — 모든 유저 재동의 필요`;
 });
 
 // ── 전체 유저 목록 ────────────────────────────────────────────────────────
