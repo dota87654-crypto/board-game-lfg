@@ -2428,24 +2428,29 @@ function statusDot(status, uid) {
 async function setOnlineStatus(status) {
   if (!currentUser) return;
   _myStatus = status;
+  localStorage.setItem(`status_pref_${currentUser.id}`, status);
   const dot = document.getElementById('my-status-dot');
   if (dot) dot.className = `status-dot ${status}`;
-  onlineStatusMap[currentUser.id] = status;
-  await sb.from('profiles').update({ online_status: status, last_seen: new Date().toISOString() }).eq('id', currentUser.id);
+  const dbStatus = status === 'invisible' ? 'offline' : status;
+  onlineStatusMap[currentUser.id] = dbStatus;
+  await sb.from('profiles').update({ online_status: dbStatus, last_seen: new Date().toISOString() }).eq('id', currentUser.id);
 }
 
 function _resetAwayTimer() {
+  if (_myStatus === 'invisible') return;
   clearTimeout(_awayTimer);
   _awayTimer = setTimeout(() => setOnlineStatus('away'), 5 * 60 * 1000);
 }
 
 function _onActivity() {
+  if (_myStatus === 'invisible') return;
   if (_myStatus === 'away') setOnlineStatus('online');
   _resetAwayTimer();
 }
 
 function startPresence() {
-  setOnlineStatus('online');
+  const savedPref = localStorage.getItem(`status_pref_${currentUser.id}`);
+  setOnlineStatus(savedPref === 'invisible' ? 'invisible' : 'online');
   _presenceTimer = setInterval(() => {
     if (!currentUser) return;
     sb.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', currentUser.id);
@@ -2469,6 +2474,7 @@ function startPresence() {
 }
 
 function _onVisibility() {
+  if (_myStatus === 'invisible') return;
   if (document.hidden) {
     if (_myStatus === 'online') setOnlineStatus('away');
   } else {
