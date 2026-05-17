@@ -2519,6 +2519,45 @@ document.querySelectorAll('#status-dropdown .status-option').forEach(opt => {
 });
 document.addEventListener('click', () => document.getElementById('status-dropdown')?.classList.add('hidden'));
 
+// --- 전역 키보드 단축키 ---
+document.addEventListener('keydown', e => {
+  const active = document.activeElement;
+  const tag = active?.tagName?.toLowerCase();
+  const isInput = tag === 'input' || tag === 'textarea' || tag === 'select' || active?.isContentEditable;
+
+  // ESC: 열린 모달·드롭다운·컨텍스트 메뉴 닫기 (입력 중에도 동작)
+  if (e.key === 'Escape') {
+    document.getElementById('status-dropdown')?.classList.add('hidden');
+    document.getElementById('room-search-dropdown')?.classList.add('hidden');
+    document.getElementById('tag-filter-dropdown')?.classList.add('hidden');
+    document.getElementById('game-name-dropdown')?.classList.add('hidden');
+    hideContextMenu?.();
+    hideDMListContextMenu?.();
+    const openModals = [...document.querySelectorAll('.modal-overlay:not(.hidden)')];
+    if (openModals.length) {
+      const top = openModals.reduce((a, b) => {
+        const zA = parseInt(window.getComputedStyle(a).zIndex) || 0;
+        const zB = parseInt(window.getComputedStyle(b).zIndex) || 0;
+        return zB > zA ? b : a;
+      });
+      top.classList.add('hidden');
+    }
+    return;
+  }
+
+  // 입력창 포커스 중에는 이하 단축키 비활성
+  if (isInput) return;
+
+  // /: 방 목록 검색창 포커스 (메인 화면일 때)
+  if (e.key === '/') {
+    const roomSearchInput = document.getElementById('room-search-input');
+    if (roomSearchInput && !document.getElementById('main-screen')?.classList.contains('hidden')) {
+      e.preventDefault();
+      roomSearchInput.focus();
+    }
+  }
+});
+
 // --- Notifications (Web Audio API) ---
 const NOTIF_DEFAULTS = { join: true, leave: true, chat: true, dm: true, chat_in_room: true, dm_in_dm: true, friend_req: true, guild_request: true, guild_request_list: true, guild_chat: true, guild_chat_list: true };
 let audioCtx = null;
