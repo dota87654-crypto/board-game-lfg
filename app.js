@@ -41,7 +41,7 @@ const TRANSLATIONS = {
     'settings.notif.chat-in-room': '💬 방 채팅 알림 (방 안)',
     'settings.notif.dm-in-dm': '✉️ DM 채팅 중 알림',
     'settings.notif.friend-req': '👤 친구 요청 알림',
-    'settings.theme': '테마', 'settings.theme.label': '다크 모드',
+    'settings.theme': '테마', 'settings.theme.label': '테마 설정',
     'settings.filter': '채팅 필터', 'settings.filter.profanity': '🤬 욕설 필터',
     'settings.lang': '언어', 'settings.lang.label': '표시 언어', 'lang.auto': '자동 감지',
     'title.friends': '친구', 'title.dm': '메시지', 'title.settings': '설정', 'title.theme': '테마 변경',
@@ -153,7 +153,7 @@ const TRANSLATIONS = {
     'settings.notif.chat-in-room': '💬 Room Chat Alert (In Room)',
     'settings.notif.dm-in-dm': '✉️ Alert while in DM',
     'settings.notif.friend-req': '👤 Friend Request Alert',
-    'settings.theme': 'Theme', 'settings.theme.label': 'Dark Mode',
+    'settings.theme': 'Theme', 'settings.theme.label': 'Theme',
     'settings.filter': 'Chat Filter', 'settings.filter.profanity': '🤬 Profanity Filter',
     'settings.lang': 'Language', 'settings.lang.label': 'Display Language', 'lang.auto': 'Auto Detect',
     'title.friends': 'Friends', 'title.dm': 'Messages', 'title.settings': 'Settings', 'title.theme': 'Toggle Theme',
@@ -397,24 +397,33 @@ document.querySelectorAll('input[type="datetime-local"]').forEach(input => {
 
 // --- Theme ---
 
+const _sysMq = window.matchMedia('(prefers-color-scheme: dark)');
+let _sysMqListener = null;
+
 function applyTheme(mode) {
-  if (mode === 'light') {
-    document.body.classList.add('light');
-  } else {
-    document.body.classList.remove('light');
+  if (_sysMqListener) {
+    _sysMq.removeEventListener('change', _sysMqListener);
+    _sysMqListener = null;
   }
-  const toggle = document.getElementById('theme-toggle');
-  if (toggle) toggle.checked = mode !== 'light';
+
+  const sel = document.getElementById('theme-select');
+  if (sel) sel.value = mode;
+
+  if (mode === 'system') {
+    document.body.classList.toggle('light', !_sysMq.matches);
+    _sysMqListener = e => document.body.classList.toggle('light', !e.matches);
+    _sysMq.addEventListener('change', _sysMqListener);
+  } else {
+    document.body.classList.toggle('light', mode === 'light');
+  }
 }
 
-// 저장된 테마 적용
+// 저장된 테마 적용 (기본값: dark)
 applyTheme(localStorage.getItem('theme') || 'dark');
 
-
-document.getElementById('theme-toggle').addEventListener('change', e => {
-  const next = e.target.checked ? 'dark' : 'light';
-  localStorage.setItem('theme', next);
-  applyTheme(next);
+document.getElementById('theme-select').addEventListener('change', e => {
+  localStorage.setItem('theme', e.target.value);
+  applyTheme(e.target.value);
 });
 
 // 초기 언어 적용 (로그인 전)
