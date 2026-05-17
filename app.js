@@ -4474,7 +4474,7 @@ document.getElementById('guild-main-btn').addEventListener('click', () => {
 
 async function loadGuildList() {
   const { data: myMemberships } = await sb.from('guild_members')
-    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names, guild_notice)')
+    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names, guild_notice, join_questions)')
     .eq('user_id', currentUser.id);
 
   myGuilds = (myMemberships || [])
@@ -4608,27 +4608,52 @@ function renderPublicGuilds(guilds, myGuildIds, requestMap = {}) {
 
 async function requestJoinGuild(guildId, btn) {
   if (myGuilds.length >= 3) { alert('최대 3개 길드까지 가입할 수 있습니다.'); return; }
-  // 기존 pending/rejected 상태 확인
   const { data: existing } = await sb.from('guild_join_requests')
     .select('status, rejected_at')
     .eq('guild_id', guildId).eq('user_id', currentUser.id)
     .in('status', ['pending', 'rejected']).maybeSingle();
-  if (existing?.status === 'pending') {
-    alert('이미 가입 신청 중입니다.');
-    return;
-  }
+  if (existing?.status === 'pending') { alert('이미 가입 신청 중입니다.'); return; }
   if (existing?.status === 'rejected') {
     const diffDays = Math.floor((Date.now() - new Date(existing.rejected_at).getTime()) / (1000 * 60 * 60 * 24));
     const daysLeft = 7 - diffDays;
-    if (daysLeft > 0) {
-      alert(`가입 신청이 거절됐습니다. ${daysLeft}일 후 재신청 가능합니다.`);
-      return;
-    }
-    // 7일 경과 — 기존 rejected 레코드 삭제 후 재신청
+    if (daysLeft > 0) { alert(`가입 신청이 거절됐습니다. ${daysLeft}일 후 재신청 가능합니다.`); return; }
     await sb.from('guild_join_requests').delete().eq('guild_id', guildId).eq('user_id', currentUser.id).eq('status', 'rejected');
   }
+  const { data: guildData } = await sb.from('guilds').select('name, join_questions').eq('id', guildId).single();
+  const questions = guildData?.join_questions || [];
+  if (questions.length > 0) {
+    showGuildJoinAnswerModal(guildId, guildData.name, questions, btn);
+  } else {
+    await submitGuildJoinRequest(guildId, guildData?.name, [], btn);
+  }
+}
+
+function showGuildJoinAnswerModal(guildId, guildName, questions, btn) {
+  const form = document.getElementById('guild-join-answer-form');
+  form.innerHTML = `<p style="margin-bottom:12px;color:var(--text-muted);font-size:0.88rem;">아래 질문에 답변해주세요.</p>` +
+    questions.map((q, i) => `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:0.88rem;font-weight:600;margin-bottom:5px;">${i + 1}. ${escHtml(q)}</div>
+        <textarea id="guild-join-ans-${i}" class="guild-settings-input" maxlength="200" rows="2" placeholder="답변을 입력하세요..." style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>`).join('');
+  document.getElementById('guild-join-answer-modal').classList.remove('hidden');
+  document.getElementById('guild-join-answer-submit-btn').onclick = async () => {
+    const answers = questions.map((_, i) => (document.getElementById(`guild-join-ans-${i}`)?.value || '').trim());
+    if (answers.some(a => !a)) { alert('모든 질문에 답변해주세요.'); return; }
+    document.getElementById('guild-join-answer-modal').classList.add('hidden');
+    await submitGuildJoinRequest(guildId, guildName, answers, btn);
+  };
+}
+
+document.getElementById('close-guild-join-answer-btn').addEventListener('click', () => {
+  document.getElementById('guild-join-answer-modal').classList.add('hidden');
+});
+
+async function submitGuildJoinRequest(guildId, guildName, answers, btn) {
   btn.disabled = true;
-  const { error } = await sb.from('guild_join_requests').insert({ guild_id: guildId, user_id: currentUser.id });
+  const row = { guild_id: guildId, user_id: currentUser.id };
+  if (answers.length > 0) row.answers = answers;
+  const { error } = await sb.from('guild_join_requests').insert(row);
   if (error) {
     btn.disabled = false;
     if (error.code === '23505') alert('이미 가입 신청 중입니다.');
@@ -4636,14 +4661,12 @@ async function requestJoinGuild(guildId, btn) {
     return;
   }
   btn.textContent = '신청됨';
-  btn.disabled = true;
   const { data: officers, error: offErr } = await sb.from('guild_members')
     .select('user_id').eq('guild_id', guildId).in('role', ['owner', 'officer']);
   console.log('[guild] officers found:', officers, offErr);
-  const { data: guild } = await sb.from('guilds').select('name').eq('id', guildId).single();
   if (officers?.length) {
     const { error: notifErr } = await sb.from('notifications').insert(
-      officers.map(o => ({ user_id: o.user_id, type: 'guild_request', message: `${currentNickname}님이 [${guild?.name}] 길드 가입을 신청했습니다.`, is_read: false }))
+      officers.map(o => ({ user_id: o.user_id, type: 'guild_request', message: `${currentNickname}님이 [${guildName}] 길드 가입을 신청했습니다.`, is_read: false }))
     );
     console.log('[guild] notification insert error:', notifErr);
   } else {
@@ -5268,7 +5291,7 @@ async function openGuildRequestsModal() {
     .eq('user_id', currentUser.id).eq('type', 'guild_request').eq('is_read', false);
 
   const { data } = await sb.from('guild_join_requests')
-    .select('id, user_id, created_at')
+    .select('id, user_id, created_at, answers')
     .eq('guild_id', currentGuild.id).eq('status', 'pending').order('created_at', { ascending: true });
   const list = document.getElementById('guild-requests-list');
   if (!data?.length) {
@@ -5278,14 +5301,28 @@ async function openGuildRequestsModal() {
     const { data: profiles } = await sb.from('profiles').select('id, nickname, display_name, email').in('id', userIds);
     const profileMap = {};
     (profiles || []).forEach(p => { profileMap[p.id] = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음'; });
-    list.innerHTML = data.map(req => `
-      <div class="guild-request-item" data-req-id="${req.id}">
-        <span class="guild-member-name">${escHtml(profileMap[req.user_id] || '알 수 없음')}</span>
-        <div class="guild-member-actions">
-          <button class="btn btn-sm btn-primary req-approve-btn" data-req-id="${req.id}" data-uid="${req.user_id}" data-name="${escHtml(profileMap[req.user_id] || '알 수 없음')}">승인</button>
-          <button class="btn btn-sm btn-danger req-reject-btn" data-req-id="${req.id}" data-uid="${req.user_id}" data-name="${escHtml(profileMap[req.user_id] || '알 수 없음')}">거절</button>
-        </div>
-      </div>`).join('');
+    const questions = currentGuild.join_questions || [];
+    list.innerHTML = data.map(req => {
+      const name = escHtml(profileMap[req.user_id] || '알 수 없음');
+      const answersHtml = questions.length && req.answers?.length
+        ? `<div class="guild-req-answers">${questions.map((q, i) => `
+            <div class="guild-req-qa">
+              <div class="guild-req-q">Q${i + 1}. ${escHtml(q)}</div>
+              <div class="guild-req-a">${escHtml(req.answers[i] || '(답변 없음)')}</div>
+            </div>`).join('')}</div>`
+        : '';
+      return `
+        <div class="guild-request-item" data-req-id="${req.id}">
+          <div class="guild-request-item-top">
+            <span class="guild-member-name">${name}</span>
+            <div class="guild-member-actions">
+              <button class="btn btn-sm btn-primary req-approve-btn" data-req-id="${req.id}" data-uid="${req.user_id}" data-name="${name}">승인</button>
+              <button class="btn btn-sm btn-danger req-reject-btn" data-req-id="${req.id}" data-uid="${req.user_id}" data-name="${name}">거절</button>
+            </div>
+          </div>
+          ${answersHtml}
+        </div>`;
+    }).join('');
     list.querySelectorAll('.req-approve-btn').forEach(btn =>
       btn.addEventListener('click', () => handleGuildRequest(btn.dataset.reqId, btn.dataset.uid, true, btn.dataset.name)));
     list.querySelectorAll('.req-reject-btn').forEach(btn =>
@@ -5342,26 +5379,64 @@ async function leaveGuild() {
 document.getElementById('guild-settings-btn').addEventListener('click', () => openSettings());
 document.getElementById('guild-manage-btn').addEventListener('click', openGuildSettings);
 
+let _editingQuestions = [];
+
 function openGuildSettings() {
   if (!currentGuild) return;
+  _editingQuestions = [...(currentGuild.join_questions || [])];
   document.getElementById('guild-edit-name').value = currentGuild.name;
   document.getElementById('guild-edit-desc').value = currentGuild.description || '';
   document.getElementById('guild-edit-public').checked = currentGuild.is_public !== false;
+  renderGuildQuestionsEditor();
   document.getElementById('guild-settings-modal').classList.remove('hidden');
 }
+
+function syncQuestionsFromEditor() {
+  document.querySelectorAll('.guild-question-input').forEach((el, i) => {
+    _editingQuestions[i] = el.value;
+  });
+}
+
+function renderGuildQuestionsEditor() {
+  const list = document.getElementById('guild-questions-list');
+  list.innerHTML = _editingQuestions.map((q, i) => `
+    <div class="guild-question-row">
+      <input type="text" class="guild-settings-input guild-question-input" value="${escHtml(q)}" maxlength="100" placeholder="질문을 입력하세요..." />
+      <button type="button" class="btn btn-xs btn-danger guild-question-del" data-idx="${i}">삭제</button>
+    </div>`).join('');
+  list.querySelectorAll('.guild-question-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      syncQuestionsFromEditor();
+      _editingQuestions.splice(parseInt(btn.dataset.idx), 1);
+      renderGuildQuestionsEditor();
+    });
+  });
+  document.getElementById('guild-add-question-btn').classList.toggle('hidden', _editingQuestions.length >= 3);
+}
+
+document.getElementById('guild-add-question-btn').addEventListener('click', () => {
+  syncQuestionsFromEditor();
+  if (_editingQuestions.length >= 3) return;
+  _editingQuestions.push('');
+  renderGuildQuestionsEditor();
+  const inputs = document.querySelectorAll('.guild-question-input');
+  inputs[inputs.length - 1]?.focus();
+});
 
 document.getElementById('close-guild-settings-btn').addEventListener('click', () => {
   document.getElementById('guild-settings-modal').classList.add('hidden');
 });
 
 document.getElementById('guild-save-settings-btn').addEventListener('click', async () => {
+  syncQuestionsFromEditor();
   const name = document.getElementById('guild-edit-name').value.trim();
   const desc = document.getElementById('guild-edit-desc').value.trim();
   const isPublic = document.getElementById('guild-edit-public').checked;
   if (!name || name.length < 2) { alert('길드 이름은 2자 이상이어야 합니다.'); return; }
-  const { error } = await sb.from('guilds').update({ name, description: desc, is_public: isPublic }).eq('id', currentGuild.id);
+  const questions = _editingQuestions.map(q => q.trim()).filter(q => q);
+  const { error } = await sb.from('guilds').update({ name, description: desc, is_public: isPublic, join_questions: questions.length ? questions : null }).eq('id', currentGuild.id);
   if (error) { alert('저장 실패: ' + error.message); return; }
-  currentGuild = { ...currentGuild, name, description: desc, is_public: isPublic };
+  currentGuild = { ...currentGuild, name, description: desc, is_public: isPublic, join_questions: questions.length ? questions : null };
   document.getElementById('guild-title-el').textContent = name;
   document.getElementById('guild-settings-modal').classList.add('hidden');
 });
@@ -5609,7 +5684,7 @@ function updateGuildChatBadge() {
 async function initGuildChatNotif() {
   // 로그인 직후 myGuilds가 비어있으므로 직접 로드 후 구독
   const { data: myMemberships } = await sb.from('guild_members')
-    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names, guild_notice)')
+    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names, guild_notice, join_questions)')
     .eq('user_id', currentUser.id);
   myGuilds = (myMemberships || []).filter(m => m.guilds).map(m => ({ ...m.guilds, myRole: m.role }));
   subscribeGuildChatNotif();

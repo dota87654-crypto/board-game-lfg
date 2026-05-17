@@ -841,10 +841,29 @@
         <span>공개 길드</span>
         <input type="checkbox" id="guild-edit-public" />
       </label>
+      <div class="guild-settings-field">
+        <label class="guild-settings-label">가입 질문 <span style="color:var(--text-muted);font-weight:400;font-size:0.78rem;">(최대 3개)</span></label>
+        <div id="guild-questions-list"></div>
+        <button id="guild-add-question-btn" type="button" class="btn btn-sm" style="margin-top:6px;">+ 질문 추가</button>
+      </div>
       <div class="guild-settings-footer">
         <button id="guild-save-settings-btn" class="btn btn-primary">저장</button>
         <button id="guild-delete-btn" class="btn btn-danger">길드 삭제</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 길드 가입 질문 답변 모달 -->
+<div id="guild-join-answer-modal" class="modal-overlay hidden">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>가입 질문 답변</h3>
+      <button id="close-guild-join-answer-btn" class="modal-close">✕</button>
+    </div>
+    <div id="guild-join-answer-form" style="padding:4px 0;"></div>
+    <div style="text-align:right;margin-top:14px;">
+      <button id="guild-join-answer-submit-btn" class="btn btn-primary">신청하기</button>
     </div>
   </div>
 </div>

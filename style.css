@@ -1804,13 +1804,36 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
 
 .guild-request-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
-  gap: 8px;
+  gap: 6px;
 }
 .guild-request-item:last-child { border-bottom: none; }
+.guild-request-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.guild-req-answers {
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.guild-req-qa { display: flex; flex-direction: column; gap: 2px; }
+.guild-req-q { font-size: 0.78rem; color: var(--text-muted); }
+.guild-req-a { font-size: 0.88rem; color: var(--text); word-break: break-word; }
+.guild-question-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.guild-question-row .guild-settings-input { flex: 1; margin-bottom: 0; }
 .guild-room-field {
   margin-bottom: 12px;
   padding: 10px 14px;
