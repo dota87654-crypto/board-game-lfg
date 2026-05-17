@@ -4786,6 +4786,7 @@ function renderGuildNoticeBar(notice, canManage) {
 
   editBtn.classList.toggle('hidden', !canManage);
   deleteBtn.classList.toggle('hidden', !canManage || !notice);
+  text.style.cursor = canManage ? 'pointer' : '';
 }
 
 async function saveGuildNotice(notice) {
@@ -4796,12 +4797,18 @@ async function saveGuildNotice(notice) {
   renderGuildNoticeBar(notice || null, canManage);
 }
 
-document.getElementById('guild-notice-edit-btn').addEventListener('click', () => {
+function openGuildNoticeEditor() {
   const current = currentGuild?.guild_notice || '';
   const input = prompt('길드 공지를 입력하세요 (최대 300자):', current);
   if (input === null) return;
-  const trimmed = input.trim().slice(0, 300);
-  saveGuildNotice(trimmed);
+  saveGuildNotice(input.trim().slice(0, 300));
+}
+
+document.getElementById('guild-notice-edit-btn').addEventListener('click', openGuildNoticeEditor);
+
+document.getElementById('guild-notice-text').addEventListener('click', () => {
+  const canManage = currentGuild?.myRole === 'owner' || currentGuild?.myRole === 'officer';
+  if (canManage) openGuildNoticeEditor();
 });
 
 document.getElementById('guild-notice-delete-btn').addEventListener('click', () => {
