@@ -1533,14 +1533,31 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   border-top: 1px solid var(--border);
 }
 .announce-item-body.hidden { display: none; }
-#announce-list { max-height: 60vh; overflow-y: auto; }
-#faq-list { max-height: 60vh; overflow-y: auto; }
+/* 공지사항 모달 내부 스크롤 */
+#announce-modal .modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  overflow: hidden;
+}
+#announce-modal .modal-header { flex-shrink: 0; }
+#announce-list,
+#faq-list,
+#terms-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: none;
+  margin-right: -28px;
+  padding-right: 28px;
+}
 
 /* 공지 모달 탭 */
 .announce-modal-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
   margin: 0 0 16px 0;
+  flex-shrink: 0;
 }
 .announce-modal-tab {
   flex: 1;
