@@ -1886,16 +1886,21 @@ async function loadRoomMembers(roomId) {
   }
   if (!data?.length) { currentRoomMembers = []; renderMembersPanel(); return; }
   const userIds = data.map(m => m.user_id);
-  const { data: profiles } = await sb.from('profiles')
+  const { data: profiles, error: profileErr } = await sb.from('profiles')
     .select('id, nickname, display_name, email, avatar_url, online_status')
     .in('id', userIds);
+  let resolvedProfiles = profiles;
+  if (profileErr) {
+    const { data: fb } = await sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds);
+    resolvedProfiles = fb;
+  }
   const profileMap = {};
-  (profiles || []).forEach(p => {
-    onlineStatusMap[p.id] = p.online_status || 'offline';
+  (resolvedProfiles || []).forEach(p => {
+    if (p.online_status) onlineStatusMap[p.id] = p.online_status;
     profileMap[p.id] = {
       name: p.nickname || p.display_name || p.email?.split('@')[0] || t('unknown'),
       avatar_url: p.avatar_url || null,
-      onlineStatus: p.online_status || 'offline',
+      onlineStatus: p.online_status || onlineStatusMap[p.id] || 'offline',
     };
   });
   currentRoomMembers = data.map(m => ({
@@ -4792,16 +4797,21 @@ async function loadGuildMembers(guildId) {
     .eq('guild_id', guildId).order('joined_at', { ascending: true });
   if (!members?.length) { guildMembers = []; renderGuildMembersPanel(); return; }
   const userIds = members.map(m => m.user_id);
-  const [{ data: profiles }, { data: cards }] = await Promise.all([
+  const [{ data: profiles, error: profileErr }, { data: cards }] = await Promise.all([
     sb.from('profiles').select('id, nickname, display_name, email, avatar_url, online_status').in('id', userIds),
     sb.from('guild_cards').select('user_id, card_type, expires_at, id')
       .eq('guild_id', guildId).eq('card_type', 'yellow')
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`),
   ]);
+  let resolvedProfiles = profiles;
+  if (profileErr) {
+    const { data: fb } = await sb.from('profiles').select('id, nickname, display_name, email, avatar_url').in('id', userIds);
+    resolvedProfiles = fb;
+  }
   const profileMap = {};
-  (profiles || []).forEach(p => {
-    onlineStatusMap[p.id] = p.online_status || 'offline';
-    profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null, onlineStatus: p.online_status || 'offline' };
+  (resolvedProfiles || []).forEach(p => {
+    if (p.online_status) onlineStatusMap[p.id] = p.online_status;
+    profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null, onlineStatus: p.online_status || onlineStatusMap[p.id] || 'offline' };
   });
   const yellowCardMap = {};
   (cards || []).forEach(c => { yellowCardMap[c.user_id] = c; });
