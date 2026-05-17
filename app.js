@@ -507,10 +507,12 @@ document.getElementById('guest-inquiry-submit-btn').addEventListener('click', as
 
 async function upsertProfile(user) {
   const displayName = user.user_metadata?.full_name || user.email.split('@')[0];
+  const provider = user.app_metadata?.provider || null;
   const { error } = await sb.from('profiles').upsert({
     id: user.id,
     email: user.email,
     display_name: displayName,
+    provider,
   }, { onConflict: 'id', ignoreDuplicates: false });
   if (error) {
     console.error('Profile upsert error:', error.message);

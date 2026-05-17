@@ -57,6 +57,7 @@ function showTab(name) {
   if (name === 'faq') loadAdminFAQs();
   if (name === 'activity') { document.getElementById('activity-result').innerHTML = ''; }
   if (name === 'guild-log') { document.getElementById('guild-log-result').innerHTML = ''; }
+  if (name === 'user-list') loadUserList();
 }
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
@@ -1164,6 +1165,102 @@ async function renderGuildLog(guild, container) {
       </div>
     `;
   }
+}
+
+// ── 전체 유저 목록 ────────────────────────────────────────────────────────
+
+document.getElementById('user-list-search-btn').addEventListener('click', loadUserList);
+document.getElementById('user-list-search').addEventListener('keydown', e => { if (e.key === 'Enter') loadUserList(); });
+document.getElementById('user-list-sort').addEventListener('change', loadUserList);
+
+async function loadUserList() {
+  const container = document.getElementById('user-list-table');
+  const countEl = document.getElementById('user-list-count');
+  const search = document.getElementById('user-list-search').value.trim();
+  const sort = document.getElementById('user-list-sort').value;
+
+  container.innerHTML = '<div class="empty">로딩 중...</div>';
+  countEl.textContent = '';
+
+  const sortOpts = {
+    created_at: { ascending: false },
+    last_seen:  { ascending: false, nullsFirst: false },
+    nickname:   { ascending: true },
+  };
+  const { ascending, nullsFirst } = sortOpts[sort] ?? { ascending: false };
+
+  let baseQuery = sb.from('profiles').select('id, nickname, display_name, email, provider, created_at, last_seen, online_status');
+  if (search) baseQuery = baseQuery.ilike('nickname', `%${search}%`);
+
+  let countQuery = sb.from('profiles').select('id', { count: 'exact', head: true });
+  if (search) countQuery = countQuery.ilike('nickname', `%${search}%`);
+
+  const [{ data: profiles, error }, { count }] = await Promise.all([
+    baseQuery.order(sort, { ascending, nullsFirst }).limit(200),
+    countQuery,
+  ]);
+
+  if (error) {
+    // Retry without potentially missing columns
+    const { data: fallback, error: err2 } = await sb.from('profiles')
+      .select('id, nickname, display_name, email, created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (err2) { container.innerHTML = `<div class="empty">오류: ${err2.message}</div>`; return; }
+    renderUserListTable(fallback, count, container, countEl);
+    return;
+  }
+
+  renderUserListTable(profiles, count, container, countEl);
+}
+
+function renderUserListTable(profiles, count, container, countEl) {
+  const total = count ?? profiles?.length ?? 0;
+  const shown = profiles?.length ?? 0;
+  countEl.textContent = `총 ${total}명${shown < total ? ` (상위 ${shown}명 표시)` : ''}`;
+
+  if (!profiles?.length) { container.innerHTML = '<div class="empty">유저가 없습니다.</div>'; return; }
+
+  const providerLabel = { google: '🔵 Google', discord: '🟣 Discord' };
+  const statusLabel   = { online: '🟢 온라인', away: '🟡 자리비움', offline: '⚫ 오프라인' };
+
+  const rows = profiles.map((p, i) => {
+    const name     = p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음';
+    const provider = providerLabel[p.provider] ?? (p.provider ? escHtml(p.provider) : '-');
+    const joined   = p.created_at ? new Date(p.created_at).toLocaleDateString('ko-KR') : '-';
+    const lastSeen = p.last_seen  ? new Date(p.last_seen).toLocaleString('ko-KR')       : '-';
+    const status   = statusLabel[p.online_status] ?? '⚫ 오프라인';
+    return `<tr class="activity-user-pick" data-idx="${i}">
+      <td>${escHtml(name)}</td>
+      <td>${escHtml(p.email || '-')}</td>
+      <td>${provider}</td>
+      <td>${joined}</td>
+      <td>${lastSeen}</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="activity-section">
+      <table class="activity-table">
+        <thead><tr><th>닉네임</th><th>이메일</th><th>로그인 방식</th><th>가입일</th><th>마지막 접속</th><th>상태</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+
+  container.querySelectorAll('.activity-user-pick').forEach(row => {
+    row.addEventListener('click', () => {
+      const profile = profiles[parseInt(row.dataset.idx)];
+      if (!profile) return;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector('.tab[data-tab="activity"]').classList.add('active');
+      showTab('activity');
+      const actContainer = document.getElementById('activity-result');
+      actContainer.innerHTML = '';
+      renderActivityLog(profile, actContainer);
+    });
+  });
 }
 
 init();

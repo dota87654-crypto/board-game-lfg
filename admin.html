@@ -115,6 +115,7 @@
   <div class="tab" data-tab="faq">❓ FAQ</div>
   <div class="tab" data-tab="activity">👤 활동 로그</div>
   <div class="tab" data-tab="guild-log">🏰 길드 로그</div>
+  <div class="tab" data-tab="user-list">📋 전체 유저</div>
 </div>
 
 <div class="content">
@@ -269,6 +270,22 @@
       <button class="btn btn-primary" id="guild-log-search-btn">검색</button>
     </div>
     <div id="guild-log-result"></div>
+  </div>
+
+  <!-- 전체 유저 목록 탭 -->
+  <div id="tab-user-list" class="tab-content" style="display:none;">
+    <div class="filter-bar">
+      <input type="text" id="user-list-search" class="form-input" placeholder="닉네임으로 검색..." style="max-width:240px;" />
+      <button class="btn btn-primary" id="user-list-search-btn">검색</button>
+      <label style="margin-left:8px;">정렬:</label>
+      <select id="user-list-sort">
+        <option value="created_at">가입일순</option>
+        <option value="last_seen">마지막 접속일순</option>
+        <option value="nickname">닉네임순</option>
+      </select>
+    </div>
+    <div id="user-list-count" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;"></div>
+    <div id="user-list-table"></div>
   </div>
 </div>
 
