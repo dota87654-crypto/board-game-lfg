@@ -3832,10 +3832,15 @@ async function loadFriends() {
 
   const profileMap = {};
   if (allIds.length > 0) {
-    const { data: profiles } = await sb.from('profiles').select('id, display_name, email, nickname, avatar_url, online_status').in('id', allIds);
-    (profiles || []).forEach(p => {
-      onlineStatusMap[p.id] = p.online_status || 'offline';
-      profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null, onlineStatus: p.online_status || 'offline' };
+    const { data: profiles, error: profileErr } = await sb.from('profiles').select('id, display_name, email, nickname, avatar_url, online_status').in('id', allIds);
+    let resolvedProfiles = profiles;
+    if (profileErr) {
+      const { data: fb } = await sb.from('profiles').select('id, display_name, email, nickname, avatar_url').in('id', allIds);
+      resolvedProfiles = fb;
+    }
+    (resolvedProfiles || []).forEach(p => {
+      if (p.online_status) onlineStatusMap[p.id] = p.online_status;
+      profileMap[p.id] = { name: p.nickname || p.display_name || p.email?.split('@')[0] || '알 수 없음', avatar_url: p.avatar_url || null, onlineStatus: p.online_status || onlineStatusMap[p.id] || 'offline' };
     });
   }
 
@@ -3845,7 +3850,7 @@ async function loadFriends() {
   });
 
   pendingList = pending.map(f => ({
-    id: f.id, requesterId: f.requester_id, name: profileMap[f.requester_id] || '알 수 없음'
+    id: f.id, requesterId: f.requester_id, name: profileMap[f.requester_id]?.name || '알 수 없음'
   }));
 
   console.log('[loadFriends] pending:', pendingList.length);
