@@ -4474,7 +4474,7 @@ document.getElementById('guild-main-btn').addEventListener('click', () => {
 
 async function loadGuildList() {
   const { data: myMemberships } = await sb.from('guild_members')
-    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names)')
+    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names, guild_notice)')
     .eq('user_id', currentUser.id);
 
   myGuilds = (myMemberships || [])
@@ -4693,6 +4693,8 @@ async function enterGuildDetail(guild) {
   document.getElementById('guild-members-panel').classList.remove('open');
   document.getElementById('guild-messages-list').innerHTML = '';
 
+  renderGuildNoticeBar(guild.guild_notice || null, canManageGuild);
+
   await loadGuildMessages(guild.id, guildLastReadAt);
   clearGuildUnread(guild.id);
   await loadGuildMembers(guild.id);
@@ -4758,8 +4760,54 @@ function subscribeGuildChat(guildId) {
         list.scrollTop = list.scrollHeight;
         playGuildChat(true);
       })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'guilds', filter: `id=eq.${guildId}` },
+      payload => {
+        const notice = payload.new.guild_notice || null;
+        const canManage = currentGuild?.myRole === 'owner' || currentGuild?.myRole === 'officer';
+        if (currentGuild) currentGuild.guild_notice = notice;
+        renderGuildNoticeBar(notice, canManage);
+      })
     .subscribe();
 }
+
+// --- Guild Notice ---
+function renderGuildNoticeBar(notice, canManage) {
+  const bar  = document.getElementById('guild-notice-bar');
+  const text = document.getElementById('guild-notice-text');
+  const editBtn   = document.getElementById('guild-notice-edit-btn');
+  const deleteBtn = document.getElementById('guild-notice-delete-btn');
+
+  if (!notice && !canManage) { bar.classList.add('hidden'); return; }
+
+  bar.classList.remove('hidden');
+  text.textContent = notice || '';
+  text.style.color = notice ? '' : 'var(--text-muted)';
+  if (!notice && canManage) text.textContent = '공지를 작성하세요...';
+
+  editBtn.classList.toggle('hidden', !canManage);
+  deleteBtn.classList.toggle('hidden', !canManage || !notice);
+}
+
+async function saveGuildNotice(notice) {
+  const { error } = await sb.from('guilds').update({ guild_notice: notice || null }).eq('id', currentGuild.id);
+  if (error) { alert('공지 저장 실패: ' + error.message); return; }
+  if (currentGuild) currentGuild.guild_notice = notice || null;
+  const canManage = currentGuild?.myRole === 'owner' || currentGuild?.myRole === 'officer';
+  renderGuildNoticeBar(notice || null, canManage);
+}
+
+document.getElementById('guild-notice-edit-btn').addEventListener('click', () => {
+  const current = currentGuild?.guild_notice || '';
+  const input = prompt('길드 공지를 입력하세요 (최대 300자):', current);
+  if (input === null) return;
+  const trimmed = input.trim().slice(0, 300);
+  saveGuildNotice(trimmed);
+});
+
+document.getElementById('guild-notice-delete-btn').addEventListener('click', () => {
+  if (!confirm('공지를 삭제하시겠습니까?')) return;
+  saveGuildNotice('');
+});
 
 document.getElementById('guild-send-btn').addEventListener('click', sendGuildMessage);
 document.getElementById('guild-chat-input').addEventListener('keydown', e => {
@@ -5554,7 +5602,7 @@ function updateGuildChatBadge() {
 async function initGuildChatNotif() {
   // 로그인 직후 myGuilds가 비어있으므로 직접 로드 후 구독
   const { data: myMemberships } = await sb.from('guild_members')
-    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names)')
+    .select('guild_id, role, guilds(id, name, description, is_public, owner_id, role_names, guild_notice)')
     .eq('user_id', currentUser.id);
   myGuilds = (myMemberships || []).filter(m => m.guilds).map(m => ({ ...m.guilds, myRole: m.role }));
   subscribeGuildChatNotif();

@@ -1154,6 +1154,42 @@ body.light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
   color: var(--text); padding: 10px; font-size: 0.95rem; margin-top: 12px; }
 
+/* Guild Notice Bar */
+.guild-notice-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 7px 12px;
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  box-sizing: border-box;
+  min-height: 36px;
+}
+.guild-notice-text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+}
+.guild-notice-edit-btn, .guild-notice-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.guild-notice-edit-btn:hover { background: var(--surface2); color: var(--text); }
+.guild-notice-delete-btn:hover { background: #f003; color: #f66; }
+
 .room-layout {
   flex: 1;
   display: flex;
